@@ -11,7 +11,8 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | T01 | Setup do projeto (scaffolding backend + frontend, Prisma init) | concluída | — | `tasks/T01-setup-projeto.md` |
 | T02 | Schema Prisma completo + migração inicial | concluída | T01 | `tasks/T02-schema-prisma.md` |
 | T03 | Módulo de autenticação (RF01) | concluída | T02 | `tasks/T03-autenticacao.md` |
-| T04 | CRUD de Produto (RF02) | pendente | T02, T03 | `tasks/T04-crud-produto.md` |
+| T03b | Tela de login e sessão no frontend | concluída | T03 | `tasks/T03b-tela-login.md` |
+| T04 | CRUD de Produto (RF02) | pendente | T02, T03b | `tasks/T04-crud-produto.md` |
 | T05 | Cadastro de UnidadeProduto individual e em lote (RF03) | pendente | T04 | `tasks/T05-cadastro-unidade.md` |
 
 ## Incremento 2 — Núcleo: saída com validação FIFO + EventoLog
@@ -66,6 +67,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | Assim que T05 gerar códigos | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16) | Pode reabrir o formato do `codigoQr`, que é provisório |
 | Ao concluir T10 | Teste da câmera em celular real (RF05). `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — **avisar o orientando** | Fluxo de leitura de QR não verificado no dispositivo-alvo |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
+| Antes da próxima tarefa de UI | Instalar um navegador para o `playwright-cli` (`playwright-cli install-browser firefox`). Hoje ele está instalado sem navegador compatível, e a conferência de T03b/T04 no navegador não pôde ser executada | Alterações de tela seguem conferidas só por Vitest, sem verificação visual |
 
 ---
 
