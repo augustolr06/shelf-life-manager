@@ -10,13 +10,14 @@ O PRD completo está em `docs/PRD-original.md`. Não precisa reler o PRD inteiro
 
 ## Onde encontrar cada coisa
 
-| Preciso de... | Arquivo |
-|---|---|
-| Stack, modelo de dados, contratos de API, especificação da função FIFO | `docs/arquitetura.md` |
-| Histórico de decisões de design e por quê | `docs/decisoes.md` |
-| Lista de todas as tarefas do projeto, com status | `tasks/backlog.md` |
-| Detalhes de implementação de UMA tarefa específica | `tasks/TNN-slug.md` |
-| Requisitos originais completos (referência, não reler por padrão) | `docs/PRD-original.md` |
+| Preciso de...                                                          | Arquivo                     |
+| ---------------------------------------------------------------------- | --------------------------- |
+| Stack, modelo de dados, contratos de API, especificação da função FIFO | `docs/arquitetura.md`       |
+| Histórico de decisões de design e por quê                              | `docs/decisoes.md`          |
+| Lista de todas as tarefas do projeto, com status                       | `tasks/backlog.md`          |
+| Detalhes de implementação de UMA tarefa específica                     | `tasks/TNN-slug.md`         |
+| Requisitos originais completos (referência, não reler por padrão)      | `docs/PRD-original.md`      |
+| Pontos de decisão e descobertas relevantes para o artigo do TCC        | `docs/notas-para-artigo.md` |
 
 ## Como trabalhar neste projeto
 
@@ -55,6 +56,19 @@ Limites — respeitar estritamente:
 - **RNF04** — o frontend nunca decide o veredito. Ele só reflete o que o backend retornou.
 - **RNF05** — `EventoLog` é append-only. Nunca gerar `UPDATE` ou `DELETE` nessa tabela pela aplicação.
 - **Seção 8 do PRD** — os casos de teste da função `validarSaidaFifo` (tarefa T06) são escritos **antes** da implementação (T07), não depois.
+
+## Documentação para o artigo do TCC
+
+Este projeto é a implementação de referência de um artigo sobre controle de estoque por FIFO de validade para lojas de pequeno porte que recebem produtos em entregas mistas (unidades do mesmo SKU com validades diferentes) e hoje fazem esse controle manualmente.
+
+Registre em `docs/notas-para-artigo.md` qualquer ponto que seja relevante para apresentar a solução no artigo. Isso é mais amplo que `docs/decisoes.md` (que é só o histórico técnico) — inclui:
+
+- uma escolha de design que resolve especificamente uma limitação do processo manual (o exemplo já registrado: QR por unidade física, não por lote)
+- um trade-off que apareceu durante a implementação e que não estava previsto no PRD
+- uma descoberta feita ao escrever testes (ex: um caso de borda do FIFO que revela algo sobre o problema em si, não só sobre o código)
+- uma limitação da solução que deveria ser mencionada honestamente no artigo (escopo não coberto, trabalho futuro)
+
+Não espere ser perguntado — se notar algo que se encaixa nesses critérios durante qualquer tarefa, registre por conta própria, seguindo o formato já usado no arquivo. Isso é adicional ao passo 5 do fluxo acima (que é sobre `docs/decisoes.md`), não um substituto — uma mesma decisão pode gerar entrada nos dois arquivos, com enquadramentos diferentes (um técnico, um voltado ao problema/solução do artigo).
 
 ## Stack (decidida em `docs/decisoes.md`)
 
