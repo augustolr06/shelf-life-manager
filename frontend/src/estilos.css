@@ -142,3 +142,98 @@ input {
 .aplicacao > main {
   padding: 1rem;
 }
+
+.tela-produtos h2 {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+}
+
+.formulario-produto,
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+}
+
+.formulario-produto h3 {
+  width: 100%;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+}
+
+.campo label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.formulario-produto .erro {
+  width: 100%;
+}
+
+.caixa-selecao {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.caixa-selecao input {
+  min-height: auto;
+  width: 1rem;
+  height: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 0.875rem;
+}
+
+caption {
+  padding: 0.5rem 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--cor-borda);
+  text-align: left;
+}
+
+th {
+  background: #f9fafb;
+  font-size: 0.8125rem;
+}
+
+.linha-inativa {
+  color: var(--cor-texto-suave);
+}
+
+td button {
+  min-height: 2.25rem;
+  font-size: 0.8125rem;
+}
+
+.paginacao {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}

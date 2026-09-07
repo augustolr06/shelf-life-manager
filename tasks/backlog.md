@@ -12,7 +12,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | T02 | Schema Prisma completo + migração inicial | concluída | T01 | `tasks/T02-schema-prisma.md` |
 | T03 | Módulo de autenticação (RF01) | concluída | T02 | `tasks/T03-autenticacao.md` |
 | T03b | Tela de login e sessão no frontend | concluída | T03 | `tasks/T03b-tela-login.md` |
-| T04 | CRUD de Produto (RF02) | pendente | T02, T03b | `tasks/T04-crud-produto.md` |
+| T04 | CRUD de Produto (RF02) | concluída | T02, T03b | `tasks/T04-crud-produto.md` |
 | T05 | Cadastro de UnidadeProduto individual e em lote (RF03) | pendente | T04 | `tasks/T05-cadastro-unidade.md` |
 
 ## Incremento 2 — Núcleo: saída com validação FIFO + EventoLog

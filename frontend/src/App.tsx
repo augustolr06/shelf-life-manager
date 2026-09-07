@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { TelaLogin } from './pages/TelaLogin'
+import { TelaProdutos } from './pages/TelaProdutos'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Usuario } from './services/auth'
 
 /**
@@ -93,8 +94,7 @@ export function App() {
       )}
 
       <main>
-        {/* As telas de domínio entram aqui a partir de T04 (produtos). */}
-        <p>Sessão ativa. As telas do sistema chegam a partir de T04.</p>
+        <TelaProdutos usuario={usuario} />
       </main>
     </div>
   )

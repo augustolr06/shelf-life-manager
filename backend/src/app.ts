@@ -4,6 +4,7 @@ import jwt from '@fastify/jwt'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { NOME_COOKIE_SESSAO } from './modules/auth/cookie.js'
 import { rotasAuth } from './modules/auth/auth.routes.js'
+import { rotasProduto } from './modules/produto/produto.routes.js'
 import { env } from './shared/env.js'
 
 /**
@@ -26,6 +27,7 @@ export function buildApp(): FastifyInstance {
   })
 
   app.register(rotasAuth)
+  app.register(rotasProduto)
 
   // Liveness. O frontend consulta este endpoint antes de habilitar a tela de
   // leitura de QR (docs/arquitetura.md seção 6).
