@@ -9,7 +9,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T01 | Setup do projeto (scaffolding backend + frontend, Prisma init) | concluída | — | `tasks/T01-setup-projeto.md` |
-| T02 | Schema Prisma completo + migração inicial | pendente | T01 | `tasks/T02-schema-prisma.md` |
+| T02 | Schema Prisma completo + migração inicial | concluída | T01 | `tasks/T02-schema-prisma.md` |
 | T03 | Módulo de autenticação (RF01) | pendente | T02 | `tasks/T03-autenticacao.md` |
 | T04 | CRUD de Produto (RF02) | pendente | T02, T03 | `tasks/T04-crud-produto.md` |
 | T05 | Cadastro de UnidadeProduto individual e em lote (RF03) | pendente | T04 | `tasks/T05-cadastro-unidade.md` |

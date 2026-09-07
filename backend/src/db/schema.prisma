@@ -1,8 +1,7 @@
 // Schema Prisma — Controle de Estoque FIFO por Validade
 //
-// T01 cria apenas datasource + generator. O modelo de dados completo
-// (Usuario, Produto, UnidadeProduto, Saida, Descarte, ConfiguracaoAlerta,
-// Alerta, EventoLog) é escopo de T02 — ver docs/arquitetura.md seção 3.
+// Fonte: docs/arquitetura.md seção 3. Este arquivo é a tradução direta
+// daquele modelo — ao alterar uma entidade aqui, atualize também a seção 3.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +10,108 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Papel {
+  ATENDENTE
+  GESTOR
+}
+
+enum StatusUnidade {
+  EM_ESTOQUE
+  VENDIDA
+  DESCARTADA
+}
+
+model Usuario {
+  id        String      @id @default(uuid())
+  nome      String
+  email     String      @unique
+  senhaHash String
+  papel     Papel
+  saidas    Saida[]
+  descartes Descarte[]
+  eventos   EventoLog[]
+}
+
+model Produto {
+  id            String           @id @default(uuid())
+  codigoInterno String           @unique
+  nome          String
+  marca         String
+  categoria     String
+  unidades      UnidadeProduto[]
+}
+
+model UnidadeProduto {
+  id              String        @id @default(uuid())
+  produtoId       String
+  produto         Produto       @relation(fields: [produtoId], references: [id])
+  codigoQr        String        @unique
+  dataValidade    DateTime      @db.Date // RNF01: DATE, nunca DATETIME
+  status          StatusUnidade @default(EM_ESTOQUE)
+  dataEntrada     DateTime      @default(now())
+  registradoPorId String
+  saida           Saida?
+  descarte        Descarte?
+
+  // Sustenta a consulta FIFO (docs/arquitetura.md seção 4, passo 4),
+  // executada a cada leitura de QR.
+  @@index([produtoId, status, dataValidade])
+}
+
+model Saida {
+  id                    String         @id @default(uuid())
+  unidadeId             String         @unique
+  unidade               UnidadeProduto @relation(fields: [unidadeId], references: [id])
+  usuarioId             String
+  usuario               Usuario        @relation(fields: [usuarioId], references: [id])
+  dataHora              DateTime       @default(now())
+  alertaFifoDisparado   Boolean        @default(false)
+  tentativasAteAcerto   Int            @default(0)
+  vendaDeUnidadeVencida Boolean        @default(false)
+  justificativaOverride String?
+  autorizadoPorId       String?
+  sessaoVendaId         String?
+}
+
+model Descarte {
+  id        String         @id @default(uuid())
+  unidadeId String         @unique
+  unidade   UnidadeProduto @relation(fields: [unidadeId], references: [id])
+  usuarioId String
+  usuario   Usuario        @relation(fields: [usuarioId], references: [id])
+  dataHora  DateTime       @default(now())
+  motivo    String
+}
+
+model ConfiguracaoAlerta {
+  id               String   @id @default(uuid())
+  diasAntecedencia Int
+  canal            String
+  ativo            Boolean  @default(true)
+  alertas          Alerta[]
+}
+
+model Alerta {
+  id             String             @id @default(uuid())
+  unidadeId      String
+  configuracaoId String
+  configuracao   ConfiguracaoAlerta @relation(fields: [configuracaoId], references: [id])
+  geradoEm       DateTime           @default(now())
+  lidoEm         DateTime?
+}
+
+model EventoLog {
+  id         String   @id @default(uuid())
+  tipoEvento String
+  unidadeId  String?
+  produtoId  String?
+  usuarioId  String
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  payload    Json
+  ocorridoEm DateTime @default(now())
+
+  // RNF05: append-only. Sem @updatedAt, sem endpoint de UPDATE/DELETE
+  // na aplicação.
 }

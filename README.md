@@ -50,9 +50,14 @@ instâncias nativas em 5432/5433 — veja `docker-compose.yml`.
 cd backend
 cp .env.example .env      # ajuste DATABASE_URL se não estiver usando o Docker
 npm install
-npm run prisma:generate
+npm run prisma:migrate    # aplica as migrações e gera o Prisma Client
+npm run prisma:seed       # cria um usuário GESTOR e um ATENDENTE
 npm run dev               # http://localhost:3333
 ```
+
+O seed é idempotente: rodar de novo não duplica usuários. Ele cria
+`gestor@estoque.local` e `atendente@estoque.local`, ambos com a senha
+`estoque123` — credenciais de desenvolvimento, não usar fora dele.
 
 Verificação rápida:
 
@@ -89,10 +94,13 @@ npm run dev               # http://localhost:5173
 | `npm run typecheck` | Checagem de tipos sem emitir |
 | `npm run prisma:generate` | Gera o Prisma Client |
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
+| `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento |
 | `npm run prisma:studio` | Abre o Prisma Studio |
 
 O schema Prisma fica em `backend/src/db/schema.prisma` (não no caminho padrão
-`prisma/schema.prisma`) — o caminho está declarado em `backend/prisma.config.ts`.
+`prisma/schema.prisma`) — o caminho está declarado em `backend/prisma.config.ts`,
+que também aponta o comando de seed. As migrações ficam em
+`backend/src/db/migrations/` e o seed em `backend/src/db/seed.ts`.
 
 ### Frontend (`cd frontend`)
 

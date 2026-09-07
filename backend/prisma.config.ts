@@ -5,4 +5,9 @@ import { defineConfig } from 'prisma/config'
 // não no caminho padrão prisma/schema.prisma.
 export default defineConfig({
   schema: 'src/db/schema.prisma',
+  migrations: {
+    // Declarado aqui, e não na chave "prisma" do package.json, que está
+    // depreciada no Prisma 6 e removida no 7.
+    seed: 'tsx src/db/seed.ts',
+  },
 })
