@@ -26,6 +26,27 @@ O PRD completo está em `docs/PRD-original.md`. Não precisa reler o PRD inteiro
 4. Ao terminar: rode os testes, faça commit descritivo, e atualize o status da tarefa em `tasks/backlog.md` para `concluída`.
 5. Se você tomar qualquer decisão de design não coberta por `docs/arquitetura.md` (nome de variável não conta; decisão de arquitetura, sim), registre em `docs/decisoes.md` com data.
 
+## Verificação de alterações de UI
+
+Alterações que mudam o que o usuário vê ou com o que ele interage — componentes e páginas em `frontend/src/`, `frontend/index.html`, estilos, ou o manifest do PWA — devem ser conferidas no navegador com o `playwright-cli` antes do commit, **além** dos testes de Vitest.
+
+Roteiro:
+
+1. Suba o frontend (`cd frontend && npm run dev`) e também o backend, se a tela consumir a API.
+2. `playwright-cli open http://localhost:5173`
+3. Navegue até a tela alterada e exercite **apenas o caminho que a alteração afeta**. Confirme o resultado com `snapshot` (estrutura acessível) ou `screenshot` (aparência).
+4. `playwright-cli console error` para verificar que não surgiu erro de runtime.
+5. `playwright-cli close` ao terminar.
+
+Para o comportamento offline exigido pela RNF07, `playwright-cli network-state-set offline` simula a queda de rede sem precisar desligar o backend.
+
+Limites — respeitar estritamente:
+
+- **Só para UI.** Alteração em backend, schema Prisma, `validarSaidaFifo`, migração, script ou arquivo de configuração continua sendo verificada pelos métodos atuais: Vitest, `npm run typecheck`, `curl` no endpoint. Não abra o navegador para esse tipo de mudança.
+- **Só o necessário.** Confira o fluxo que você mexeu, não a aplicação inteira. Sem varredura de regressão, e sem repetir no navegador o que um teste de Vitest já cobre.
+- **Não substitui teste automatizado.** O `playwright-cli` é conferência manual assistida e não gera arquivo de teste. Os testes de componente continuam em Vitest + Testing Library, e são eles que entram no commit.
+- Se o `playwright-cli` não estiver disponível na máquina, diga isso explicitamente e siga com a verificação por Vitest. Não instale nada por conta própria.
+
 ## Regras inegociáveis (não violar mesmo se parecer mais simples de outro jeito)
 
 - **RNF01** — `dataValidade` é sempre `DATE`, nunca `DATETIME`/`TIMESTAMP`.
