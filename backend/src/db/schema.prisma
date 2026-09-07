@@ -24,23 +24,31 @@ enum StatusUnidade {
 }
 
 model Usuario {
-  id        String      @id @default(uuid())
+  id        String @id @default(uuid())
   nome      String
-  email     String      @unique
+  email     String @unique
   senhaHash String
   papel     Papel
-  saidas    Saida[]
-  descartes Descarte[]
-  eventos   EventoLog[]
+
+  saidas              Saida[]          @relation("SaidaExecutadaPor")
+  saidasAutorizadas   Saida[]          @relation("SaidaAutorizadaPor")
+  descartes           Descarte[]
+  eventos             EventoLog[]
+  unidadesRegistradas UnidadeProduto[]
 }
 
 model Produto {
-  id            String           @id @default(uuid())
-  codigoInterno String           @unique
+  id            String @id @default(uuid())
+  codigoInterno String @unique
   nome          String
   marca         String
   categoria     String
-  unidades      UnidadeProduto[]
+
+  // Inativação em vez de exclusão: um produto com unidades já vendidas ou
+  // descartadas não pode sumir sem levar junto o histórico da pesquisa.
+  ativo Boolean @default(true)
+
+  unidades UnidadeProduto[]
 }
 
 model UnidadeProduto {
@@ -52,8 +60,11 @@ model UnidadeProduto {
   status          StatusUnidade @default(EM_ESTOQUE)
   dataEntrada     DateTime      @default(now())
   registradoPorId String
-  saida           Saida?
-  descarte        Descarte?
+  registradoPor   Usuario       @relation(fields: [registradoPorId], references: [id])
+
+  saida    Saida?
+  descarte Descarte?
+  alertas  Alerta[]
 
   // Sustenta a consulta FIFO (docs/arquitetura.md seção 4, passo 4),
   // executada a cada leitura de QR.
@@ -65,14 +76,21 @@ model Saida {
   unidadeId             String         @unique
   unidade               UnidadeProduto @relation(fields: [unidadeId], references: [id])
   usuarioId             String
-  usuario               Usuario        @relation(fields: [usuarioId], references: [id])
+  usuario               Usuario        @relation("SaidaExecutadaPor", fields: [usuarioId], references: [id])
   dataHora              DateTime       @default(now())
   alertaFifoDisparado   Boolean        @default(false)
   tentativasAteAcerto   Int            @default(0)
   vendaDeUnidadeVencida Boolean        @default(false)
   justificativaOverride String?
-  autorizadoPorId       String?
-  sessaoVendaId         String?
+
+  // Preenchido apenas no override da seção 6.1 do PRD, sempre por um GESTOR.
+  autorizadoPorId String?
+  // onDelete: Restrict — o padrão do Prisma para relação opcional seria
+  // SET NULL, que apagaria quem autorizou a venda de unidade vencida. Esse
+  // registro tem peso legal (PRD seção 6.1) e não pode evaporar.
+  autorizadoPor   Usuario? @relation("SaidaAutorizadaPor", fields: [autorizadoPorId], references: [id], onDelete: Restrict)
+
+  sessaoVendaId String?
 }
 
 model Descarte {
@@ -96,6 +114,7 @@ model ConfiguracaoAlerta {
 model Alerta {
   id             String             @id @default(uuid())
   unidadeId      String
+  unidade        UnidadeProduto     @relation(fields: [unidadeId], references: [id])
   configuracaoId String
   configuracao   ConfiguracaoAlerta @relation(fields: [configuracaoId], references: [id])
   geradoEm       DateTime           @default(now())
@@ -105,6 +124,9 @@ model Alerta {
 model EventoLog {
   id         String   @id @default(uuid())
   tipoEvento String
+  // unidadeId e produtoId ficam sem FK de propósito: a seção 5 do PRD os
+  // declara nullable e sem chave, para que o log de pesquisa sobreviva a
+  // qualquer entidade que ele descreve.
   unidadeId  String?
   produtoId  String?
   usuarioId  String

@@ -57,6 +57,18 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 
 ---
 
+## Verificações manuais a cargo do orientando
+
+Não são tarefas de código e não bloqueiam a implementação, mas precisam acontecer antes da defesa. Detalhes e justificativas em `docs/decisoes.md` (2026-09-07).
+
+| Quando | O quê | Impacto se falhar |
+|---|---|---|
+| Assim que T05 gerar códigos | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16) | Pode reabrir o formato do `codigoQr`, que é provisório |
+| Ao concluir T10 | Teste da câmera em celular real (RF05). `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — **avisar o orientando** | Fluxo de leitura de QR não verificado no dispositivo-alvo |
+| Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
+
+---
+
 ## Convenção para novos arquivos de tarefa
 
 Ao iniciar uma tarefa que ainda não tem arquivo de detalhe, gere `tasks/TNN-slug.md` seguindo o formato de `tasks/T01-setup-projeto.md` (objetivo, critério de aceite, notas técnicas, fora de escopo), usando `docs/arquitetura.md` como fonte. Depois de gerado, ele passa a ser a fonte de verdade para aquela tarefa — não regenerar do zero em sessões seguintes, só atualizar se o escopo mudar (e registrar a mudança em `docs/decisoes.md`).

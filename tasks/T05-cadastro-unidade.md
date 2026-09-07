@@ -8,7 +8,8 @@ Implementar o registro de unidades físicas vinculadas a um `Produto`, com valid
 
 ## Critério de aceite
 - [ ] `POST /produtos/:id/unidades` (GESTOR) — aceita array de unidades, cada uma com sua própria `dataValidade`
-- [ ] Cada unidade recebe um `codigoQr` único gerado no servidor (formato a definir — sugestão: UUID curto ou prefixo do produto + sequencial; registrar a escolha em `docs/decisoes.md`)
+- [ ] Cada unidade recebe um `codigoQr` único gerado no servidor no formato `PRF-XXXXXX` (Crockford Base32, sem I/L/O/U). Decidido em `docs/decisoes.md` (2026-09-07)
+- [ ] A geração vive num único módulo (`src/modules/unidade/codigoQr.ts`): o formato é **provisório** até o teste físico da RNF08 (T16) e precisa ser barato de trocar
 - [ ] `dataValidade` validada como data futura ou presente no momento do cadastro (aviso, não bloqueio — cadastro de unidade já vencida pode ser legítimo em cenários de correção)
 - [ ] Status inicial sempre `EM_ESTOQUE`
 - [ ] `registradoPorId` preenchido com o usuário autenticado

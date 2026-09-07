@@ -11,7 +11,8 @@ Implementar o CRUD de `Produto` (RF02): código interno, nome, marca, categoria.
 - [ ] `GET /produtos` — lista com paginação simples e busca por nome/código
 - [ ] `GET /produtos/:id` — detalhe
 - [ ] `PATCH /produtos/:id` (GESTOR) — edição
-- [ ] `DELETE /produtos/:id` (GESTOR) — sugestão: bloquear exclusão se houver `UnidadeProduto` vinculada; se a implementação divergir disso, registrar em `docs/decisoes.md`
+- [ ] `DELETE /produtos/:id` (GESTOR) — **inativa** (`ativo = false`), nunca exclui fisicamente. Decidido em `docs/decisoes.md` (2026-09-07); o campo `ativo` já existe no schema
+- [ ] `GET /produtos` oculta inativos por padrão, com filtro explícito para incluí-los
 - [ ] Testes de validação (campos obrigatórios, unicidade de `codigoInterno`)
 - [ ] Frontend: tela simples de listagem e cadastro de produto (uso do GESTOR)
 

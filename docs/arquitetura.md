@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-08-25
+Última atualização: 2026-09-07
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -59,23 +59,28 @@ enum StatusUnidade {
 }
 
 model Usuario {
-  id         String      @id @default(uuid())
-  nome       String
-  email      String      @unique
-  senhaHash  String
-  papel      Papel
-  saidas     Saida[]
-  descartes  Descarte[]
-  eventos    EventoLog[]
+  id        String @id @default(uuid())
+  nome      String
+  email     String @unique
+  senhaHash String
+  papel     Papel
+
+  saidas              Saida[]          @relation("SaidaExecutadaPor")
+  saidasAutorizadas   Saida[]          @relation("SaidaAutorizadaPor")
+  descartes           Descarte[]
+  eventos             EventoLog[]
+  unidadesRegistradas UnidadeProduto[]
 }
 
 model Produto {
-  id            String            @id @default(uuid())
-  codigoInterno String            @unique
+  id            String @id @default(uuid())
+  codigoInterno String @unique
   nome          String
   marca         String
   categoria     String
-  unidades      UnidadeProduto[]
+  ativo         Boolean @default(true)   // inativação em vez de exclusão
+
+  unidades UnidadeProduto[]
 }
 
 model UnidadeProduto {
@@ -87,8 +92,10 @@ model UnidadeProduto {
   status          StatusUnidade  @default(EM_ESTOQUE)
   dataEntrada     DateTime       @default(now())
   registradoPorId String
+  registradoPor   Usuario        @relation(fields: [registradoPorId], references: [id])
   saida           Saida?
   descarte        Descarte?
+  alertas         Alerta[]
 
   @@index([produtoId, status, dataValidade])  // sustenta a consulta FIFO, executada a cada leitura
 }
@@ -98,13 +105,16 @@ model Saida {
   unidadeId             String          @unique
   unidade               UnidadeProduto  @relation(fields: [unidadeId], references: [id])
   usuarioId             String
-  usuario               Usuario         @relation(fields: [usuarioId], references: [id])
+  usuario               Usuario         @relation("SaidaExecutadaPor", fields: [usuarioId], references: [id])
   dataHora              DateTime        @default(now())
   alertaFifoDisparado   Boolean         @default(false)
   tentativasAteAcerto   Int             @default(0)
   vendaDeUnidadeVencida Boolean         @default(false)
   justificativaOverride String?
   autorizadoPorId       String?
+  // Restrict, não SET NULL: quem autorizou a venda de unidade vencida
+  // (PRD 6.1) não pode ser apagado do registro.
+  autorizadoPor         Usuario?        @relation("SaidaAutorizadaPor", fields: [autorizadoPorId], references: [id], onDelete: Restrict)
   sessaoVendaId         String?
 }
 
@@ -129,6 +139,7 @@ model ConfiguracaoAlerta {
 model Alerta {
   id             String              @id @default(uuid())
   unidadeId      String
+  unidade        UnidadeProduto      @relation(fields: [unidadeId], references: [id])
   configuracaoId String
   configuracao   ConfiguracaoAlerta  @relation(fields: [configuracaoId], references: [id])
   geradoEm       DateTime            @default(now())
@@ -138,6 +149,8 @@ model Alerta {
 model EventoLog {
   id         String   @id @default(uuid())
   tipoEvento String
+  // Sem @relation de propósito: o log precisa sobreviver às entidades que
+  // descreve (seção 5 do PRD declara os dois como nullable, sem FK).
   unidadeId  String?
   produtoId  String?
   usuarioId  String
@@ -183,6 +196,7 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 | POST | `/auth/login` | público | Autentica, retorna cookie JWT |
 | POST | `/produtos` | GESTOR | Cria SKU (RF02) |
 | GET | `/produtos` | qualquer autenticado | Lista/busca produtos |
+| DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
 | POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo`, retorna veredito (RF05, RF06) |
