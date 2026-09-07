@@ -1,0 +1,14 @@
+// Schema Prisma — Controle de Estoque FIFO por Validade
+//
+// T01 cria apenas datasource + generator. O modelo de dados completo
+// (Usuario, Produto, UnidadeProduto, Saida, Descarte, ConfiguracaoAlerta,
+// Alerta, EventoLog) é escopo de T02 — ver docs/arquitetura.md seção 3.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

@@ -1,0 +1,108 @@
+# Controle de Estoque FIFO por Validade
+
+Sistema de controle de estoque por unidade física (QR Code único por item), com saída
+obrigatoriamente FIFO por **data de validade** — não por data de entrada.
+
+Trabalho de Conclusão de Curso — Sistemas de Informação, UNIFEI.
+
+## Documentação
+
+| Preciso de... | Arquivo |
+|---|---|
+| Contexto do projeto e regras de trabalho | `CLAUDE.md` |
+| Stack, modelo de dados, contratos de API, função FIFO | `docs/arquitetura.md` |
+| Histórico de decisões de design | `docs/decisoes.md` |
+| Backlog de tarefas com status | `tasks/backlog.md` |
+| Requisitos originais completos | `docs/PRD-original.md` |
+
+## Estrutura
+
+```
+backend/    Node.js 20+ / TypeScript / Fastify / Prisma / PostgreSQL
+frontend/   React / Vite / TypeScript / PWA
+docs/       Documentação de arquitetura e decisões
+tasks/      Backlog e detalhamento de tarefas
+```
+
+## Pré-requisitos
+
+- Node.js 20 ou superior (desenvolvido com 22)
+- Docker e Docker Compose (para o PostgreSQL de desenvolvimento)
+
+Se preferir usar um PostgreSQL 15+ já instalado na máquina em vez do container,
+basta apontar `DATABASE_URL` para ele e pular o passo do Docker.
+
+## Setup local
+
+### 1. Banco de dados
+
+```bash
+docker compose up -d
+```
+
+Sobe um PostgreSQL 16 em `localhost:5434` (usuário `estoque`, senha `estoque`,
+banco `estoque_fifo`). A porta 5434 foi escolhida para não conflitar com
+instâncias nativas em 5432/5433 — veja `docker-compose.yml`.
+
+### 2. Backend
+
+```bash
+cd backend
+cp .env.example .env      # ajuste DATABASE_URL se não estiver usando o Docker
+npm install
+npm run prisma:generate
+npm run dev               # http://localhost:3333
+```
+
+Verificação rápida:
+
+```bash
+curl http://localhost:3333/health   # {"status":"ok","uptime":...}
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev               # http://localhost:5173
+```
+
+## Variáveis de ambiente (backend/.env)
+
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `DATABASE_URL` | String de conexão do PostgreSQL | — (obrigatória) |
+| `PORT` | Porta do servidor Fastify | `3333` |
+| `FRONTEND_ORIGIN` | Origem permitida do frontend (usada a partir de T03) | `http://localhost:5173` |
+
+## Comandos
+
+### Backend (`cd backend`)
+
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Servidor em modo watch |
+| `npm run build` | Compila TypeScript para `dist/` |
+| `npm start` | Roda o build de produção |
+| `npm test` | Roda os testes (Vitest) |
+| `npm run typecheck` | Checagem de tipos sem emitir |
+| `npm run prisma:generate` | Gera o Prisma Client |
+| `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
+| `npm run prisma:studio` | Abre o Prisma Studio |
+
+O schema Prisma fica em `backend/src/db/schema.prisma` (não no caminho padrão
+`prisma/schema.prisma`) — o caminho está declarado em `backend/prisma.config.ts`.
+
+### Frontend (`cd frontend`)
+
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento Vite |
+| `npm run build` | Build de produção (gera manifest e service worker do PWA) |
+| `npm run preview` | Serve o build de produção localmente |
+| `npm test` | Roda os testes (Vitest + Testing Library) |
+| `npm run typecheck` | Checagem de tipos |
+
+O PWA só gera manifest e service worker no build — em `npm run dev` eles não
+são produzidos por padrão.

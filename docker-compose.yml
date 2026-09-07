@@ -1,0 +1,23 @@
+# PostgreSQL de desenvolvimento local.
+# Porta 5433 no host para não conflitar com instâncias nativas já ouvindo em 5432/5433.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: estoque-fifo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: estoque
+      POSTGRES_PASSWORD: estoque
+      POSTGRES_DB: estoque_fifo
+    ports:
+      - "5434:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U estoque -d estoque_fifo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
