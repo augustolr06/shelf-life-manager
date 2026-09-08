@@ -20,7 +20,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T06 | Casos de teste de `validarSaidaFifo` — escrever ANTES de T07 (exigência PRD seção 8) | concluída | T05 | `tasks/T06-testes-validar-saida-fifo.md` |
-| T07 | Implementação de `validarSaidaFifo` (RF06, RNF02-04) | pendente | T06 | *gerar ao iniciar* — a definição de pronto são os 46 casos de T06, que hoje falham com `NAO_IMPLEMENTADO_T07`. Não editar a suíte para acomodar a implementação |
+| T07 | Implementação de `validarSaidaFifo` (RF06, RNF02-04) | concluída | T06 | `tasks/T07-implementacao-validar-saida-fifo.md` |
 | T08 | Endpoint de leitura de QR + loop de revalidação (RF05, RF06) | pendente | T07 | *gerar ao iniciar* |
 | T09 | Registro de saída + EventoLog append-only (RF07, RF12, RNF05) | pendente | T07 | *gerar ao iniciar* |
 | T10 | Tela de leitura de QR no frontend (câmera + fallback manual) + config PWA e detecção offline (RF05, RNF07) | pendente | T08 | *gerar ao iniciar* |

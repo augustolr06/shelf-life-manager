@@ -136,3 +136,19 @@ paga por isso — inclua limitações honestamente, não só os pontos fortes.
 **Tarefa relacionada:** T06 (definição), T07 (implementação), T20 (dashboard que consome o indicador)
 
 **Data:** 2026-09-07
+
+---
+
+## O que a concorrência ameaça não é a integridade do estoque — é a inteligibilidade do erro
+
+**Contexto do problema:** o balcão de uma perfumaria pequena tem duas ou três atendentes e um estoque compartilhado. O caso que preocupa é banal: duas atendentes lêem o QR do **mesmo** frasco quase ao mesmo tempo — uma porque acabou de tirá-lo da prateleira, outra porque o cliente desistiu e ela devolveu o item ao balcão onde a colega o pegou. No controle manual esse conflito não existe como evento: não há registro de "saída", então nada há a duplicar. Ao informatizar, ele aparece — e a primeira reação é tratá-lo como problema de integridade de dados.
+
+**Alternativas consideradas:** confiar na restrição de unicidade do banco (uma unidade tem no máximo uma saída). Ela sozinha **já impede** a dupla baixa: a segunda transação viola a restrição e é abortada. É uma solução correta, barata, e que passaria numa verificação que só perguntasse "o estoque ficou consistente?".
+
+**Solução adotada:** a validação e a baixa acontecem numa única transação, com a unidade lida bloqueada explicitamente antes de qualquer decisão. A transação perdedora espera a vencedora terminar, relê a unidade já baixada e sai pelo caminho normal do sistema — o mesmo veredito que apareceria se alguém lesse um frasco vendido ontem.
+
+**Por que resolve o problema / trade-offs:** a diferença entre as duas soluções não está no banco, que fica consistente nas duas; está na **forma da falha** que chega ao balcão. Sem o bloqueio, a segunda atendente recebe uma violação de restrição de unicidade — um erro de infraestrutura, no meio de um atendimento, sem tradução possível para a tela e sem instrução do que fazer. Com o bloqueio, ela recebe "esta unidade já foi baixada", que é uma frase que ela entende e sobre a qual ela sabe agir. A verificação que separou as duas foi remover o bloqueio e reexecutar os testes: as asserções de integridade continuaram passando, e só as que olhavam *como* a segunda leitura falhava ficaram vermelhas. É um argumento que vale para o artigo além deste caso: num sistema que substitui um processo manual, a correção do dado é o requisito mínimo, e a legibilidade da recusa é o que decide se o sistema é usável no balcão — a operadora não tem a quem recorrer no meio de uma venda. Trade-off honesto: o bloqueio serializa as leituras de uma mesma unidade, e por isso ele é da unidade física, nunca do produto; travar o SKU inteiro faria duas atendentes vendendo frascos diferentes do mesmo perfume esperarem uma pela outra, trocando um problema raro por uma lentidão constante.
+
+**Tarefa relacionada:** T06 (caso de teste), T07 (implementação)
+
+**Data:** 2026-09-08

@@ -111,10 +111,11 @@ suba o container (`docker compose up -d`). O banco de teste e as migrações sã
 criados sozinhos na primeira execução. Sem container, use
 `npm run test:sem-banco`.
 
-**Estado atual:** a suíte `tests/fifo/validarSaidaFifo.test.ts` falha inteira
-de propósito, com a mensagem `NAO_IMPLEMENTADO_T07`. Ela foi escrita antes da
-implementação, como exige a seção 8 do PRD, e fazer os 46 casos passarem é a
-tarefa T07.
+**Estado atual:** os 46 casos de `tests/fifo/validarSaidaFifo.test.ts` passam.
+A suíte foi escrita antes da implementação, como exige a seção 8 do PRD, e
+fazê-la passar sem editá-la foi a tarefa T07. Três desses casos só passam com o
+lock da RNF02: sem o `FOR UPDATE`, a leitura concorrente perdedora estoura na
+restrição de unicidade de `Saida` em vez de devolver um veredito.
 
 O schema Prisma fica em `backend/src/db/schema.prisma` (não no caminho padrão
 `prisma/schema.prisma`) — o caminho está declarado em `backend/prisma.config.ts`,
