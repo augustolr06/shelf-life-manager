@@ -24,4 +24,4 @@ CLAUDE.md (testes, commit, status do backlog, registro de decisões) — não
 pule nenhum item mesmo que a tarefa pareça simples.
 
 Ao final, me dê um resumo curto do que foi feito e do que eu devo revisar
-manualmente antes de seguirmos para a próxima tarefa.
+manualmente antes de fazer o commit e de seguirmos para a próxima tarefa.
