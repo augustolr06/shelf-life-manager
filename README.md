@@ -91,8 +91,9 @@ npm run dev               # http://localhost:5173
 | `npm run build` | Compila TypeScript para `dist/` |
 | `npm start` | Roda o build de produção |
 | `npm test` | Roda todos os testes (Vitest) — inclui os que exigem PostgreSQL |
-| `npm run test:sem-banco` | Só as suítes com Prisma mockado, sem precisar de container |
+| `npm run test:sem-banco` | Só as suítes que não usam banco, sem precisar de container |
 | `npm run test:fifo` | Só a suíte da validação FIFO (exige PostgreSQL) |
+| `npm run test:saida` · `test:evento-log` · `test:excecao` · `test:descarte` · `test:etiquetas` | Uma suíte de banco por vez (todas exigem PostgreSQL) |
 | `npm run typecheck` | Checagem de tipos sem emitir, `src/` e `tests/` |
 | `npm run prisma:generate` | Gera o Prisma Client |
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
@@ -110,6 +111,14 @@ Para rodá-las, copie `backend/.env.test.example` para `backend/.env.test` e
 suba o container (`docker compose up -d`). O banco de teste e as migrações são
 criados sozinhos na primeira execução. Sem container, use
 `npm run test:sem-banco`.
+
+**Convenção de organização das suítes.** Suíte que exige PostgreSQL mora em uma
+**subpasta** de `tests/` (`tests/fifo/`, `tests/saida/`, `tests/evento-log/`,
+`tests/excecao-vencido/`, `tests/descarte/`, `tests/etiquetas/`); suíte que roda
+sem banco é **arquivo solto** em `tests/`. Não é só arrumação: é o critério que
+`npm run test:sem-banco` usa (`--exclude "tests/*/**"`). Uma suíte nova de banco
+criada em subpasta já nasce excluída do script, sem editar `package.json` — e uma
+suíte **sem** banco precisa ficar solta em `tests/`, ou será pulada em silêncio.
 
 **Estado atual:** os 46 casos de `tests/fifo/validarSaidaFifo.test.ts` passam.
 A suíte foi escrita antes da implementação, como exige a seção 8 do PRD, e

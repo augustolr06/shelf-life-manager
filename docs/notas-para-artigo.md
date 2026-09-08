@@ -660,3 +660,55 @@ solução como instrumentada de ponta a ponta.
 dado complementaria), RF12
 
 **Data:** 2026-09-08
+
+## A implementação de referência só é reproduzível pela metade — e a metade que sobra apodrece em silêncio
+
+**Contexto do problema:** um artigo que apresenta uma implementação de referência carrega
+uma promessa implícita: quem lê consegue rodar. Este projeto tentou honrá-la por
+organização — até T05, as 66 asserções rodavam com o acesso ao banco substituído por um
+duplo, e a suíte inteira executava em qualquer máquina com Node instalado. T06 quebrou isso
+por necessidade, e a quebra é do tipo que não tem contorno: as duas garantias centrais da
+solução — o lock que serializa duas vendas simultâneas do mesmo frasco (RNF02) e a
+comparação de validade como data de calendário, sem hora (RNF01) — **são comportamentos do
+banco**, não do código. Um duplo que as "reproduzisse" estaria devolvendo a resposta que o
+teste deveria estar verificando. A partir dali, provar o núcleo passou a exigir PostgreSQL
+de verdade.
+
+**Alternativas consideradas:** abandonar a execução sem banco e assumir o container como
+pré-requisito único seria honesto e mais simples, mas fecha a porta para quem quer só
+inspecionar o projeto — inclusive a banca. Manter tudo com duplo era a opção descartada em
+T06, pelo motivo acima. O caminho escolhido foi intermediário: um segundo comando que roda
+só o que não depende do banco, preservando uma execução parcial em qualquer máquina.
+
+**Solução adotada:** o comando existe desde T06 e funciona — mas foi implementado como uma
+**lista de exclusões**, uma linha por suíte de banco, que alguém precisava lembrar de
+editar a cada suíte nova. Em cinco oportunidades a memória falhou uma vez: a suíte da fila
+de descarte entrou sem que a linha fosse atualizada, e por duas tarefas o comando que
+promete rodar sem banco **falhava sem banco** — defeito invisível para quem tem o container
+ligado, que é justamente todo mundo que trabalha no projeto. A correção trocou a lista por
+uma regra derivada de uma convenção que as suítes já seguiam sem ninguém ter escrito: suíte
+de banco mora em subpasta, suíte sem banco é arquivo solto.
+
+**Por que resolve o problema / trade-offs:** o ponto que interessa ao artigo não é o
+defeito de uma linha, e sim o que ele mostra sobre garantias de reprodutibilidade em geral —
+**elas se degradam sem emitir sinal para quem poderia corrigi-las.** Quem tinha como
+perceber (o desenvolvedor) nunca estava na condição que revelava o problema (máquina sem
+banco), e quem estaria nessa condição (o leitor, a banca) não teria como distinguir um
+script quebrado de um projeto quebrado. A regra por pasta reduz a manutenção a zero, mas a
+troca é explícita e vale declarar: o erro deixou de ser barulhento e passou a ser silencioso —
+uma suíte sem banco criada no lugar errado seria pulada sem aviso, em vez de derrubar o
+comando. Trocou-se um erro provável e visível por um erro improvável e invisível.
+
+A limitação honesta que fica para o texto: **138 das 227 asserções deste projeto não rodam
+sem um PostgreSQL**, e são precisamente as que provam o comportamento defendido no artigo.
+As 89 restantes cobrem contratos de rota e formato de identificador. Dizer "a suíte passa"
+sem dizer qual metade prova o quê seria vender uma reprodutibilidade que a natureza do
+problema não permite — a regra de FIFO por validade é, em boa parte, uma afirmação sobre o
+que o banco de dados garante sob concorrência.
+
+**Tarefa relacionada:** T14b (a correção), T06 (onde a garantia foi criada), T13 (onde ela
+se perdeu), T14 (onde o defeito foi encontrado), RNF01, RNF02
+
+**Data:** 2026-09-08
+
+---

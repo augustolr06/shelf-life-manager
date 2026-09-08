@@ -681,3 +681,36 @@ desta tarefa, **não corrigido aqui**: a suíte nova (`tests/etiquetas`) entrou 
 de T13 continua fora, o que faz `npm run test:sem-banco` falhar sem banco. É um deslize de
 uma linha, mas mexer nele é fechar tarefa alheia — fica registrado no backlog, no mesmo
 formato do `errorHandler` de T12 que virou T12b.
+
+## 2026-09-08 — `test:sem-banco` passa a excluir por pasta, não por lista (T14b)
+
+**A exclusão vira uma só: `--exclude "tests/*/**"`.** Fecha o achado de T14 — `tests/descarte`
+(T13) nunca entrou na lista de cinco exclusões, e `npm run test:sem-banco` falhava na máquina
+sem container, que é exatamente a máquina para a qual o script existe desde T06. Reproduzido
+antes de corrigir, movendo `backend/.env.test` de lado: script antigo com
+`tests/descarte/descartesPendentes.test.ts` vermelho, script novo com as mesmas 89 asserções
+verdes. Corrigir a lista resolveria o caso; trocar o critério resolve a classe. A opção foi
+confirmada pelo orientando antes da implementação.
+
+**O critério é a convenção que as suítes já seguiam sem ninguém ter escrito.** Seis de seis
+suítes de banco moram em subpasta de `tests/`; oito de oito suítes sem banco são arquivos
+soltos em `tests/`. A separação nasceu em T06, quando as suítes de banco passaram a precisar
+do `vi.mock` do cliente compartilhado e foram agrupadas por assunto. O script agora lê essa
+convenção em vez de repetir a lista, e a sétima suíte de banco já nasce excluída.
+
+**A troca honesta: o modo de errar muda de lado.** Com a lista, uma suíte de banco esquecida
+fazia o script *falhar* — barulhento, e foi assim que T14 encontrou o problema. Com a regra
+por pasta, uma suíte **sem** banco criada dentro de uma subpasta seria *pulada em silêncio*,
+e a contagem de verdes cairia sem explicação. Falha silenciosa é pior que falha barulhenta.
+O que sustenta a escolha é que a convenção é forte (14 de 14 arquivos) e agora está **escrita**
+no `README.md`, enquanto a lista antiga não estava documentada em lugar nenhum — dependia de
+alguém lembrar de editar uma linha de `package.json`, memória que falhou uma vez em cinco
+oportunidades.
+
+**Entrou `npm run test:descarte`.** As outras cinco suítes de banco têm atalho próprio desde
+as suas tarefas; a de T13 era a única sem, mesmo deslize e mesma origem do outro.
+
+**Correção de um número, não de código: a suíte fecha em 227, não em 224.** T14 registrou
+"224 verdes" em prosa, mas a própria decomposição dela (199 herdados + 11 do símbolo + 17 da
+rota) soma 227, que é o que a suíte devolve hoje. Nenhum teste foi tocado nesta tarefa — só o
+número escrito estava errado. Fica aqui para o número não continuar se propagando.

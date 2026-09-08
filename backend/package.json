@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:sem-banco": "vitest run --exclude \"tests/fifo/**\" --exclude \"tests/saida/**\" --exclude \"tests/evento-log/**\" --exclude \"tests/excecao-vencido/**\" --exclude \"tests/etiquetas/**\"",
+    "test:sem-banco": "vitest run --exclude \"tests/*/**\"",
     "test:fifo": "vitest run tests/fifo",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "prisma:generate": "prisma generate",
@@ -19,6 +19,7 @@
     "test:saida": "vitest run tests/saida",
     "test:evento-log": "vitest run tests/evento-log",
     "test:excecao": "vitest run tests/excecao-vencido",
+    "test:descarte": "vitest run tests/descarte",
     "test:etiquetas": "vitest run tests/etiquetas"
   },
   "dependencies": {

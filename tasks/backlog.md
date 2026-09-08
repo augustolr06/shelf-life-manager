@@ -39,7 +39,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T14 | Geração de QR codes únicos por unidade (RF04) | concluída | T05 | `tasks/T14-geracao-qr-unidade.md` |
-| T14b | `tests/descarte` fora das exclusões de `test:sem-banco` (achado de T14) | pendente | — | — |
+| T14b | `tests/descarte` fora das exclusões de `test:sem-banco` (achado de T14) | concluída | — | `tasks/T14b-test-sem-banco.md` |
 | T15 | Renderização/impressão de etiquetas para embalagens pequenas (RF04) | pendente | T14 | — |
 | T16 | Validação manual de legibilidade física do QR em loja (RNF08) — tarefa não-código | pendente | T15 | — |
 
