@@ -270,7 +270,23 @@ problema real no piloto: permitir que a leitura offline registre a saída **sem*
 FIFO, marcada como não-validada, o que preservaria o dado da venda e deixaria explícito no
 relatório quantas saídas escaparam da regra — em vez de fingir que foram validadas.
 
-**Tarefa relacionada:** T10 (tela de leitura, portão de offline)
+**Acréscimo de 2026-09-08 (T12), a partir da pergunta do orientando sobre manter uma cópia
+do estoque no navegador:** vale nomear os dois desfechos concretos, porque o argumento
+acima é abstrato e a proposta do cache local é intuitiva demais para ser descartada sem
+eles. **(1) Beco sem saída:** a unidade mais antiga foi vendida há três minutos pela outra
+atendente e o cache ainda a lista em estoque; a atendente lê a unidade que agora é a
+correta e a tela manda buscar na prateleira um frasco que não está lá. É o mesmo laço sem
+saída que o tratamento de empate evitou, recriado pelo cache. **(2) Venda dupla:** o cache
+diz que pode vender uma unidade já vendida, o cliente sai com o produto, e a sincronização
+descobre o conflito quando não há mais o que fazer — não existe estorno no sistema. O ponto
+que generaliza é que o veredito não é uma leitura: desde a decisão de não ter confirmação
+em dois passos, responder "pode vender" **é** dar a baixa, sob lock, e um cache pode
+reproduzir a consulta mas não o ato. Um segundo detalhe fecha o argumento para o TCC: as
+divergências entre um veredito local e o do servidor não seriam ruído aleatório — seriam
+exatamente os casos de concorrência, que são o fenômeno que o sistema existe para tratar e
+o que o indicador de acerto na primeira leitura mede.
+
+**Tarefa relacionada:** T10 (tela de leitura, portão de offline), T12 (o acréscimo)
 
 **Data:** 2026-09-08
 
@@ -419,5 +435,46 @@ a venda é irreversível no sistema, inclusive a autorizada por override, porque
 estorno.
 
 **Tarefa relacionada:** T11 (o que ficou de fora), T13 (fila de descarte pendente)
+
+**Data:** 2026-09-08
+
+---
+
+## Onde termina a ergonomia do formulário e começa a regra de negócio
+
+**Contexto do problema:** um sistema cuja contribuição é *manter a regra num lugar só*
+(RNF03) enfrenta uma pergunta prática toda vez que constrói uma tela: o que a interface
+pode conferir antes de perguntar ao servidor? Recusar tudo no cliente reimplanta a regra em
+dois lugares — o defeito que o trabalho quer evitar. Não conferir nada produz interfaces
+que só sabem dizer "não" depois de uma ida à rede, e às vezes com a linguagem errada.
+
+**Alternativas consideradas:** a regra rígida de "o cliente não valida nada" foi a primeira
+proposta desta tarefa. Ela não sobreviveu a dois fatos. O primeiro é que o projeto já
+espelhava restrições de formulário em telas anteriores (limites numéricos de quantidade
+vindos do schema do backend), então a regra teria criado uma exceção sem justificar por quê.
+O segundo é que, sem espelho, a recusa do servidor chegava à tela como mensagem interna do
+framework em inglês — no fluxo mais delicado do sistema, a autorização de venda de produto
+vencido.
+
+**Solução adotada:** o critério que separa os dois casos não é "é regra de negócio?", que
+não se responde no caso concreto, e sim **de quem é o dado**. A tela pode antecipar o que
+ela mesma possui por inteiro — o texto que a pessoa acabou de digitar, cujo comprimento não
+envelhece e não depende de mais ninguém. Não pode antecipar o que é **cópia de estado do
+servidor** — a validade gravada da unidade, o status dela, a ordem do pool FIFO. Na prática
+desta tela: o mínimo de caracteres da justificativa é espelhado (botão desabilitado,
+contagem à vista, nenhuma ida à rede); a recusa de "validade igual à cadastrada" não é, e
+chega do servidor, sob lock.
+
+**Por que resolve o problema / trade-offs:** o critério é mais barato de aplicar que a
+distinção abstrata entre validação e regra, e erra para o lado seguro. Uma antecipação
+errada do primeiro tipo é impossível: o texto está ali. Uma antecipação errada do segundo
+tipo é silenciosa e cara — se outra pessoa corrigiu aquela unidade enquanto o frasco estava
+na mão, a tela bloquearia uma correção legítima afirmando que não há o que corrigir, e
+ninguém descobriria o motivo. O trade-off aceito é uma ida à rede para descobrir que uma
+data não mudou, num evento raro, dentro de um fluxo que já fez outras. Para o artigo,
+interessa que a coesão da regra não exige uma interface muda: exige saber qual pergunta é
+sobre o usuário e qual é sobre o mundo compartilhado.
+
+**Tarefa relacionada:** T12 (a tela da exceção), T11 (as recusas que ela exibe), RNF03/RNF04
 
 **Data:** 2026-09-08

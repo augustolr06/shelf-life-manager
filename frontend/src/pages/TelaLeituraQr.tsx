@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { LeitorCamera } from '../components/LeitorCamera'
+import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
 import { ErroApi } from '../services/api'
+import type { Usuario } from '../services/auth'
 import { formatarData } from '../services/datas'
+import type { Resolucao } from '../services/excecaoVencido'
 import {
   criarSessaoVenda,
   lerCodigoQr,
@@ -23,7 +26,7 @@ import { verificarBackend } from '../services/saude'
 
 type EstadoConexao = 'verificando' | 'online' | 'offline'
 
-export function TelaLeituraQr() {
+export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
   const { conexao, verificar } = useConexao()
 
   // Um atendimento é um cliente no balcão, com um ou vários itens. O
@@ -34,6 +37,9 @@ export function TelaLeituraQr() {
   const [codigoDigitado, setCodigoDigitado] = useState('')
   const [lendo, setLendo] = useState(false)
   const [resultado, setResultado] = useState<RespostaLeitura | null>(null)
+  // Descarte e override tiram a unidade do estoque: não há mais veredito a
+  // exibir, e sim o desfecho. Nunca coexiste com `resultado`.
+  const [resolucao, setResolucao] = useState<Resolucao | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [cameraLigada, setCameraLigada] = useState(false)
   const [avisoCamera, setAvisoCamera] = useState<string | null>(null)
@@ -52,6 +58,7 @@ export function TelaLeituraQr() {
   useEffect(() => {
     if (conexao === 'offline') {
       setResultado(null)
+      setResolucao(null)
       setErro(null)
       codigoJaProcessado.current = null
     }
@@ -65,6 +72,7 @@ export function TelaLeituraQr() {
     codigoJaProcessado.current = codigoQr
     setLendo(true)
     setErro(null)
+    setResolucao(null)
 
     try {
       // O código vai como foi lido ou digitado. Quem normaliza é o backend
@@ -103,8 +111,47 @@ export function TelaLeituraQr() {
 
   function lerOutraUnidade() {
     setResultado(null)
+    setResolucao(null)
     setErro(null)
     codigoJaProcessado.current = null
+  }
+
+  /**
+   * Os três caminhos da unidade vencida (PRD 6.1), montados aqui porque é esta
+   * tela que sabe o que é um veredito e o que fazer com o veredito **novo** que
+   * a correção devolve.
+   */
+  function painelDaExcecao(unidade: UnidadeLida): ReactNode {
+    return (
+      <PainelExcecaoVencido
+        unidade={unidade}
+        papel={usuario.papel}
+        sessaoVendaId={sessaoVendaId}
+        // A correção revalidou o FIFO no servidor: o que volta é um veredito
+        // comum, e os quatro layouts abaixo já sabem exibi-lo — inclusive
+        // `CONFIRMAR`, que a esta altura é a venda já feita (T09, T11).
+        aoRevalidar={(revalidacao) => {
+          setResultado(revalidacao)
+          setErro(null)
+          codigoJaProcessado.current = null
+        }}
+        aoResolver={(resolvida) => {
+          setResultado(null)
+          setResolucao(resolvida)
+          codigoJaProcessado.current = null
+        }}
+        // Outra pessoa resolveu esta unidade enquanto o frasco estava na mão: o
+        // veredito em tela não vale mais, pelo mesmo motivo que ele não
+        // sobrevive à queda de conexão.
+        aoPerderUnidade={(mensagem) => {
+          setResultado(null)
+          setResolucao(null)
+          setErro(mensagem)
+          codigoJaProcessado.current = null
+        }}
+        aoCairConexao={verificar}
+      />
+    )
   }
 
   function encerrarAtendimento() {
@@ -204,7 +251,16 @@ export function TelaLeituraQr() {
 
             {resultado && (
               <>
-                <Resultado resposta={resultado} />
+                <Resultado resposta={resultado} painelDaExcecao={painelDaExcecao} />
+                <button type="button" className="secundario" onClick={lerOutraUnidade}>
+                  Ler outra unidade
+                </button>
+              </>
+            )}
+
+            {resolucao && (
+              <>
+                <ResolucaoDaExcecao resolucao={resolucao} />
                 <button type="button" className="secundario" onClick={lerOutraUnidade}>
                   Ler outra unidade
                 </button>
@@ -221,7 +277,13 @@ export function TelaLeituraQr() {
  * Os quatro layouts. O título é rótulo de layout; o texto que explica o que
  * aconteceu é sempre `resposta.mensagem`, escrita no servidor (RNF04).
  */
-function Resultado({ resposta }: { resposta: RespostaLeitura }) {
+function Resultado({
+  resposta,
+  painelDaExcecao,
+}: {
+  resposta: RespostaLeitura
+  painelDaExcecao: (unidade: UnidadeLida) => ReactNode
+}) {
   switch (resposta.veredito) {
     case 'CONFIRMAR':
       return (
@@ -265,10 +327,9 @@ function Resultado({ resposta }: { resposta: RespostaLeitura }) {
           <h3>Unidade vencida</h3>
           <p>{resposta.mensagem}</p>
           <DadosDaUnidade unidade={resposta.unidade} />
-          <p className="subtitulo">
-            Separe esta unidade e avise o gestor. Os caminhos de correção, descarte e autorização
-            entram em uma etapa seguinte do projeto.
-          </p>
+          {/* A tela não escolhe o destino do frasco: ela oferece os três
+              caminhos do PRD 6.1, e a escolha é da pessoa no balcão. */}
+          {painelDaExcecao(resposta.unidade)}
         </section>
       )
 
@@ -285,6 +346,27 @@ function Resultado({ resposta }: { resposta: RespostaLeitura }) {
         </section>
       )
   }
+}
+
+/**
+ * O desfecho dos dois caminhos terminais da exceção (PRD 6.1). Como nos
+ * vereditos, o título é rótulo de layout — escolhido pelo campo `resultado` — e
+ * o texto que explica o que aconteceu é o do servidor.
+ *
+ * Não há botão de desfazer: nem o descarte nem a venda autorizada têm estorno
+ * no sistema, e isso está registrado como limitação em
+ * `docs/notas-para-artigo.md`.
+ */
+function ResolucaoDaExcecao({ resolucao }: { resolucao: Resolucao }) {
+  const descarte = resolucao.resultado === 'DESCARTE_REGISTRADO'
+
+  return (
+    <section className={descarte ? 'resultado resultado-descarte' : 'resultado resultado-override'}>
+      <h3>{descarte ? 'Descarte registrado' : 'Venda autorizada'}</h3>
+      <p>{resolucao.mensagem}</p>
+      <DadosDaUnidade unidade={resolucao.unidade} />
+    </section>
+  )
 }
 
 function DadosDaUnidade({ unidade }: { unidade: UnidadeLida }) {

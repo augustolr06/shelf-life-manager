@@ -447,3 +447,57 @@ editada.
 **Descarte só para unidade vencida.** Frasco quebrado, avaria e furto não têm caminho no
 sistema: o PRD só prevê descarte dentro do fluxo da unidade vencida, e um motivo genérico de
 baixa é funcionalidade nova. Registrado como limitação em `docs/notas-para-artigo.md`.
+
+## 2026-09-08 — Tela da exceção de unidade vencida (T12)
+
+**Os três caminhos ficam na própria tela de leitura, não em rota nova.** A alternativa era
+`/excecao/:id`, para onde o veredito `EXCECAO_VENCIDO` navegaria. Descartada por três
+motivos: a seção 6.1 do PRD descreve a interface apresentando os caminhos como continuação
+da leitura; uma rota própria precisaria carregar a unidade por estado de navegação ou
+refazer a leitura, e refazer gravaria um segundo `LEITURA_QR_SAIDA`, inflando o denominador
+da taxa de acerto na primeira leitura (RF12); e a atendente está com o frasco na mão, num
+fluxo que T10 desenhou para não perder contexto entre uma leitura e a próxima. O painel
+(`components/PainelExcecaoVencido.tsx`) não conhece o veredito que o originou — recebe uma
+unidade e devolve o que o servidor respondeu —, o que permite T13 reusá-lo a partir da fila
+de descarte, onde não houve leitura de QR nenhuma.
+
+**A ATENDENTE vê só o descarte; os outros dois são anunciados como ações do gestor.** O
+backend já decide: `corrigir` e `override` são `GESTOR`-only desde T11. Mostrar os três
+desabilitados foi descartado pela mesma razão registrada em T10 — botão inerte no balcão é
+pior que ausência. Esconder continua sendo conveniência de interface; quem recusa é o 403
+(RNF04). Consequência aceita: resolver um frasco cujo dado está errado exige o gestor
+assumir a sessão, que é a mesma consequência já aceita em T11 para o override.
+
+**A tela espelha o mínimo da justificativa, e não compara datas** (decidido pelo orientando
+depois de discussão; a proposta inicial era não espelhar nenhum dos dois). O critério que
+separa os dois casos: *a tela pode antecipar o que ela mesma sabe por inteiro; não pode
+antecipar o que é cópia de estado do servidor.* O mínimo de 10 caracteres é propriedade do
+texto que o gestor acabou de digitar — não envelhece, e a tela o tem completo; fica
+espelhado, com botão desabilitado e contagem à vista. `VALIDADE_INALTERADA` é propriedade
+da validade gravada, de que a tela só tem uma cópia lida na leitura do QR: se outro gestor
+corrigiu a unidade nesse meio tempo, comparar no cliente bloquearia uma correção legítima
+com a mensagem errada. Falso bloqueio silencioso é pior que uma ida à rede. Dois fatos
+sustentaram a escolha: sem o espelho, a recusa do backend chegaria à tela como
+`body/justificativa must NOT have fewer than 10 characters` (o formato padrão do Fastify,
+que `services/api.ts` lê pelo campo `message`), enquanto `VALIDADE_INALTERADA` tem 400
+artesanal em português desde T11; e o projeto já espelha restrição de formulário
+(`TelaRecebimento` tem `min`/`max` de quantidade vindos do schema de `unidade.routes.ts`).
+O espelho é conveniência, nunca autoridade: discordando, a mensagem exibida é a do servidor.
+
+**Correção que revalida em `CONFIRMAR` é apresentada como fato consumado.** A tela não
+pergunta se deve confirmar a saída depois de corrigir a data — não pode, porque a `Saida` já
+existe quando a resposta chega (T09, T11). É o momento em que a consequência da revalidação
+server-side, decidida em T11, aparece ao usuário: um gestor que corrige uma validade pode
+terminar a interação com o produto vendido.
+
+**Resposta 409 `UNIDADE_JA_BAIXADA` devolve a tela ao estado de nova leitura**, em vez de
+manter os caminhos abertos com o erro ao lado. Alguém resolveu aquela unidade enquanto o
+frasco estava na mão: o veredito em tela valia para o estoque de um instante que passou, e é
+a mesma razão pela qual T10 descarta o veredito quando a conexão cai.
+
+**Observação registrada, sem correção nesta tarefa: o backend não tem `errorHandler`.**
+Qualquer violação de JSON Schema, em qualquer rota, chega ao usuário como texto interno do
+Fastify em inglês. Traduzir `FST_ERR_VALIDATION` para o formato `{erro, mensagem}` do
+projeto é tarefa de backend e não entrou aqui. Mesmo feita, não substituiria o espelho da
+Decisão 3: mensagem genérica de "confira os campos" é pior que desabilitar o botão com a
+contagem à vista.

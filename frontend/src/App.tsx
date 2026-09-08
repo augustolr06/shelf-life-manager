@@ -37,7 +37,8 @@ const TELAS: readonly Tela[] = [
     rotulo: 'Leitura de QR',
     // Mesma lista da rota `POST /saidas/ler` no backend.
     papeis: ['ATENDENTE', 'GESTOR'],
-    elemento: () => <TelaLeituraQr />,
+    // O papel decide quais dos três caminhos da unidade vencida aparecem (T12).
+    elemento: (usuario) => <TelaLeituraQr usuario={usuario} />,
   },
   {
     caminho: '/produtos',

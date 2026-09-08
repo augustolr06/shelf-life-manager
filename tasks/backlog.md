@@ -30,7 +30,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T11 | Backend: ramo `EXCECAO_VENCIDO` + 3 endpoints (correção, descarte, override) | concluída | T07 | `tasks/T11-excecao-vencido-backend.md` |
-| T12 | Frontend: tela de exceção com os 3 caminhos, override restrito a GESTOR | pendente | T11 | — |
+| T12 | Frontend: tela de exceção com os 3 caminhos, override restrito a GESTOR | concluída | T11 | `tasks/T12-excecao-vencido-frontend.md` |
 | T13 | Fila de descarte pendente no painel do GESTOR (RF11) | pendente | T11 | — |
 
 ## Incremento 4 — Cadastro em lote e etiquetas
