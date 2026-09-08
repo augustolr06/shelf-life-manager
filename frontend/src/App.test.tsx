@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { respostaFalsa } from './services/testes/respostaFalsa'
@@ -20,10 +21,12 @@ const ATENDENTE = {
 const buscar = vi.fn<typeof fetch>()
 
 const SESSAO_ATIVA = () => respostaFalsa(200, { usuario: GESTOR })
+const SESSAO_ATENDENTE = () => respostaFalsa(200, { usuario: ATENDENTE })
 const SEM_SESSAO = () =>
   respostaFalsa(401, { erro: 'NAO_AUTENTICADO', mensagem: 'Sessão ausente ou expirada.' })
 const CATALOGO_VAZIO = () =>
   respostaFalsa(200, { produtos: [], total: 0, pagina: 1, tamanhoPagina: 20 })
+const BACKEND_DE_PE = () => respostaFalsa(200, { status: 'ok', uptime: 1 })
 const REDE_FORA = () => {
   throw new TypeError('Failed to fetch')
 }
@@ -43,6 +46,18 @@ function rotear(rotas: Record<string, () => Response>) {
   })
 }
 
+/**
+ * Desde T10 cada tela tem URL própria, então o teste precisa dizer de onde
+ * parte. O roteador de verdade (`BrowserRouter`) vive em `main.tsx`.
+ */
+function montar(rotaInicial = '/produtos') {
+  return render(
+    <MemoryRouter initialEntries={[rotaInicial]}>
+      <App />
+    </MemoryRouter>,
+  )
+}
+
 describe('App — guardião de sessão', () => {
   beforeEach(() => {
     buscar.mockReset()
@@ -56,7 +71,7 @@ describe('App — guardião de sessão', () => {
   it('mostra a tela de login quando GET /auth/me responde 401', async () => {
     rotear({ 'GET /auth/me': SEM_SESSAO })
 
-    render(<App />)
+    montar()
 
     // Antes da resposta chegar não pode aparecer nem login nem conteúdo.
     expect(screen.getByRole('status')).toHaveTextContent(/verificando sessão/i)
@@ -68,7 +83,7 @@ describe('App — guardião de sessão', () => {
   it('restaura a sessão existente sem passar pela tela de login', async () => {
     rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
 
-    render(<App />)
+    montar()
 
     expect(await screen.findByText(/gestora de loja — gestor/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument()
@@ -79,7 +94,7 @@ describe('App — guardião de sessão', () => {
   it('envia o cookie de sessão em toda requisição', async () => {
     rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
 
-    render(<App />)
+    montar()
     await screen.findByRole('button', { name: /sair/i })
 
     // Sem `credentials: 'include'` o navegador não manda o cookie httpOnly e
@@ -96,11 +111,14 @@ describe('App — guardião de sessão', () => {
       'POST /auth/logout': () => respostaFalsa(204),
     })
 
-    render(<App />)
+    montar()
     fireEvent.click(await screen.findByRole('button', { name: /sair/i }))
 
     expect(await screen.findByLabelText(/senha/i)).toBeInTheDocument()
-    expect(buscar).toHaveBeenLastCalledWith(
+    // `toHaveBeenCalledWith`, e não `LastCalledWith`: a busca do catálogo que
+    // já estava no ar pode responder depois do logout, e a ordem entre as
+    // duas não é o que este caso verifica.
+    expect(buscar).toHaveBeenCalledWith(
       'http://localhost:3333/auth/logout',
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
     )
@@ -113,7 +131,7 @@ describe('App — guardião de sessão', () => {
       'POST /auth/logout': REDE_FORA,
     })
 
-    render(<App />)
+    montar()
     fireEvent.click(await screen.findByRole('button', { name: /sair/i }))
 
     // O cookie continua válido no navegador; fingir que a sessão acabou
@@ -125,18 +143,20 @@ describe('App — guardião de sessão', () => {
   it('cai na tela de login avisando quando o backend está inalcançável', async () => {
     rotear({ 'GET /auth/me': REDE_FORA })
 
-    render(<App />)
+    montar()
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/conexão/i))
-    expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument()
+    // O redirecionamento para `/login` é um passo do roteador, não do mesmo
+    // render do aviso: por isso a espera.
+    expect(await screen.findByLabelText(/e-mail/i)).toBeInTheDocument()
   })
 
-  describe('navegação entre telas (T05)', () => {
+  describe('roteamento entre telas (T10)', () => {
     it('troca do catálogo para o recebimento sem recarregar a página', async () => {
       rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
 
-      render(<App />)
-      fireEvent.click(await screen.findByRole('button', { name: /registrar recebimento/i }))
+      montar()
+      fireEvent.click(await screen.findByRole('link', { name: /registrar recebimento/i }))
 
       expect(
         await screen.findByRole('heading', { name: /registrar recebimento/i }),
@@ -146,18 +166,49 @@ describe('App — guardião de sessão', () => {
       ).not.toBeInTheDocument()
     })
 
-    it('não oferece o recebimento ao ATENDENTE', async () => {
+    it('leva o GESTOR ao catálogo quando entra pela raiz', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
+
+      montar('/')
+
+      expect(
+        await screen.findByRole('heading', { name: /catálogo de produtos/i }),
+      ).toBeInTheDocument()
+    })
+
+    it('leva a ATENDENTE direto à leitura de QR, que é o que ela faz no sistema', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+      montar('/')
+
+      expect(await screen.findByRole('heading', { name: /leitura de qr/i })).toBeInTheDocument()
+    })
+
+    it('não oferece o recebimento à ATENDENTE, nem por link nem por URL', async () => {
       rotear({
-        'GET /auth/me': () => respostaFalsa(200, { usuario: ATENDENTE }),
+        'GET /auth/me': SESSAO_ATENDENTE,
         'GET /produtos': CATALOGO_VAZIO,
+        'GET /health': BACKEND_DE_PE,
       })
 
-      render(<App />)
-      await screen.findByRole('heading', { name: /catálogo de produtos/i })
+      montar('/recebimento')
 
-      // Conveniência de interface: quem recusa de fato é o 403 do backend
-      // (RF03), coberto por `backend/tests/unidade.test.ts`.
-      expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+      // A URL digitada à mão cai na tela inicial do papel, e o link nem
+      // aparece. Conveniência de interface: quem recusa de fato é o 403 do
+      // backend (RF03), coberto por `backend/tests/unidade.test.ts`.
+      expect(await screen.findByRole('heading', { name: /leitura de qr/i })).toBeInTheDocument()
+      expect(
+        screen.queryByRole('link', { name: /registrar recebimento/i }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('manda ao login quem chega numa rota interna sem sessão', async () => {
+      rotear({ 'GET /auth/me': SEM_SESSAO })
+
+      montar('/leitura')
+
+      expect(await screen.findByLabelText(/senha/i)).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: /leitura de qr/i })).not.toBeInTheDocument()
     })
   })
 })

@@ -5,12 +5,30 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     react(),
-    // RNF07 — instalabilidade. Por ora só o manifest + precache padrão do
-    // Workbox; o service worker customizado (detecção de offline na tela de
-    // leitura de QR) é escopo de T10.
+    // RNF07 — instalabilidade e comportamento offline previsível.
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      workbox: {
+        // Duas razões, ambas de T10. (a) O app instalado precisa abrir sem
+        // rede para mostrar o bloqueio explícito da tela de leitura, em vez do
+        // erro de rede do navegador, que não explica nada. (b) Cada tela tem
+        // URL própria desde T10, e recarregar `/leitura` direto precisa
+        // resolver no app shell.
+        navigateFallback: 'index.html',
+        runtimeCaching: [
+          {
+            // A leitura de QR e o health check nunca passam por cache, e nunca
+            // são repetidos automaticamente. Um retry do service worker
+            // gravaria um segundo `LEITURA_QR_SAIDA` no log e inflaria o
+            // denominador da taxa de acerto na primeira leitura, que é o
+            // indicador do TCC (RF12). Servir veredito de cache seria pior
+            // ainda: ele vale para o estoque de um instante só.
+            urlPattern: ({ url }) => url.pathname === '/saidas/ler' || url.pathname === '/health',
+            handler: 'NetworkOnly',
+          },
+        ],
+      },
       manifest: {
         name: 'Controle de Estoque FIFO por Validade',
         short_name: 'Estoque FIFO',

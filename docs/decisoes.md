@@ -308,3 +308,80 @@ em 200 e 21ms — folgado dentro da RNF06 —, com o `sessaoVendaId` aparecendo 
 API gerando 2 `UNIDADE_CADASTRADA`, cada um com o `unidadeId` casando com a unidade real.
 `CONFIRMAR` ficou de fora do `curl` pelo mesmo motivo de T08 — consumiria uma unidade do
 banco de desenvolvimento, e já tem casos automatizados contra banco real.
+
+## 2026-09-08 — Tela de leitura de QR, roteamento e offline (T10)
+
+**Entra biblioteca de roteamento (`react-router-dom`), decidido pelo orientando.** T03b e
+T05 adiaram o roteamento duas vezes, registrando que a decisão seria de T10. A proposta
+inicial desta tarefa era manter as abas por estado; o orientando decidiu separar as telas
+por rota, e é o que está implementado: `/login`, `/leitura`, `/produtos`, `/recebimento`,
+com `/` e qualquer URL desconhecida redirecionando para a tela inicial do papel. O `App`
+continua sendo o guardião de sessão — o que mudou é que ele decide *rota* em vez de ramo
+de render, e as três situações de T03b (`verificando`, `anonimo`, `autenticado`)
+permanecem. Consequência operacional a lembrar na publicação: URL própria por tela exige
+que o host estático devolva o app shell em caminho fundo; no `vite dev` isso já vale, e no
+app instalado quem resolve é o `navigateFallback` do service worker.
+
+**A tela inicial depende do papel: ATENDENTE cai em `/leitura`, GESTOR em `/produtos`.**
+Ler QR é a única coisa que a atendente faz no sistema, e um passo de navegação a cada
+atendimento é custo repetido no balcão. Esconder rota por papel continua sendo
+conveniência de interface — quem recusa de fato é o 403 do backend (RNF04); uma URL
+digitada à mão para uma tela fora do papel cai na tela inicial em vez de renderizar.
+
+**Não existe leitura offline, e não há fila de leituras para enviar depois.** O portão da
+tela usa dois sinais (`navigator.onLine`, depois `GET /health`) e bloqueia o fluxo com
+mensagem explícita quando qualquer um falha (RNF07, arquitetura seção 6). Descartada a
+fila: um QR lido sem rede só teria valor se alguém desse o veredito na hora, e o veredito
+depende do estoque inteiro do SKU naquele instante, que mora no servidor (RNF03).
+Enfileirar significaria vender sem veredito ou entregar um veredito que pode estar errado
+quando enfim chegar. O PWA continua útil offline como app instalado: abre, mostra a tela e
+explica o bloqueio, em vez do erro de rede do navegador.
+
+**O veredito na tela é descartado quando a conexão cai.** Achado da conferência no
+navegador: ao voltar de offline, o resultado da última leitura reaparecia intacto. Um
+veredito vale para o estoque de um instante — enquanto a conexão esteve fora, outra
+atendente pode ter vendido a unidade que a tela ainda aponta. Reexibi-lo seria apresentar
+como atual um dado que ninguém revalidou.
+
+**`/saidas/ler` e `/health` em `NetworkOnly` no service worker, sem retry automático.**
+Servir veredito de cache seria servir uma decisão vencida. E repetição automática pelo
+service worker gravaria um segundo `LEITURA_QR_SAIDA`, inflando o denominador da taxa de
+acerto na primeira leitura, que é o indicador do TCC (RF12) — é a mesma razão **(c)** já
+registrada em T08 para não codificar veredito em status HTTP.
+
+**A câmera fica isolada em `components/LeitorCamera.tsx`, substituída por dublê nos
+testes.** `html5-qrcode` (fixada na arquitetura desde o início) depende de `getUserMedia` e
+de decodificação de imagem, e jsdom não tem nenhum dos dois; o `playwright-cli` também não
+aponta câmera para um frasco. Com a integração inteira num arquivo que só pede a câmera e
+emite o texto lido, todo o resto da tela fica coberto por teste automatizado, e o que sobra
+sem cobertura é exatamente o que precisa de celular real — verificação já reservada ao
+orientando no backlog. A biblioteca entra por import dinâmico: só é baixada quando a
+atendente liga a câmera, e não no carregamento do app.
+
+**A tela não normaliza o código digitado.** `codigoQr.ts` no backend é o dono único do
+formato desde T08, que segue provisório até a RNF08 (T16). Normalizar também no cliente
+criaria um segundo dono e mascararia divergência entre os dois. Conferido no navegador:
+`prf-vjrj6k` digitado em minúsculas chega cru à API e volta como `EXCECAO_VENCIDO` da
+unidade certa.
+
+**`sessaoVendaId` é omitido do corpo quando o navegador não tem `crypto.randomUUID`.**
+Contexto não-seguro (HTTP em IP de rede local) não oferece nem `randomUUID` nem
+`getUserMedia`. Enviar string vazia bateria na validação de formato UUID decidida em T09 e
+derrubaria a requisição inteira: perder uma venda por causa de um campo de relatório é o
+pior desfecho possível. A tela avisa que o agrupamento está indisponível e segue lendo.
+
+**`formatarData` saiu de `services/unidades.ts` para `services/datas.ts`.** T05 a criou
+junto do serviço de unidades porque era o único consumidor; a tela de leitura virou o
+segundo. Nenhuma mudança de comportamento — segue convertendo por fatia de texto, sem
+passar por `Date`, porque `dataValidade` é `DATE` (RNF01) e `new Date('2027-03-01')`
+voltaria um dia atrás em fuso negativo.
+
+**Conferência no navegador com `playwright-cli`** (método do CLAUDE.md para mudanças de
+UI), contra backend e banco de desenvolvimento: login como ATENDENTE caindo direto em
+`/leitura`; `BLOQUEAR_FIFO` real de `PRF-PW9VDK` apontando `PRF-474MZJ` com as duas
+validades lado a lado; `EXCECAO_VENCIDO` sem botão de ação; `network-state-set offline`
+fechando o portão e `online` reabrindo; nenhum erro de console além dos dois 401 de
+`/auth/me` anteriores ao login. Conferido também em viewport de celular (390×844): o título
+do veredito e o código a buscar cabem sem rolagem. `CONFIRMAR` ficou de fora pelo mesmo
+motivo de T08 e T09 — consumiria uma unidade do banco de desenvolvimento, e já tem casos
+automatizados.

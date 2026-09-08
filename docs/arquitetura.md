@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 4 e 5 revisadas em T09)
+Última atualização: 2026-09-08 (seções 1 e 6 revisadas em T10)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -12,6 +12,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
 | ORM | Prisma sobre PostgreSQL | Migrações versionadas e tipos gerados. Suporta `$transaction` com query raw para lock explícito (RNF02), que a API de alto nível do Prisma não expõe diretamente. |
 | Banco de dados | PostgreSQL 15+ | Suporta `SELECT ... FOR UPDATE` nativamente (RNF02) e tipo `DATE` (RNF01). Adequado à escala do projeto (RNF10) sem tuning especial. |
 | Frontend | React + Vite + TypeScript | SPA leve, boa DX, plugin de PWA maduro. |
+| Roteamento | `react-router-dom` | Uma URL por tela, decidido em T10 depois de duas tarefas adiando (T03b, T05). Exige app shell em caminho fundo — resolvido pelo `navigateFallback` do service worker. |
 | PWA | `vite-plugin-pwa` | Manifest + service worker prontos para instalabilidade (RNF07). |
 | Leitura de QR | `html5-qrcode` (câmera do navegador) | Compatível com PWA, sem exigir app nativo (RF05). |
 | Autenticação | JWT em cookie `httpOnly` + `bcrypt` | Simples, sem estado de sessão a gerenciar no servidor. Atende RF01 e RNF09. |
@@ -248,6 +249,14 @@ Não cria estado nem semântica transacional (PRD seção 6.2).
 ## 6. Comportamento offline (RNF07)
 
 O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de leitura de QR. Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local.
+
+Detalhado em T10, a partir da implementação:
+
+- **Os dois sinais são necessários.** `navigator.onLine` só sabe que existe uma rede; `GET /health` é o que confirma caminho até o backend. O portão reage aos eventos `online`/`offline` do navegador, sem varredura periódica.
+- **Não há fila de leituras offline**, nem cópia local do estoque. Um QR lido sem rede só teria valor com veredito na hora, e o veredito depende do estoque inteiro do SKU naquele instante (RNF03). Uma queda no meio da leitura cai no mesmo bloqueio, sem veredito inventado pela tela.
+- **O veredito exibido é descartado quando a conexão cai.** Ele vale para o estoque de um instante: durante a queda, outra atendente pode ter baixado a unidade apontada.
+- **`/saidas/ler` e `/health` ficam em `NetworkOnly` no service worker**, sem retry automático — cache serviria decisão vencida, e retry gravaria um segundo `LEITURA_QR_SAIDA`, inflando o denominador da taxa de acerto na primeira leitura (RF12).
+- O `navigateFallback` do service worker faz o app instalado abrir sem rede para mostrar o bloqueio, e sustenta o recarregamento direto de uma URL de tela (seção 1, roteamento).
 
 ## 7. Estratégia de testes
 

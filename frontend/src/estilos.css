@@ -238,8 +238,8 @@ td button {
   margin-top: 1rem;
 }
 
-/* Navegação entre telas (T05). Botões, não links: não há roteamento por URL
-   até T10 — ver a decisão registrada em App.tsx. */
+/* Navegação entre telas. Virou link em T10, quando cada tela ganhou URL
+   própria — antes eram botões trocando estado no App. */
 .abas {
   display: flex;
   gap: 0.25rem;
@@ -249,14 +249,19 @@ td button {
 }
 
 .aba {
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  min-height: 2.75rem;
   border-radius: 0;
   background: transparent;
   color: var(--cor-texto-suave);
   border-bottom: 3px solid transparent;
   font-size: 0.9375rem;
+  text-decoration: none;
 }
 
-.aba:hover:not(:disabled) {
+.aba:hover {
   background: var(--cor-fundo);
 }
 
@@ -351,4 +356,163 @@ button.secundario:hover:not(:disabled) {
 .resultado-recebimento h3 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
+}
+
+/* Leitura de QR no balcão (RF05, RF06). A tela é operada com uma mão só,
+   segurando um frasco na outra: alvo de toque grande e resultado legível de
+   relance vêm antes de qualquer refinamento visual. */
+.tela-leitura h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.tela-leitura > .subtitulo {
+  max-width: 42rem;
+}
+
+.atendimento,
+.camera,
+.entrada-manual {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+}
+
+.atendimento p {
+  flex: 1 1 16rem;
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.camera {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.leitor-camera {
+  width: 100%;
+  max-width: 22rem;
+  align-self: center;
+}
+
+.camera .erro {
+  width: 100%;
+}
+
+.area-resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.resultado {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+  border-left-width: 6px;
+}
+
+.resultado h3 {
+  margin: 0 0 0.375rem;
+  font-size: 1.0625rem;
+}
+
+.resultado p {
+  margin: 0 0 0.5rem;
+}
+
+.resultado-confirmar {
+  border-left-color: var(--cor-primaria);
+}
+
+/* O bloqueio é o comportamento central do sistema, não um erro: cor de aviso,
+   não de falha. */
+.resultado-bloqueio {
+  border-left-color: #b45309;
+  background: #fffbeb;
+}
+
+.resultado-vencido {
+  border-left-color: #7c3aed;
+}
+
+.resultado-erro {
+  border-left-color: var(--cor-erro);
+}
+
+/* O que a atendente vai procurar na prateleira é o maior elemento da tela. */
+.codigo-correto {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.comparacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.comparacao > div {
+  flex: 1 1 12rem;
+}
+
+.comparacao h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cor-texto-suave);
+}
+
+.dados-unidade {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.125rem 0.75rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.dados-unidade dt {
+  color: var(--cor-texto-suave);
+}
+
+.dados-unidade dd {
+  margin: 0;
+}
+
+.tentativas {
+  margin: 0.75rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+/* Sem conexão não há leitura: o veredito depende do estoque inteiro do
+   produto naquele instante, e isso mora no servidor (RNF07). */
+.bloqueio-offline {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: var(--cor-erro-fundo);
+  border: 1px solid var(--cor-erro);
+  color: var(--cor-erro);
+}
+
+.bloqueio-offline h3 {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+}
+
+.bloqueio-offline p {
+  margin: 0 0 0.75rem;
 }

@@ -23,7 +23,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | T07 | Implementação de `validarSaidaFifo` (RF06, RNF02-04) | concluída | T06 | `tasks/T07-implementacao-validar-saida-fifo.md` |
 | T08 | Endpoint de leitura de QR + loop de revalidação (RF05, RF06) | concluída | T07 | `tasks/T08-endpoint-leitura-qr.md` |
 | T09 | Registro de saída + EventoLog append-only (RF07, RF12, RNF05) | concluída | T07 | `tasks/T09-registro-saida-evento-log.md` |
-| T10 | Tela de leitura de QR no frontend (câmera + fallback manual) + config PWA e detecção offline (RF05, RNF07) | pendente | T08 | *gerar ao iniciar* |
+| T10 | Tela de leitura de QR no frontend (câmera + fallback manual) + config PWA e detecção offline (RF05, RNF07) | concluída | T08 | `tasks/T10-tela-leitura-qr.md` |
 
 ## Incremento 3 — Exceção de unidade vencida (PRD seção 6.1)
 
@@ -65,8 +65,9 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | Quando | O quê | Impacto se falhar |
 |---|---|---|
 | **Já é possível** — T05 gera códigos (ex.: `PRF-PW9VDK`) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16) | Pode reabrir o formato do `codigoQr`, que é provisório. Quanto antes for feito, menos código depende do formato atual |
-| Ao concluir T10 | Teste da câmera em celular real (RF05). `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — **avisar o orientando** | Fluxo de leitura de QR não verificado no dispositivo-alvo |
-| Ao concluir T10 | Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em **todas** as leituras do ciclo, inclusive as bloqueadas. O backend aceita a ausência do campo em silêncio (é opcional), então um frontend que esqueça de mandá-lo não quebra nada — só esvazia o agrupamento de relatório da RF13 | Saídas do mesmo atendimento ficam sem como serem agrupadas, e o dado não é recuperável depois |
+| **Agora** — T10 concluída | Teste da câmera em celular real (RF05): a câmera abre, decodifica a etiqueta impressa, e o veredito aparece. `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — é a única parte de T10 sem cobertura automatizada, isolada em `components/LeitorCamera.tsx`. No mesmo aparelho, conferir que a URL usada é segura: sem HTTPS não há câmera **nem** `crypto.randomUUID`, e o agrupamento de atendimento cai fora | Fluxo de leitura de QR não verificado no dispositivo-alvo |
+| Junto com o teste da câmera | Instalar o PWA no celular e abrir com o modo avião ligado: deve abrir e mostrar o bloqueio explícito da RNF07, não o erro de rede do navegador | O comportamento offline foi conferido em navegador de desktop (`network-state-set offline`), não no app instalado |
+| ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
 | Quando houver oportunidade | Reexercitar no navegador as telas de T03b (login) e T04 (catálogo), que ficaram sem conferência por falta de navegador compatível na época. O `playwright-cli` passou a encontrar um Chrome utilizável em T05 | Telas anteriores nunca vistas em navegador — foi assim que o defeito de CORS de T04 escapou |
 

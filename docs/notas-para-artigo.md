@@ -230,3 +230,88 @@ paga por isso — inclua limitações honestamente, não só os pontos fortes.
 **Tarefa relacionada:** T08 (código do frasco), T09 (identificador de atendimento)
 
 **Data:** 2026-09-08
+
+## Um sistema que substitui o controle manual não pode funcionar pela metade quando a rede cai
+
+**Contexto do problema:** a tela de leitura é a única parte do sistema que a atendente usa
+durante o atendimento, e ela roda num celular, dentro da loja, na rede que a loja tem. A
+queda de conexão não é hipótese remota: é o cenário normal em ponto comercial pequeno. O
+aplicativo é instalável e funciona como app, o que cria a expectativa — legítima — de que
+ele continue servindo offline, como qualquer aplicativo de celular.
+
+**Alternativas consideradas:** guardar as leituras feitas sem rede e enviá-las quando a
+conexão voltar, que é a resposta padrão de qualquer aplicativo instalável e a que o próprio
+formato sugere. Numa variante mais ousada, guardar também uma cópia local do estoque para
+decidir na hora e sincronizar depois.
+
+**Solução adotada:** não existe leitura offline. A tela verifica se há caminho até o
+servidor antes de habilitar o fluxo de saída e, quando não há, bloqueia com uma mensagem
+que diz por quê. O aplicativo instalado continua abrindo sem rede — mas para explicar o
+bloqueio, não para operar. Como consequência do mesmo raciocínio, um veredito que ficou na
+tela é descartado quando a conexão cai, em vez de reaparecer intacto quando ela volta.
+
+**Por que resolve o problema / trade-offs:** a decisão parece uma limitação e é, na
+verdade, o núcleo do argumento do trabalho. O que o sistema oferece à loja não é o registro
+da venda — isso o caderno também fazia. É a resposta a uma pergunta que só pode ser
+respondida olhando o estoque inteiro daquele produto **naquele instante**: qual destes
+frascos sai primeiro. Uma leitura enfileirada para enviar depois entrega à atendente
+exatamente o que ela já tinha antes do sistema: um palpite. Uma cópia local do estoque
+entrega pior que isso, porque um palpite com aparência de veredito é mais perigoso que a
+ausência de veredito — e no balcão a atendente age sobre o que a tela diz. O mesmo vale
+para o veredito velho reaparecendo depois da reconexão: durante a queda, outra atendente
+pode ter vendido a unidade apontada, e a tela estaria afirmando algo que ninguém
+reconferiu. Vale registrar a assimetria que isso revela: o modo offline é aceitável para
+funções que **acumulam** dado (registrar um recebimento, anotar uma contagem) e inaceitável
+para funções que **decidem** sobre um recurso disputado. Um sistema que substitui processo
+manual precisa dizer com todas as letras quais das suas funções são de qual tipo — e a
+honestidade aqui custa: significa admitir que, sem rede, a loja volta ao processo manual
+naquele atendimento. Trabalho futuro possível, se a conectividade da loja se mostrar um
+problema real no piloto: permitir que a leitura offline registre a saída **sem** veredito
+FIFO, marcada como não-validada, o que preservaria o dado da venda e deixaria explícito no
+relatório quantas saídas escaparam da regra — em vez de fingir que foram validadas.
+
+**Tarefa relacionada:** T10 (tela de leitura, portão de offline)
+
+**Data:** 2026-09-08
+
+---
+
+## A biblioteca que não pode ser testada empurra a fronteira do que o teste automatizado garante
+
+**Contexto do problema:** o gesto central do sistema é apontar a câmera do celular para o
+código colado no frasco. Toda a lógica em volta — o que fazer com cada veredito, o laço de
+tentar de novo, o agrupamento do atendimento, o bloqueio sem rede — é testável em ambiente
+simulado. A câmera não é: ela depende de acesso ao hardware, de permissão do usuário, de
+decodificação de imagem e de contexto seguro (HTTPS ou `localhost`), e nenhuma dessas
+coisas existe no ambiente onde os testes automatizados rodam. A ferramenta de conferência
+em navegador, usada no resto do projeto, também não resolve — ela dirige um navegador de
+verdade, mas não aponta uma câmera física para um frasco de perfume.
+
+**Alternativas consideradas:** aceitar a lacuna em silêncio, que é o desfecho comum — o
+relatório de cobertura fica alto, a parte não coberta é pequena, e ninguém pergunta. Ou,
+no extremo oposto, montar uma bancada de teste com câmera simulada alimentada por imagens,
+custo desproporcional para um TCC.
+
+**Solução adotada:** isolar a integração inteira com a biblioteca de câmera num único
+componente que faz uma coisa só — pedir a câmera e emitir o texto que decodificar. Todo o
+resto da tela é testado com esse componente substituído por um dublê. A lacuna fica, então,
+com uma fronteira nítida e declarada: o que não está coberto por teste automatizado é
+exatamente um arquivo, e a verificação que falta é uma só, em celular real.
+
+**Por que resolve o problema / trade-offs:** o ganho não é de cobertura, é de **honestidade
+sobre a cobertura**. Antes do isolamento, "a tela de leitura tem testes" seria uma
+afirmação verdadeira e enganosa ao mesmo tempo. Depois, é possível dizer com precisão o que
+os testes garantem (todos os vereditos, o laço, o agrupamento, o comportamento sem rede) e
+o que eles não alcançam (a câmera abre? decodifica a etiqueta impressa? sob a luz da
+loja?). Isso conecta com outra limitação já registrada neste projeto — a legibilidade
+física do QR em frasco curvo e plástico brilhante —, e as duas se resolvem na mesma ida à
+loja. A generalização que interessa ao artigo: num sistema que faz a ponte entre o mundo
+físico e o digital, a fronteira do teste automatizado costuma cair exatamente na ponte. O
+método de trabalho precisa prever esse ponto e nomear quem verifica o outro lado, em vez de
+deixar a lacuna implícita no relatório de cobertura. Aqui isso virou item explícito de
+verificação manual, com o motivo técnico anotado ao lado.
+
+**Tarefa relacionada:** T10 (tela de leitura, componente de câmera isolado), T16 (RNF08,
+legibilidade física do QR)
+
+**Data:** 2026-09-08

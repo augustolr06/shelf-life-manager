@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
 import { TelaRecebimento } from './pages/TelaRecebimento'
-import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Usuario } from './services/auth'
+import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
 
 /**
  * Três situações mutuamente exclusivas. `verificando` existe para que a tela
@@ -15,17 +17,55 @@ type EstadoSessao =
   | { situacao: 'autenticado'; usuario: Usuario }
 
 /**
- * Navegação por estado, sem biblioteca de roteamento. T03b registrou que o
- * roteamento entraria quando fosse necessário; com duas telas ainda não é —
- * o custo (URL própria por tela, histórico do navegador) só se paga a partir
- * do fluxo de leitura de QR, em T10.
+ * Uma rota por tela, decidido pelo orientando em T10 (2026-09-08). T03b e T05
+ * tinham adiado o roteamento para cá.
+ *
+ * O `App` continua sendo o guardião de sessão; o que mudou é que ele decide
+ * *rota* em vez de ramo de render. Esconder rota por papel é conveniência de
+ * interface — quem recusa de fato é o 403 do backend (RNF04).
  */
-type Aba = 'produtos' | 'recebimento'
+type Tela = {
+  caminho: string
+  rotulo: string
+  papeis: readonly Papel[]
+  elemento: (usuario: Usuario) => ReactElement
+}
+
+const TELAS: readonly Tela[] = [
+  {
+    caminho: '/leitura',
+    rotulo: 'Leitura de QR',
+    // Mesma lista da rota `POST /saidas/ler` no backend.
+    papeis: ['ATENDENTE', 'GESTOR'],
+    elemento: () => <TelaLeituraQr />,
+  },
+  {
+    caminho: '/produtos',
+    rotulo: 'Catálogo de produtos',
+    papeis: ['ATENDENTE', 'GESTOR'],
+    elemento: (usuario) => <TelaProdutos usuario={usuario} />,
+  },
+  {
+    caminho: '/recebimento',
+    rotulo: 'Registrar recebimento',
+    papeis: ['GESTOR'],
+    elemento: () => <TelaRecebimento />,
+  },
+]
+
+/**
+ * Para onde `/` leva. A atendente cai na leitura porque é a única coisa que
+ * ela faz no sistema; o gestor cai no catálogo, que é de onde o trabalho dele
+ * começa.
+ */
+function rotaInicial(usuario: Usuario): string {
+  return usuario.papel === 'ATENDENTE' ? '/leitura' : '/produtos'
+}
 
 export function App() {
   const [sessao, setSessao] = useState<EstadoSessao>({ situacao: 'verificando' })
   const [aviso, setAviso] = useState<string | null>(null)
-  const [aba, setAba] = useState<Aba>('produtos')
+  const navegar = useNavigate()
 
   useEffect(() => {
     let ativo = true
@@ -53,6 +93,7 @@ export function App() {
       await encerrarSessao()
       setAviso(null)
       setSessao({ situacao: 'anonimo' })
+      navegar('/login', { replace: true })
     } catch (falha) {
       // Se o logout não chegou ao servidor, o cookie continua válido — não
       // adianta fingir que a sessão acabou.
@@ -76,16 +117,29 @@ export function App() {
             {aviso}
           </p>
         )}
-        <TelaLogin aoAutenticar={(usuario) => setSessao({ situacao: 'autenticado', usuario })} />
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <TelaLogin
+                aoAutenticar={(usuario) => {
+                  setSessao({ situacao: 'autenticado', usuario })
+                  navegar(rotaInicial(usuario), { replace: true })
+                }}
+              />
+            }
+          />
+          {/* Sem sessão, qualquer URL leva ao login. `replace` para que o
+              botão voltar do celular não devolva à rota protegida. */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
       </>
     )
   }
 
   const { usuario } = sessao
-
-  // Recebimento é restrito a GESTOR (RF03). Esconder a aba é conveniência de
-  // interface: quem recusa continua sendo o 403 do backend (RNF04).
-  const podeReceber = usuario.papel === 'GESTOR'
+  const inicial = rotaInicial(usuario)
+  const visiveis = TELAS.filter((tela) => tela.papeis.includes(usuario.papel))
 
   return (
     <div className="aplicacao">
@@ -107,33 +161,28 @@ export function App() {
         </p>
       )}
 
-      {podeReceber && (
-        <nav className="abas" aria-label="Seções do sistema">
-          {(
-            [
-              ['produtos', 'Catálogo de produtos'],
-              ['recebimento', 'Registrar recebimento'],
-            ] as const
-          ).map(([chave, rotulo]) => (
-            <button
-              key={chave}
-              type="button"
-              className={aba === chave ? 'aba ativa' : 'aba'}
-              aria-current={aba === chave ? 'page' : undefined}
-              onClick={() => setAba(chave)}
-            >
-              {rotulo}
-            </button>
-          ))}
-        </nav>
-      )}
+      <nav className="abas" aria-label="Seções do sistema">
+        {visiveis.map((tela) => (
+          <NavLink
+            key={tela.caminho}
+            to={tela.caminho}
+            className={({ isActive }) => (isActive ? 'aba ativa' : 'aba')}
+          >
+            {tela.rotulo}
+          </NavLink>
+        ))}
+      </nav>
 
       <main>
-        {aba === 'recebimento' && podeReceber ? (
-          <TelaRecebimento />
-        ) : (
-          <TelaProdutos usuario={usuario} />
-        )}
+        <Routes>
+          {visiveis.map((tela) => (
+            <Route key={tela.caminho} path={tela.caminho} element={tela.elemento(usuario)} />
+          ))}
+          {/* Rota de tela que o papel não alcança, `/login` já autenticado e
+              URL desconhecida caem todas no mesmo lugar: a tela inicial do
+              papel. */}
+          <Route path="*" element={<Navigate to={inicial} replace />} />
+        </Routes>
       </main>
     </div>
   )

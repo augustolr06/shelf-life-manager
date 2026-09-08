@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ErroApi } from '../services/api'
+import { formatarData } from '../services/datas'
 import { listarProdutos, type Produto } from '../services/produtos'
 import {
   cadastrarUnidades,
-  formatarData,
   type ItemLote,
   type ResultadoRecebimento,
 } from '../services/unidades'

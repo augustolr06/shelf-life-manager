@@ -39,9 +39,3 @@ export async function cadastrarUnidades(
     body: JSON.stringify({ unidades: itens }),
   })
 }
-
-/** `2027-03-01` (ou o ISO completo) para `01/03/2027`, sem passar por fuso. */
-export function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.slice(0, 10).split('-')
-  return `${dia}/${mes}/${ano}`
-}
