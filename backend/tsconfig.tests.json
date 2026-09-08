@@ -1,0 +1,13 @@
+{
+  // As suítes ficam fora do `tsconfig.json` porque elas não são compiladas
+  // para `dist/` — mas precisam ser checadas: a partir de T06 o tipo
+  // `Veredito` é o contrato que a implementação (T07) tem que respeitar, e um
+  // contrato que ninguém verifica não é contrato. O Vitest transpila sem
+  // checar tipos, então quem checa é este projeto, via `npm run typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "prisma.config.ts"]
+}

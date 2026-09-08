@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-07
+Última atualização: 2026-09-07 (seção 4 detalhada em T06)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -188,6 +188,23 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 3. `dataValidade < hoje`? → sim: `EXCECAO_VENCIDO` (não passa pelo FIFO)
 4. É a prioritária do pool não-vencido (`MIN(dataValidade) WHERE produtoId = X AND status = EM_ESTOQUE AND dataValidade >= hoje`)? → não: `BLOQUEAR_FIFO`, incrementa tentativas, grava evento `ALERTA_FIFO_DISPARADO`
 5. Sim → `CONFIRMAR`: cria `Saida`, `status → VENDIDA`, grava evento `SAIDA_CONFIRMADA`
+
+**Empate de validade.** O passo 4 compara **valores**, não identidade: havendo mais de uma unidade com a menor `dataValidade` do pool, todas são prioritárias e ler qualquer uma delas confirma. Apontar uma única vencedora arbitrária faria o sistema pedir um frasco fisicamente indistinguível do que está na mão da atendente — laço sem saída. Decidido em T06 (`docs/decisoes.md`, 2026-09-07).
+
+**Eventos gravados pela função** (decidido em T06 — a tabela de eventos da seção 5 do PRD previa os quatro, sem dizer quem grava; a função é a única que vê a leitura inteira e roda dentro da transação):
+
+| Evento | Quando | `unidadeId` |
+|---|---|---|
+| `LEITURA_QR_SAIDA` | **toda** chamada, nos cinco ramos | a unidade lida, ou `null` no ramo 1 (código no `payload`) |
+| `TENTATIVA_VENDA_UNIDADE_VENCIDA` | ramo 3 | a unidade vencida |
+| `ALERTA_FIFO_DISPARADO` | ramo 4 | a unidade **lida**; a correta vai no `payload` como `unidadeCorretaId` |
+| `SAIDA_CONFIRMADA` | ramo 5 | a unidade baixada |
+
+Sem `LEITURA_QR_SAIDA` em toda leitura não há denominador para a taxa de acerto na primeira leitura, que é indicador do TCC (RF12).
+
+**`tentativas` é derivado, não persistido.** Não há contador em `UnidadeProduto`, e a seção 6.2 do PRD proíbe estado intermediário no servidor. O número é a contagem de `ALERTA_FIFO_DISPARADO` do mesmo `produtoId` e mesmo `usuarioId` desde a última `SAIDA_CONFIRMADA` daquele par, incluindo o bloqueio da chamada corrente — o primeiro bloqueio devolve `tentativas: 1`. `Saida.tentativasAteAcerto` recebe esse total no momento da confirmação, e `Saida.alertaFifoDisparado` é `true` sempre que ele for maior que zero.
+
+**O lock é da unidade lida, não do SKU.** Duas atendentes vendendo unidades diferentes do mesmo produto não podem esperar uma pela outra.
 
 ## 5. Contratos de API (principais endpoints)
 

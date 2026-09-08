@@ -90,12 +90,31 @@ npm run dev               # http://localhost:5173
 | `npm run dev` | Servidor em modo watch |
 | `npm run build` | Compila TypeScript para `dist/` |
 | `npm start` | Roda o build de produção |
-| `npm test` | Roda os testes (Vitest) |
-| `npm run typecheck` | Checagem de tipos sem emitir |
+| `npm test` | Roda todos os testes (Vitest) — inclui os que exigem PostgreSQL |
+| `npm run test:sem-banco` | Só as suítes com Prisma mockado, sem precisar de container |
+| `npm run test:fifo` | Só a suíte da validação FIFO (exige PostgreSQL) |
+| `npm run typecheck` | Checagem de tipos sem emitir, `src/` e `tests/` |
 | `npm run prisma:generate` | Gera o Prisma Client |
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
 | `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento |
 | `npm run prisma:studio` | Abre o Prisma Studio |
+
+#### Testes que exigem PostgreSQL
+
+A partir de T06 a validação FIFO é testada contra um banco de verdade: o lock
+`SELECT ... FOR UPDATE` da RNF02 e a semântica de `DATE` da RNF01 não existem
+fora do PostgreSQL. Essas suítes usam o banco **`estoque_fifo_test`**, separado
+do de desenvolvimento — elas truncam todas as tabelas entre os testes.
+
+Para rodá-las, copie `backend/.env.test.example` para `backend/.env.test` e
+suba o container (`docker compose up -d`). O banco de teste e as migrações são
+criados sozinhos na primeira execução. Sem container, use
+`npm run test:sem-banco`.
+
+**Estado atual:** a suíte `tests/fifo/validarSaidaFifo.test.ts` falha inteira
+de propósito, com a mensagem `NAO_IMPLEMENTADO_T07`. Ela foi escrita antes da
+implementação, como exige a seção 8 do PRD, e fazer os 46 casos passarem é a
+tarefa T07.
 
 O schema Prisma fica em `backend/src/db/schema.prisma` (não no caminho padrão
 `prisma/schema.prisma`) — o caminho está declarado em `backend/prisma.config.ts`,

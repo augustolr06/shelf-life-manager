@@ -104,3 +104,35 @@ paga por isso — inclua limitações honestamente, não só os pontos fortes.
 **Tarefa relacionada:** T05 (cadastro), T07 (validação FIFO, que compara validade com "hoje")
 
 **Data:** 2026-09-07
+
+---
+
+## FIFO por validade é uma ordem parcial: o empate revela o limite da regra
+
+**Contexto do problema:** a regra que o trabalho propõe se enuncia como "saia sempre a unidade que vence primeiro". Enunciada assim, ela parece designar *uma* unidade — e é assim que a vendedora entende a instrução, e assim que o processo manual a descreveria. Ao escrever os casos de teste antes da implementação, apareceu o caso que a formulação esconde: duas unidades do mesmo SKU com **exatamente a mesma** data de validade. Numa entrega mista isso não é raro, é o caso comum — a caixa costuma trazer vários frascos de uma validade e alguns de outra.
+
+**Alternativas consideradas:** desempatar por um segundo critério (data de entrada, ordem de cadastro, identificador) e apontar uma única unidade como a correta. É o que uma implementação ingênua faz naturalmente, porque a consulta devolve uma linha e é fácil tratá-la como *a* resposta. Descartada ao perceber a consequência no balcão: a vendedora que pegou a "errada" veria o sistema exigir um frasco **fisicamente indistinguível** do que está na mão dela — mesma marca, mesmo produto, mesma data impressa. Ela não teria como encontrar o frasco pedido a não ser lendo os QR de todos os frascos da prateleira até acertar. O laço de revalidação, que existe para corrigir a escolha, viraria um obstáculo sem saída.
+
+**Solução adotada:** o veredito considera prioritária **qualquer** unidade cuja validade seja igual à menor validade do pool não-vencido. Havendo empate, ler qualquer uma das empatadas confirma a venda. Há caso de teste para as duas.
+
+**Por que resolve o problema / trade-offs:** a descoberta é sobre o problema, não sobre o código. FIFO por data de validade produz uma ordem **parcial** sobre as unidades, não uma fila — e a diferença só é visível quando se pergunta o que o sistema faz com dois itens equivalentes. Um sistema que impõe uma ordem total onde o mundo tem empate está inventando uma distinção que a prateleira não tem, e transfere para a operadora o custo de descobrir uma diferença invisível. O trade-off é que o sistema abre mão de determinismo: duas execuções sobre o mesmo estoque podem baixar frascos diferentes. Isso é irrelevante para o objetivo — o que se quer garantir é que nenhuma unidade de validade *maior* saia antes de uma de validade *menor*, e essa garantia é preservada. Vale a menção honesta de que a validação por unidade física não elimina a necessidade de ler o QR: ela apenas garante que a leitura errada seja detectada.
+
+**Tarefa relacionada:** T06 (caso de teste), T07 (implementação)
+
+**Data:** 2026-09-07
+
+---
+
+## O número de tentativas não tinha onde morar — e isso diz algo sobre o que se está medindo
+
+**Contexto do problema:** a variável que o trabalho quer medir não é só a perda por vencimento; é o comportamento que a produz. "Quantas vezes a vendedora pegou o frasco errado antes de pegar o certo" é o indicador que mostra se a regra FIFO está corrigindo uma escolha que, sem o sistema, teria virado uma unidade parada na prateleira até vencer. No processo manual esse número simplesmente não existe: não há evento de "tentativa", porque não há nada que verifique a escolha. A vendedora pega um frasco e pronto — o erro não é registrado porque não é detectado.
+
+**Alternativas consideradas:** persistir um contador na unidade ou numa sessão de venda no servidor. Descartada por decisão anterior do projeto de não manter estado intermediário entre a leitura e a confirmação: cada item é um ciclo independente, e um ciclo abandonado (o cliente desistiu, a vendedora foi atender outra pessoa) não deve deixar nada para limpar. A outra alternativa era o cliente gerar um identificador de ciclo e enviá-lo, o que devolveria ao aplicativo do celular uma parte do controle do laço — justamente o que o projeto decidiu manter no servidor.
+
+**Solução adotada:** o contador é **derivado do log de eventos**, não armazenado. O número de tentativas do ciclo corrente é quantos alertas de FIFO foram registrados para aquele produto e aquela vendedora desde a última venda confirmada dessa mesma dupla. Nada é gravado além do que já seria gravado como auditoria.
+
+**Por que resolve o problema / trade-offs:** o log de eventos deixa de ser só instrumento de auditoria e passa a ser a única fonte de um dado da pesquisa que não existe em lugar nenhum do processo manual — não porque ninguém o anotou, mas porque o processo manual não tem o evento. É um argumento útil para o artigo: a instrumentação não é um acessório do sistema, é parte do que ele torna observável. Os trade-offs são reais e devem ser ditos. Primeiro, o ciclo é inferido, não delimitado: se a vendedora for barrada num produto, desistir e voltar horas depois ao mesmo produto, o sistema conta as tentativas antigas junto. Segundo, a definição amarra o ciclo à dupla (produto, vendedora) — duas vendedoras atendendo clientes diferentes do mesmo perfume têm contadores separados, o que é o desejado, mas uma vendedora atendendo dois clientes ao mesmo tempo do mesmo perfume teria os dois ciclos somados. Para a escala de uma perfumaria de pequeno porte o erro é desprezível; numa operação de maior volume, a delimitação explícita do atendimento passaria a ser necessária.
+
+**Tarefa relacionada:** T06 (definição), T07 (implementação), T20 (dashboard que consome o indicador)
+
+**Data:** 2026-09-07
