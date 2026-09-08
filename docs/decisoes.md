@@ -211,3 +211,100 @@ Quatro decisões tomadas pelo orientando em resposta a pontos levantados no fech
 **O Prisma Client do app é redirecionado para o banco de teste por `vi.mock`, não substituído por um duplo.** `tests/saida/lerQr.test.ts` troca `src/db/prisma.js` pelo client memoizado de `bancoDeTeste.ts`. Diferente de T03–T05, onde o mock substituía o comportamento, aqui ele muda só o destino: continua sendo Prisma de verdade contra Postgres de verdade, no banco descartável. Sem isso o app falaria com o `estoque_fifo` de desenvolvimento, que a suíte truncaria.
 
 **Conferência por `curl` no servidor real** (método do CLAUDE.md para mudanças de backend), contra o banco de desenvolvimento: `QR_NAO_ENCONTRADO`, `EXCECAO_VENCIDO` e `BLOQUEAR_FIFO` respondendo 200 entre 8ms e 38ms — folgado dentro da RNF06 (<500ms) —, com `tentativas` subindo de 1 para 2 entre duas requisições independentes, que é o laço do RF06 visível sem estado no servidor. O código digitado ` prf-pw9vdk ` levou ao mesmo veredito do código lido. `CONFIRMAR` não foi exercitado por `curl` de propósito: ele consumiria uma unidade do banco de desenvolvimento, e já tem três casos automatizados contra banco real.
+
+## 2026-09-08 — Registro de saída + EventoLog append-only (T09)
+
+**`POST /saidas/confirmar` deixa de existir; o RF07 é atendido por `/saidas/ler`.** A
+tensão registrada em T08 entre as seções 4 e 5 da arquitetura foi resolvida a favor da
+seção 4, que é também o que a seção 7 do PRD já descrevia: o ramo 5 de `validarSaidaFifo`
+cria a `Saida` e muda o status dentro da transação da leitura. O modelo de dois passos foi
+descartado porque nenhuma de suas duas formas honestas cabe: revalidar o FIFO inteiro na
+segunda chamada é a única alternativa a aceitar o veredito afirmado pelo cliente (o que a
+RNF04 proíbe), e manter reserva no servidor entre as duas chamadas é proibido pela seção
+6.2 do PRD. Qualquer das duas exigiria quebrar `validarSaidaFifo` em "decidir" e
+"efetivar", invalidando a suíte que a seção 8 do PRD manda escrever antes e não editar
+depois. A seção 5 da arquitetura foi corrigida, e a linha de bloqueio saiu do backlog.
+
+**A imutabilidade do `EventoLog` virou trigger de banco, não disciplina de código.**
+`BEFORE UPDATE OR DELETE ... RAISE EXCEPTION`, na migração
+`20260908120000_append_only_evento_log`. Descartada a alternativa mais leve, uma extensão
+do Prisma Client que lançasse em `update`/`delete`: ela protege só o caminho da aplicação,
+e o risco realista da RNF05 não é o backend chamar `update` por engano — é alguém abrir o
+Prisma Studio ou o `psql` durante o piloto na loja para "corrigir" uma linha que parece
+errada. Como o log é instrumento de coleta do TCC, uma correção manual bem-intencionada
+falseia o resultado da pesquisa sem deixar rastro. O trigger alcança todos os caminhos.
+Deliberadamente **não** cobre `TRUNCATE` (trigger de linha não dispara nessa operação), o
+que mantém o reset das suítes funcionando — a RNF05 proíbe alterar o histórico, e zerar um
+banco descartável não é isso.
+
+**A mensagem do trigger explica em vez de só recusar.** Cita a RNF05, a operação recusada,
+e diz o que fazer no lugar ("um evento gravado não se corrige, se complementa com um evento
+novo"). Quem vai esbarrar nela é um desenvolvedor ou o próprio orientando no meio do
+piloto, e um `permission denied` seco convidaria a desabilitar o trigger em vez de
+entender por que ele existe. Custo: a mensagem é ASCII sem acentos, porque vem de dentro do
+`plpgsql`.
+
+**O `EventoLog` ganhou módulo próprio e união fechada de tipos.**
+`src/modules/evento-log/eventoLog.service.ts` é o único ponto que insere na tabela;
+`validarSaidaFifo` perdeu sua função privada e passou a chamá-lo por um adaptador fino que
+só extrai os identificadores da unidade lida. `TipoEvento` é uma união dos nove tipos da
+seção 5 do PRD, declarada inteira desde já — inclusive os que só serão gravados em T11 e
+T18 —, porque a lista vem do PRD e não do que já foi implementado. A seção 9 do PRD avisa
+que mexer no schema do log quebra a comparabilidade dos dados coletados antes e depois; uma
+união fechada faz de qualquer acréscimo um ato deliberado, com data aqui, em vez de uma
+string nova aparecendo no meio de um `create`.
+
+**`registrarEvento` devolve a `PrismaPromise` crua, não uma `Promise` comum.** É o que
+permite ao mesmo módulo servir os dois chamadores sem duplicação: `validarSaidaFifo` a
+aguarda dentro de um `$transaction` de callback, e o cadastro em lote a compõe na forma de
+array. Nos dois casos continua sendo uma transação só, que é o requisito de fato — evento
+gravado fora da transação sobreviveria a um rollback e passaria a descrever algo que não
+aconteceu.
+
+**`dataParaPayload` vive no módulo `evento-log`, e não em `src/shared/data.ts`.** T07 havia
+deixado essa conversão local a `validarSaidaFifo`, com o argumento de que era detalhe de
+log com um dono só. Agora há dois donos (a saída e o cadastro de unidades), mas os dois
+escrevem *payload de log* — então o dono passou a ser o módulo do log, não o módulo de
+datas. `shared/data.ts` continua sendo a fronteira entre a API e a coluna `DATE`, com o par
+`dataDeString`/`hojeComoData` intacto.
+
+**`UNIDADE_CADASTRADA` entrou em T09, embora o cadastro seja de T05.** Era o único evento da
+tabela da seção 5 do PRD que descrevia funcionalidade já implementada e não tinha quem o
+gravasse: T14/T15 são sobre etiquetas, não sobre o log, e sem dono ele passaria batido até o
+dashboard (T20) precisar dele — quando o dado do período intermediário já estaria perdido.
+Um evento **por unidade**, não por lote: `EventoLog.unidadeId` é singular, e é essa
+granularidade que permite cruzar o cadastro com as leituras posteriores da mesma unidade. O
+recebimento é reconstruído por `unidadesNoLote` no payload, sem a entidade `Lote` que o PRD
+não previu.
+
+**Os ids das unidades do lote passaram a ser gerados explicitamente com `randomUUID()`.**
+O evento precisa do id da unidade dentro da mesma transação, e o log não tem FK para
+`UnidadeProduto` (seção 3 da arquitetura) que o Prisma pudesse resolver por relação. Isso
+mantém `cadastrarUnidades` na forma de array do `$transaction` — trocar para a forma de
+callback obrigaria a reescrever o duplo de `tests/unidade.test.ts` sem ganho. Não muda nada
+de fato: o `@default(uuid())` do Prisma também é gerado no client, não no banco.
+
+**`sessaoVendaId` malformado responde 400, ao contrário do `codigoQr`.** T08 decidiu
+deliberadamente não recusar código de QR fora do padrão, porque a leitura de uma etiqueta
+danificada é dado da pesquisa e recusá-la por schema a apagaria do log. A assimetria é
+proposital e vale a pena registrar: `codigoQr` é digitado por uma pessoa no balcão e chega
+torto pelo mundo físico; `sessaoVendaId` é gerado por `crypto.randomUUID()` no próprio
+cliente e só chega torto se o cliente estiver quebrado. Aceitá-lo em silêncio produziria
+relatório de atendimento errado sem nenhum sinal. O custo — uma leitura legítima perdida
+quando o frontend erra — virou verificação manual no backlog para T10.
+
+**A chave `sessaoVendaId` está sempre presente no payload de `LEITURA_QR_SAIDA`, com
+`null` quando não veio.** Chave que às vezes falta no JSON é armadilha na análise: a
+consulta que a procura não distingue "não havia agrupador" de "o campo mudou de nome entre
+uma versão e outra". O valor entra também nas leituras **bloqueadas**, e não só na
+confirmada — sem isso, o indicador "quantos atendimentos esbarraram no FIFO" (RF13) teria
+numerador sem denominador.
+
+**Conferência por `curl` no servidor real** (método do CLAUDE.md para mudanças de backend),
+contra o banco de desenvolvimento: leitura com agrupador válido devolvendo `BLOQUEAR_FIFO`
+em 200 e 21ms — folgado dentro da RNF06 —, com o `sessaoVendaId` aparecendo no payload do
+`LEITURA_QR_SAIDA`; agrupador malformado em 400; `UPDATE` e `DELETE` no `EventoLog` pelo
+`psql` recusados pelo trigger, com a mensagem legível; e um recebimento de 2 unidades pela
+API gerando 2 `UNIDADE_CADASTRADA`, cada um com o `unidadeId` casando com a unidade real.
+`CONFIRMAR` ficou de fora do `curl` pelo mesmo motivo de T08 — consumiria uma unidade do
+banco de desenvolvimento, e já tem casos automatizados contra banco real.

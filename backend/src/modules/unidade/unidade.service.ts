@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { Prisma, type UnidadeProduto } from '@prisma/client'
 import { prisma } from '../../db/prisma.js'
+import { registrarEvento } from '../evento-log/eventoLog.service.js'
 import { dataDeString, hojeComoData } from '../../shared/data.js'
 import { gerarCodigosQr } from './codigoQr.js'
 
@@ -59,24 +61,55 @@ export async function cadastrarUnidades(
   for (let tentativa = 1; tentativa <= TENTATIVAS_DE_CODIGO; tentativa += 1) {
     const codigos = gerarCodigosQr(validades.length)
 
+    // Os ids são gerados aqui, e não deixados a cargo do `@default(uuid())`,
+    // para que o `UNIDADE_CADASTRADA` de cada unidade possa referenciá-la na
+    // mesma transação — o log não tem FK para `UnidadeProduto` (seção 3 da
+    // arquitetura), mas precisa do id certo. Não muda nada de fato: o
+    // `@default(uuid())` do Prisma também é gerado no client.
+    const ids = validades.map(() => randomUUID())
+
     try {
       // Uma transação para o lote todo: um recebimento é um evento único, e
       // gravar metade das unidades deixaria a gestora sem saber quais frascos
-      // já têm etiqueta e quais não têm.
-      const unidades = await prisma.$transaction(
-        validades.map((dataValidade, indice) =>
-          prisma.unidadeProduto.create({
-            data: {
-              produtoId,
-              codigoQr: codigos[indice] as string,
-              dataValidade: dataDeString(dataValidade),
-              registradoPorId,
-              // `status` não é escrito: o valor inicial EM_ESTOQUE vem do
-              // default do schema, e o cliente não tem como propor outro.
-            },
-          }),
-        ),
+      // já têm etiqueta e quais não têm. Os eventos entram na mesma transação,
+      // pelo mesmo motivo — e porque um lote que falha não pode deixar
+      // registro de cadastro que não aconteceu (RF12).
+      const criacoes = validades.map((dataValidade, indice) =>
+        prisma.unidadeProduto.create({
+          data: {
+            id: ids[indice] as string,
+            produtoId,
+            codigoQr: codigos[indice] as string,
+            dataValidade: dataDeString(dataValidade),
+            registradoPorId,
+            // `status` não é escrito: o valor inicial EM_ESTOQUE vem do
+            // default do schema, e o cliente não tem como propor outro.
+          },
+        }),
       )
+
+      // Um evento por unidade, não um por lote: `EventoLog.unidadeId` é
+      // singular, e é essa granularidade que permite cruzar o cadastro com as
+      // leituras posteriores da mesma unidade (RF12). O recebimento é
+      // reconstruído por `unidadesNoLote`, sem precisar de uma entidade
+      // `Lote` que o PRD não previu.
+      const eventos = validades.map((dataValidade, indice) =>
+        registrarEvento(prisma, {
+          tipoEvento: 'UNIDADE_CADASTRADA',
+          unidadeId: ids[indice] as string,
+          produtoId,
+          usuarioId: registradoPorId,
+          payload: {
+            codigoQr: codigos[indice] as string,
+            // Já é texto `AAAA-MM-DD` como chegou da API (RNF01).
+            dataValidade,
+            unidadesNoLote: validades.length,
+          },
+        }),
+      )
+
+      const gravados = await prisma.$transaction([...criacoes, ...eventos])
+      const unidades = gravados.slice(0, criacoes.length) as UnidadeProduto[]
 
       return { ok: true, unidades, avisos: avisosDeValidade(itens) }
     } catch (erro) {

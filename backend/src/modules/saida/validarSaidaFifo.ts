@@ -1,4 +1,10 @@
 import { Prisma, StatusUnidade, type UnidadeProduto } from '@prisma/client'
+import {
+  dataParaPayload,
+  registrarEvento,
+  type ClienteDeTransacao,
+  type TipoEvento,
+} from '../evento-log/eventoLog.service.js'
 import { hojeComoData } from '../../shared/data.js'
 
 /**
@@ -13,8 +19,9 @@ import { hojeComoData } from '../../shared/data.js'
  * escritos antes desta função existir, como exige a seção 8 do PRD.
  */
 
-/** O cliente de dentro de um `prisma.$transaction` — nunca o client global. */
-export type ClienteDeTransacao = Prisma.TransactionClient
+// Reexportado por conveniência de quem já importava daqui; a definição, como
+// a escrita do log, vive no módulo `evento-log` (T09).
+export type { ClienteDeTransacao }
 
 export type Veredito =
   | { tipo: 'ERRO'; motivo: 'QR_NAO_ENCONTRADO' | 'UNIDADE_JA_BAIXADA' }
@@ -32,18 +39,23 @@ export async function validarSaidaFifo(
   codigoQr: string,
   usuarioId: string,
   tx: ClienteDeTransacao,
+  sessaoVendaId?: string | null,
 ): Promise<Veredito> {
   const unidade = await bloquearUnidade(tx, codigoQr)
-  const veredito = await decidir(codigoQr, usuarioId, unidade, tx)
+  const veredito = await decidir(codigoQr, usuarioId, unidade, tx, sessaoVendaId ?? null)
 
   // Depois de decidir, e não antes, para que o registro carregue o veredito:
   // é a única forma de o EventoLog responder "quantas leituras acertaram de
   // primeira", que é o indicador do TCC (RF12). Gravar aqui, num ponto só,
   // também é o que garante estruturalmente uma leitura por chamada.
-  await registrarEvento(tx, 'LEITURA_QR_SAIDA', unidade, usuarioId, {
+  await registrarEventoDaLeitura(tx, 'LEITURA_QR_SAIDA', unidade, usuarioId, {
     codigoQr,
     veredito: veredito.tipo,
     ...(veredito.tipo === 'ERRO' ? { motivo: veredito.motivo } : {}),
+    // Sempre presente, `null` inclusive: uma leitura bloqueada precisa ser
+    // atribuível ao atendimento em que aconteceu, e chave que às vezes falta
+    // no JSON é armadilha na hora da análise.
+    sessaoVendaId,
   })
 
   return veredito
@@ -58,6 +70,7 @@ async function decidir(
   usuarioId: string,
   unidade: UnidadeProduto | null,
   tx: ClienteDeTransacao,
+  sessaoVendaId: string | null,
 ): Promise<Veredito> {
   // 1. Código desconhecido: etiqueta danificada, item de outra loja, ou
   // unidade que nunca foi cadastrada. Nada a bloquear, nada a baixar.
@@ -77,9 +90,9 @@ async function decidir(
   // apontaria como "a que deve sair primeiro". A unidade não é tocada — o
   // destino dela é decidido pelos três caminhos da seção 6.1 do PRD (T11).
   if (unidade.dataValidade < hoje) {
-    await registrarEvento(tx, 'TENTATIVA_VENDA_UNIDADE_VENCIDA', unidade, usuarioId, {
+    await registrarEventoDaLeitura(tx, 'TENTATIVA_VENDA_UNIDADE_VENCIDA', unidade, usuarioId, {
       codigoQr,
-      dataValidade: comoTextoDeData(unidade.dataValidade),
+      dataValidade: dataParaPayload(unidade.dataValidade),
     })
     return { tipo: 'EXCECAO_VENCIDO', unidade }
   }
@@ -97,11 +110,11 @@ async function decidir(
     // `unidadeId` é a unidade LIDA: o evento descreve a leitura errada. A
     // correta vai no payload, porque o indicador da RF13 precisa cruzar as
     // duas pontas (alertas disparados vs. substituições efetivas).
-    await registrarEvento(tx, 'ALERTA_FIFO_DISPARADO', unidade, usuarioId, {
+    await registrarEventoDaLeitura(tx, 'ALERTA_FIFO_DISPARADO', unidade, usuarioId, {
       codigoQr,
-      dataValidade: comoTextoDeData(unidade.dataValidade),
+      dataValidade: dataParaPayload(unidade.dataValidade),
       unidadeCorretaId: prioritaria.id,
-      dataValidadeCorreta: comoTextoDeData(prioritaria.dataValidade),
+      dataValidadeCorreta: dataParaPayload(prioritaria.dataValidade),
       tentativas,
     })
 
@@ -123,12 +136,16 @@ async function decidir(
       usuarioId,
       alertaFifoDisparado: tentativasAteAcerto > 0,
       tentativasAteAcerto,
+      // Agrupador opcional de relatório, gerado no cliente. Atravessa a
+      // função como valor opaco: não é lido por nenhuma decisão, não cria
+      // estado e não tem semântica transacional (PRD seção 6.2).
+      sessaoVendaId,
     },
   })
 
-  await registrarEvento(tx, 'SAIDA_CONFIRMADA', baixada, usuarioId, {
+  await registrarEventoDaLeitura(tx, 'SAIDA_CONFIRMADA', baixada, usuarioId, {
     codigoQr,
-    dataValidade: comoTextoDeData(baixada.dataValidade),
+    dataValidade: dataParaPayload(baixada.dataValidade),
     tentativasAteAcerto,
   })
 
@@ -236,34 +253,26 @@ async function contarBloqueiosDoCiclo(
 }
 
 /**
- * Só `create` — o EventoLog é append-only (RNF05). `unidadeId` e `produtoId`
- * são nulos quando o código lido não corresponde a unidade nenhuma; nesse
- * caso o próprio código, no payload, é o que resta para identificar a leitura.
+ * Adaptador fino sobre `registrarEvento` do módulo `evento-log`, que é quem de
+ * fato escreve na tabela (RNF05). Existe só para tirar os identificadores da
+ * unidade lida, que é o que todos os eventos desta função têm em comum.
+ *
+ * `unidadeId` e `produtoId` são nulos quando o código lido não corresponde a
+ * unidade nenhuma; nesse caso o próprio código, no payload, é o que resta para
+ * identificar a leitura.
  */
-function registrarEvento(
+function registrarEventoDaLeitura(
   tx: ClienteDeTransacao,
-  tipoEvento: string,
+  tipoEvento: TipoEvento,
   unidade: UnidadeProduto | null,
   usuarioId: string,
   payload: Prisma.InputJsonObject,
 ) {
-  return tx.eventoLog.create({
-    data: {
-      tipoEvento,
-      unidadeId: unidade?.id ?? null,
-      produtoId: unidade?.produtoId ?? null,
-      usuarioId,
-      payload,
-    },
+  return registrarEvento(tx, {
+    tipoEvento,
+    unidadeId: unidade?.id ?? null,
+    produtoId: unidade?.produtoId ?? null,
+    usuarioId,
+    payload,
   })
-}
-
-/**
- * A validade no payload é texto de calendário `AAAA-MM-DD`, não instante: o
- * valor vem de uma coluna `DATE` ancorada na meia-noite UTC (RNF01), e é
- * assim que ele precisa ser lido de volta na análise, sem risco de escorregar
- * um dia por fuso.
- */
-function comoTextoDeData(data: Date): string {
-  return data.toISOString().slice(0, 10)
 }

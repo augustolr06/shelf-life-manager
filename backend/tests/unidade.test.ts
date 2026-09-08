@@ -12,6 +12,10 @@ vi.mock('../src/db/prisma.js', () => ({
     usuario: { findUnique: vi.fn() },
     produto: { findUnique: vi.fn() },
     unidadeProduto: { create: vi.fn() },
+    // T09: o cadastro passou a gravar `UNIDADE_CADASTRADA` na mesma
+    // transação do lote. Aqui o duplo só precisa existir — o que o evento
+    // carrega é verificado contra banco real em tests/evento-log.
+    eventoLog: { create: vi.fn() },
     $transaction: vi.fn(),
   },
 }))
@@ -56,6 +60,7 @@ const ROTA = `/produtos/${ID_PRODUTO}/unidades`
 const buscarUsuario = vi.mocked(prisma.usuario.findUnique)
 const buscarProduto = vi.mocked(prisma.produto.findUnique)
 const criarUnidade = vi.mocked(prisma.unidadeProduto.create)
+const criarEvento = vi.mocked(prisma.eventoLog.create)
 const transacao = vi.mocked(prisma.$transaction)
 
 function erroPrisma(code: string) {
@@ -88,7 +93,10 @@ describe('Cadastro de UnidadeProduto (RF03)', () => {
   })
 
   beforeEach(() => {
-    for (const dublê of [buscarUsuario, buscarProduto, criarUnidade, transacao]) dublê.mockReset()
+    for (const dublê of [buscarUsuario, buscarProduto, criarUnidade, criarEvento, transacao])
+      dublê.mockReset()
+
+    criarEvento.mockImplementation(async ({ data }: { data: unknown }) => data as never)
 
     buscarProduto.mockResolvedValue(PERFUME)
 

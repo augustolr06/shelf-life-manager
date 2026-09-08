@@ -19,11 +19,17 @@ const corpoLeitura = {
   additionalProperties: false,
   properties: {
     codigoQr: { type: 'string', minLength: 1, maxLength: MAXIMO_CODIGO },
+    // Agrupador opcional de atendimento, gerado no cliente (PRD seção 5). Ao
+    // contrário do `codigoQr`, aqui o formato **é** exigido: um código de QR
+    // torto vem do mundo físico e é dado da pesquisa (T08); um `sessaoVendaId`
+    // torto só vem de cliente quebrado, e aceitá-lo em silêncio produziria
+    // relatório de atendimento errado sem nenhum sinal.
+    sessaoVendaId: { type: 'string', format: 'uuid' },
   },
 } as const
 
 export async function rotasSaida(app: FastifyInstance): Promise<void> {
-  app.post<{ Body: { codigoQr: string } }>(
+  app.post<{ Body: { codigoQr: string; sessaoVendaId?: string } }>(
     '/saidas/ler',
     {
       // Ler QR no balcão é atribuição das duas funções (docs/arquitetura.md
@@ -34,7 +40,11 @@ export async function rotasSaida(app: FastifyInstance): Promise<void> {
       schema: { body: corpoLeitura },
     },
     async (request, reply) => {
-      const resposta = await lerCodigoQr(request.body.codigoQr, request.usuario.id)
+      const resposta = await lerCodigoQr(
+        request.body.codigoQr,
+        request.usuario.id,
+        request.body.sessaoVendaId,
+      )
 
       // 200 para todo veredito, inclusive bloqueio e código desconhecido: a
       // leitura foi processada e registrada, e o veredito é o resultado dela,

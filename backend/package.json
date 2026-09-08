@@ -9,14 +9,15 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:sem-banco": "vitest run --exclude \"tests/fifo/**\" --exclude \"tests/saida/**\"",
+    "test:sem-banco": "vitest run --exclude \"tests/fifo/**\" --exclude \"tests/saida/**\" --exclude \"tests/evento-log/**\"",
     "test:fifo": "vitest run tests/fifo",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
-    "test:saida": "vitest run tests/saida"
+    "test:saida": "vitest run tests/saida",
+    "test:evento-log": "vitest run tests/evento-log"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

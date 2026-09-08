@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-07 (seção 4 detalhada em T06)
+Última atualização: 2026-09-08 (seções 4 e 5 revisadas em T09)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -175,7 +175,8 @@ type Veredito =
 async function validarSaidaFifo(
   codigoQr: string,
   usuarioId: string,
-  tx: PrismaTransactionClient
+  tx: PrismaTransactionClient,
+  sessaoVendaId?: string | null   // agrupador opcional de relatório (T09)
 ): Promise<Veredito>
 ```
 
@@ -191,7 +192,7 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 
 **Empate de validade.** O passo 4 compara **valores**, não identidade: havendo mais de uma unidade com a menor `dataValidade` do pool, todas são prioritárias e ler qualquer uma delas confirma. Apontar uma única vencedora arbitrária faria o sistema pedir um frasco fisicamente indistinguível do que está na mão da atendente — laço sem saída. Decidido em T06 (`docs/decisoes.md`, 2026-09-07).
 
-**Eventos gravados pela função** (decidido em T06 — a tabela de eventos da seção 5 do PRD previa os quatro, sem dizer quem grava; a função é a única que vê a leitura inteira e roda dentro da transação):
+**Eventos gravados pela função** (decidido em T06 — a tabela de eventos da seção 5 do PRD previa os quatro, sem dizer quem grava; a função é a única que vê a leitura inteira e roda dentro da transação). Desde T09 a escrita em si passa por `src/modules/evento-log/eventoLog.service.ts`, único ponto do sistema autorizado a inserir no `EventoLog`; a função continua decidindo *qual* evento cada ramo grava:
 
 | Evento | Quando | `unidadeId` |
 |---|---|---|
@@ -199,6 +200,13 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 | `TENTATIVA_VENDA_UNIDADE_VENCIDA` | ramo 3 | a unidade vencida |
 | `ALERTA_FIFO_DISPARADO` | ramo 4 | a unidade **lida**; a correta vai no `payload` como `unidadeCorretaId` |
 | `SAIDA_CONFIRMADA` | ramo 5 | a unidade baixada |
+
+Fora do fluxo de saída, o cadastro de unidades grava `UNIDADE_CADASTRADA` (um evento por
+unidade, dentro da transação do lote), pelo mesmo módulo. A imutabilidade da tabela
+(RNF05) deixou de ser convenção em T09: a migração `20260908120000_append_only_evento_log`
+instala um trigger `BEFORE UPDATE OR DELETE` que recusa a operação no banco, alcançando
+também quem chega por `psql` ou Prisma Studio. `TRUNCATE` não dispara trigger de linha, e é
+o que mantém o reset das suítes funcionando.
 
 Sem `LEITURA_QR_SAIDA` em toda leitura não há denominador para a taxa de acerto na primeira leitura, que é indicador do TCC (RF12).
 
@@ -216,14 +224,26 @@ Sem `LEITURA_QR_SAIDA` em toda leitura não há denominador para a taxa de acert
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
-| POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo`, retorna veredito (RF05, RF06) |
-| POST | `/saidas/confirmar` | ATENDENTE, GESTOR | Confirma saída após veredito `CONFIRMAR` (RF07) |
+| POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo`, retorna veredito (RF05, RF06) e, no ramo `CONFIRMAR`, **efetiva a saída** (RF07) |
 | POST | `/excecao-vencido/corrigir` | GESTOR | Caminho 1 da seção 6.1 do PRD |
 | POST | `/excecao-vencido/descartar` | ATENDENTE, GESTOR | Caminho 2 da seção 6.1 do PRD |
 | POST | `/excecao-vencido/override` | GESTOR | Caminho 3 da seção 6.1 do PRD — exige justificativa |
 | GET | `/descartes/pendentes` | GESTOR | Fila de descarte pendente (RF11) |
 | GET/POST | `/configuracao-alerta` | GESTOR | RF08 |
 | GET | `/dashboard` | GESTOR | RF13 |
+
+**Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
+endpoint separado de confirmação para o RF07, o que contradizia a seção 4 acima — o ramo 5
+de `validarSaidaFifo` cria a `Saida` e muda o status dentro da própria transação da
+leitura, que é também o que a seção 7 do PRD descreve. Um segundo passo honesto exigiria
+revalidar o FIFO inteiro (aceitar o veredito afirmado pelo cliente violaria a RNF04) ou
+manter reserva no servidor (proibido pela seção 6.2 do PRD). Removido em T09
+(`docs/decisoes.md`, 2026-09-08): quando `/saidas/ler` responde `CONFIRMAR`, a venda já
+aconteceu.
+
+O corpo de `/saidas/ler` aceita, além do `codigoQr`, um `sessaoVendaId` opcional — UUID
+gerado no cliente que agrupa as saídas de um mesmo atendimento para fins de relatório.
+Não cria estado nem semântica transacional (PRD seção 6.2).
 
 ## 6. Comportamento offline (RNF07)
 

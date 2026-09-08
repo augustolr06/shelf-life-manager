@@ -45,13 +45,19 @@ export type RespostaLeitura =
     }
   | { veredito: 'CONFIRMAR'; codigoQr: string; unidade: UnidadeNaResposta; mensagem: string }
 
-export async function lerCodigoQr(codigoDigitado: string, usuarioId: string): Promise<RespostaLeitura> {
+export async function lerCodigoQr(
+  codigoDigitado: string,
+  usuarioId: string,
+  sessaoVendaId?: string,
+): Promise<RespostaLeitura> {
   const codigoQr = normalizarCodigoQr(codigoDigitado)
 
   // A transação cobre a decisão e a baixa, e nada além disso: nenhuma consulta
   // de apresentação, nenhuma espera pela atendente. A janela de concorrência é
   // o tempo da decisão, não o tempo de caminhar até a prateleira (PRD 6.2).
-  const veredito = await prisma.$transaction((tx) => validarSaidaFifo(codigoQr, usuarioId, tx))
+  const veredito = await prisma.$transaction((tx) =>
+    validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId ?? null),
+  )
 
   return montarResposta(codigoQr, veredito)
 }

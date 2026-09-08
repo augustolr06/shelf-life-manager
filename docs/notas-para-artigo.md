@@ -182,3 +182,51 @@ paga por isso — inclua limitações honestamente, não só os pontos fortes.
 **Tarefa relacionada:** T08 (onde apareceu), T09 (onde precisa ser decidida)
 
 **Data:** 2026-09-08
+
+---
+
+## Vender é irreversível no sistema porque ler já é vender — e o estorno é trabalho futuro
+
+**Contexto do problema:** a incoerência registrada na nota anterior foi resolvida a favor do modelo de um passo: ler o QR do frasco certo **é** registrar a venda. A operação separada de confirmação saiu da especificação. Isso torna o fluxo do balcão o mais curto possível — um gesto, um veredito, pronto — e é coerente com a decisão de não manter estado intermediário no servidor, que elimina reserva, timeout e ciclo abandonado como classes inteiras de problema.
+
+**Alternativas consideradas:** o modelo de dois passos, descartado porque nenhuma de suas formas honestas cabe nas restrições do projeto — revalidar a regra inteira na segunda chamada quebraria a função única de validação em duas, e reservar a unidade entre as chamadas é o estado intermediário que se decidiu não ter.
+
+**Solução adotada:** um passo, com a resposta redigida como fato consumado, e a limitação declarada em vez de disfarçada.
+
+**Por que resolve o problema / trade-offs:** a consequência precisa aparecer no artigo com todas as letras, porque ela não é hipotética num balcão real: uma leitura acidental — o frasco passa perto do leitor, a atendente lê o item errado do cliente errado — **vende** a unidade, e o sistema não oferece caminho de volta. Não há estorno, não há cancelamento de saída, e não pode haver correção da linha no log, que é imutável por decisão de projeto. O que existe hoje é a possibilidade de registrar um evento novo que descreva o engano, mas nenhuma tela para isso e nenhuma reversão do status da unidade. É uma limitação real de escopo, e ela decorre de duas escolhas que o trabalho defende por outras razões (fluxo curto e log imutável) — o que a torna mais interessante de discutir do que se fosse um simples esquecimento. Trabalho futuro: um caminho de estorno que seja append-only por construção, isto é, que reverta o estoque **acrescentando** um evento de anulação em vez de apagar a saída, preservando no dado da pesquisa tanto a venda quanto o arrependimento.
+
+**Tarefa relacionada:** T08 (onde a incoerência apareceu), T09 (onde foi decidida)
+
+**Data:** 2026-09-08
+
+---
+
+## Um log de pesquisa precisa ser protegido de quem o mantém, não de quem o ataca
+
+**Contexto do problema:** o registro de eventos deste sistema tem dois papéis ao mesmo tempo: auditoria operacional e **instrumento de coleta dos dados quantitativos da pesquisa**. É dele que sai o indicador central do trabalho — quantas leituras acertaram o frasco certo de primeira. O requisito diz que ele é imutável, e a implementação inicial cumpria isso da forma usual: o código simplesmente nunca emitia uma alteração. A regra estava no documento de convenções do projeto e na revisão de código, e em nenhum outro lugar.
+
+**Alternativas consideradas:** manter a disciplina de código, eventualmente reforçada por uma trava na própria camada de acesso ao banco, que recusasse alteração e remoção nessa tabela. É a solução idiomática, fica toda na linguagem do projeto e não exige SQL escrito à mão.
+
+**Solução adotada:** a proibição foi movida para dentro do banco de dados, como um gatilho que recusa alteração e remoção de qualquer linha da tabela, com mensagem que explica a razão e sugere o que fazer no lugar.
+
+**Por que resolve o problema / trade-offs:** a diferença entre as duas soluções fica clara quando se pergunta **qual é o risco realista**. Não é o programa alterar uma linha por engano — isso a revisão de código pega. É uma pessoa, durante o piloto na loja, abrir a ferramenta administrativa do banco e "corrigir" um registro que parece errado: uma validade digitada torto, um evento que ficou com o usuário trocado, uma leitura de teste que "sujou" os dados. A intenção é boa, o gesto é comum em qualquer projeto pequeno, e o efeito é falsear o resultado da pesquisa sem deixar rastro — porque o log é a própria testemunha, e ele foi editado. Uma trava na aplicação não alcança esse caminho; o gatilho no banco alcança todos. Duas observações valem para o artigo além deste caso. A primeira é que a mensagem de recusa foi escrita para **ensinar** em vez de só barrar: ela diz que um evento gravado não se corrige, se complementa com um evento novo. Um "permissão negada" seco convidaria a desativar a trava em vez de entender por que ela existe — e quem tem acesso ao banco tem acesso para desativá-la. A segunda é que a proibição foi calibrada e não maximizada: ela cobre alteração e remoção de linhas, mas deliberadamente não impede o esvaziamento completo de um banco descartável, que é o que permite a bateria de testes automatizados continuar funcionando. Imutabilidade absoluta teria travado a própria verificação do sistema.
+
+**Tarefa relacionada:** T09 (garantia de imutabilidade do log)
+
+**Data:** 2026-09-08
+
+---
+
+## Nem todo dado malformado merece o mesmo tratamento: a origem do erro muda a decisão
+
+**Contexto do problema:** o sistema recebe do balcão dois campos de texto que podem chegar errados, e a pergunta "recusar ou aceitar?" tem respostas opostas para eles. Um é o código do frasco, que a atendente digita quando a etiqueta está riscada, apagada ou molhada e a câmera não lê. O outro é um identificador de atendimento, gerado automaticamente pelo próprio aplicativo para agrupar as vendas de um mesmo cliente no relatório.
+
+**Alternativas consideradas:** a resposta uniforme, que é o instinto de quem valida entrada — recusar tudo o que não bate com o formato esperado, antes de chegar à regra de negócio. É defensável e é o que a maioria dos frameworks facilita.
+
+**Solução adotada:** tratamento assimétrico. Um código de frasco fora do padrão **é aceito**, segue para a consulta e volta como "código não cadastrado", com a leitura registrada no log. Um identificador de atendimento fora do padrão **é recusado** de imediato, e a requisição inteira é rejeitada.
+
+**Por que resolve o problema / trade-offs:** o critério não é o formato, é a **origem** do dado. O código do frasco vem do mundo físico atravessando uma pessoa: quando ele chega torto, isso não é ruído, é o fenômeno que a pesquisa quer medir — quantas etiquetas ficaram ilegíveis nas condições reais da loja, com frascos curvos, plástico brilhante e a iluminação que existe. Recusá-lo por validação de formato apagaria do log exatamente a evidência que interessa, e o sistema ficaria mudo justamente sobre seu próprio ponto fraco. O identificador de atendimento, ao contrário, é gerado pelo software: se ele chega torto, o mundo físico não tem nada a ver com isso — é defeito do aplicativo, e aceitá-lo em silêncio produziria relatórios de agrupamento errados sem nenhum sinal de que algo quebrou. A generalização vale para qualquer sistema que substitua um processo manual e queira medir a substituição: dado que atravessa uma pessoa ou um objeto físico é observação e deve ser preservado mesmo quando "inválido"; dado que o próprio sistema fabrica é invariante e deve falhar alto quando quebra. Trade-off honesto: a assimetria custa uma explicação — dois campos vizinhos na mesma requisição com políticas opostas confundem quem lê o código pela primeira vez, e por isso ela está documentada nos dois lugares onde aparece.
+
+**Tarefa relacionada:** T08 (código do frasco), T09 (identificador de atendimento)
+
+**Data:** 2026-09-08
