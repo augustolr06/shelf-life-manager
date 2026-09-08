@@ -596,3 +596,88 @@ motivo é o registro da perda, que é o dado da pesquisa, então isso importa. C
 mexer no contrato de `/excecao-vencido/descartar` (T11), fora do escopo declarado desta
 tarefa; a tela já permite digitar um motivo, e a conferência foi feita com um. Fica como
 candidato a tarefa própria, no mesmo formato do `errorHandler` de T12 que virou T12b.
+
+---
+
+## 2026-09-08 — Geração do símbolo QR da etiqueta (T14)
+
+**Biblioteca `qrcode` (node-qrcode) no backend, escolhida entre bibliotecas e não contra
+implementação própria.** Codificar QR à mão é reimplementar uma norma ISO — Reed–Solomon,
+máscaras, tabelas de versão — e nada disso é objeto deste TCC. Entre as bibliotecas, a
+escolhida gera SVG sem depender de `canvas` (nenhuma dependência nativa a compilar) e expõe
+os metadados do símbolo (versão, nível de correção, matriz de módulos), que é o que permite
+os testes serem sobre o símbolo e não sobre uma string opaca. Custo aceito: mais uma
+dependência de produção num backend que só tinha Fastify, Prisma, JWT e bcrypt. Confirmado
+pelo orientando antes da implementação.
+
+**Nível de correção H, e o símbolo cabe em versão 1 (21×21).** Um QR versão 1 alfanumérico
+comporta exatamente 10 caracteres no nível H, e `PRF-` mais os 6 do Crockford Base32 são
+exatamente 10 — todos no conjunto alfanumérico do QR, hífen incluído. Ou seja: dá para usar
+a correção de erro mais alta da norma (~30% do símbolo recuperável) sem gastar um módulo a
+mais do que o menor símbolo possível, o que é o melhor negócio disponível para etiqueta em
+frasco curvo, brilhante e sujeito a atrito (RNF08). O contrapeso, registrado aqui porque é
+uma consequência que T05 não previu: o formato do `codigoQr` ficou **mais caro de mudar**.
+Um sétimo caractere derruba o símbolo para versão 2 em H. `simboloQr.ts` verifica a versão a
+cada geração e lança se ela mudar, para que o crescimento do formato apareça como falha e
+não como etiqueta silenciosamente mais densa do que a validação física aprovou.
+
+**O QR carrega o código puro (`PRF-XXXXXX`), nunca uma URL.** Codificar
+`https://.../u/PRF-XXXXXX` amarraria cada etiqueta já colada num frasco a um endereço de
+implantação — trocar o domínio inutilizaria o estoque etiquetado — e os ~35 caracteres
+empurrariam o símbolo para versão 3 ou mais, mais denso no mesmo espaço físico, contra a
+RNF08. Como efeito colateral bom, o texto que a câmera lê (T10) e o que a atendente digita
+no fallback manual passam a ser exatamente o mesmo.
+
+**O símbolo vive em `simboloQr.ts`, vizinho de `codigoQr.ts`.** Um é dono do **formato** do
+identificador, o outro do **símbolo** que o carrega. Mesma razão pela qual o formato tem um
+dono só desde T05: ele é provisório até a validação física de T16, e trocá-lo tem que ser
+editar um arquivo.
+
+**O SVG sai sem largura, altura, `id`, `class` ou `style`.** Só `viewBox`. O tamanho físico
+da etiqueta é decisão de impressão (T15), em milímetros, e fixá-lo aqui seria tomar essa
+decisão no lugar errado; os atributos de identificação ficam de fora porque a folha embute
+dezenas de símbolos na mesma página, e atributo repetido colidiria. A zona de silêncio de 4
+módulos vai **dentro** do `viewBox`: recortá-la é a causa clássica de etiqueta que não lê, e
+a tentação de recortar aparece justamente quando o espaço na embalagem é pouco.
+
+**A folha inteira vem numa resposta só, com o SVG embutido no JSON.** A alternativa seria
+`GET /unidades/:id/qr.svg`, uma requisição por etiqueta — 50 requisições para montar a folha
+de um recebimento. O teto de página é 500, o mesmo `MAXIMO_UNIDADES` do lote de T05, para
+que um recebimento inteiro caiba numa impressão; a ~1 KB por símbolo, a resposta máxima fica
+abaixo de 1 MB, aceitável para uma operação de gestão feita no computador da loja.
+
+**O filtro é `unidadeIds`, e não "lote" nem data de recebimento.** Não existe entidade
+`Lote` no modelo (decisão de T05: o recebimento é reconstruído pelos eventos
+`UNIDADE_CADASTRADA`), então "imprimir o que acabou de chegar" só tem uma expressão honesta —
+a tela já recebe os ids na resposta do `POST` e os devolve. Id que não pertence ao produto ou
+que já saiu do estoque é **ignorado**, não recusado: a lista vem de uma tela que pode estar
+desatualizada, e derrubar a folha inteira por causa de um frasco vendido no meio-tempo faria
+a gestora perder as outras etiquetas.
+
+**Produto inativo devolve etiquetas; unidade fora do estoque, não.** Mesma leitura que T13
+faz do produto inativo: inativar o SKU no catálogo não devolve à fábrica o frasco que está
+na prateleira, e reimprimir a etiqueta rasgada dele é legítimo. Já a unidade `VENDIDA` ou
+`DESCARTADA` não tem frasco para etiquetar. A unidade **vencida** entra normalmente — o
+frasco existe e precisa ser legível para que os três caminhos da seção 6.1 possam agir sobre
+ele.
+
+**Imprimir etiqueta não grava evento.** Mesma regra que T13 aplicou à fila: consultar não é
+ato operacional. A contrapartida honesta é que o sistema não sabe quantas vezes uma etiqueta
+foi reimpressa — dado que interessaria à RNF08, porque reimpressão quase sempre significa
+etiqueta que se soltou ou não leu. Registrado como limitação em `docs/notas-para-artigo.md`;
+medir isso é rota própria e tarefa própria, não um `GET` que escreve.
+
+**O teste lê a matriz de volta do SVG.** Além de versão, margem e determinismo, a suíte
+reconstrói a matriz de módulos a partir dos comandos do `path` e confere os três padrões de
+localização e a linha de sincronismo. Isso surgiu na conferência manual: o rasterizador
+interno do ImageMagick (a máquina não tem librsvg) desenha traços finos em vez de módulos
+cheios, e a imagem gerada por ele não serve como prova de nada. Reler a matriz prova que o
+arquivo entregue **é** o símbolo — o que uma inspeção visual de raster ruim não provaria.
+Continua sem provar que uma câmera lê a etiqueta colada num frasco: isso é físico e continua
+sendo T16 (RNF08).
+
+**`tests/descarte` não entrou na lista de exclusões de `test:sem-banco` em T13.** Achado
+desta tarefa, **não corrigido aqui**: a suíte nova (`tests/etiquetas`) entrou na lista, e a
+de T13 continua fora, o que faz `npm run test:sem-banco` falhar sem banco. É um deslize de
+uma linha, mas mexer nele é fechar tarefa alheia — fica registrado no backlog, no mesmo
+formato do `errorHandler` de T12 que virou T12b.

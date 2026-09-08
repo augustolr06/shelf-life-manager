@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 2 e 5 revisadas em T13)
+Última atualização: 2026-09-08 (seções 1 e 5 revisadas em T14)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -15,6 +15,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
 | Roteamento | `react-router-dom` | Uma URL por tela, decidido em T10 depois de duas tarefas adiando (T03b, T05). Exige app shell em caminho fundo — resolvido pelo `navigateFallback` do service worker. |
 | PWA | `vite-plugin-pwa` | Manifest + service worker prontos para instalabilidade (RNF07). |
 | Leitura de QR | `html5-qrcode` (câmera do navegador) | Compatível com PWA, sem exigir app nativo (RF05). |
+| Geração de QR | `qrcode` (node-qrcode), no servidor | Gera SVG sem dependência nativa e expõe os metadados do símbolo (versão, nível, matriz), que é o que permite testar o símbolo e não uma string opaca (RF04, T14). |
 | Autenticação | JWT em cookie `httpOnly` + `bcrypt` | Simples, sem estado de sessão a gerenciar no servidor. Atende RF01 e RNF09. |
 | Testes | Vitest | Mesma toolchain do Vite, TypeScript nativo, rápido. |
 
@@ -266,6 +267,33 @@ A pré-condição de vencimento é o que impede o override de virar um contorno 
 FIFO: ele é escape do bloqueio de **validade**, e só dele. Falha de pré-condição é 4xx e
 não veredito em 200 como em `/saidas/ler` — ali a tela pergunta, aqui ela afirma uma ação
 sobre um estado que julga conhecer (`docs/decisoes.md`, 2026-09-08).
+
+**`GET /produtos/:id/unidades/etiquetas`** (T14) devolve as etiquetas imprimíveis do
+produto: as unidades `EM_ESTOQUE` — vencidas inclusive, porque o frasco existe e precisa ser
+legível —, ordenadas por `dataValidade` crescente com desempate por `codigoQr` e paginadas
+(`pagina`, `tamanhoPagina`, padrão 100, máximo 500, o mesmo teto do lote de T05 para que um
+recebimento inteiro caiba numa impressão):
+
+```json
+{
+  "etiquetas": [{ "...UnidadeNaResposta": "...", "svg": "<svg viewBox=\"0 0 29 29\">...</svg>" }],
+  "total": 6, "pagina": 1, "tamanhoPagina": 100
+}
+```
+
+O `svg` vem do módulo `src/modules/unidade/simboloQr.ts`, único dono do símbolo (como
+`codigoQr.ts` é o dono do formato): correção de erro **H** e versão 1 (21×21 módulos), que
+cabem juntas porque o `codigoQr` tem exatamente os 10 caracteres alfanuméricos da capacidade
+dessa combinação — e o módulo **lança** se a versão mudar, para que um formato maior apareça
+como falha e não como etiqueta silenciosamente mais densa. O símbolo carrega o código puro,
+nunca uma URL; sai sem largura, altura, `id`, `class` ou `style`, porque o tamanho físico é
+decisão da impressão (T15) e a folha embute dezenas deles na mesma página. A query aceita
+`unidadeIds` repetível, que restringe às unidades de um recebimento recém-cadastrado; id que
+não pertence ao produto ou já saiu do estoque é ignorado, não recusado. Produto inativo
+devolve etiquetas (o frasco continua na prateleira, como na fila de T13); produto inexistente
+é 404, e produto sem nada a etiquetar é 200 com lista vazia. A rota não grava evento: gerar
+etiqueta é consulta, e a consequência — o sistema não sabe quantas reimpressões houve — está
+declarada como limitação em `docs/notas-para-artigo.md`.
 
 **`GET /descartes/pendentes`** (T13) devolve a fila da RF11: as unidades `EM_ESTOQUE`
 cuja `dataValidade` já passou, ordenadas da mais vencida para a menos (desempate por

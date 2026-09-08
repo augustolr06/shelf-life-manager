@@ -1,6 +1,7 @@
 import { Papel } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { autenticar, exigirPapel } from '../auth/auth.middleware.js'
+import { listarEtiquetas } from './etiqueta.service.js'
 import { cadastrarUnidades, contarUnidades, type ItemLote } from './unidade.service.js'
 
 /**
@@ -50,6 +51,40 @@ const parametrosId = {
   properties: { id: { type: 'string', format: 'uuid' } },
 } as const
 
+/**
+ * Uma folha de impressão cabe um recebimento inteiro: o teto de página é o
+ * mesmo `MAXIMO_UNIDADES` do lote, para que quem acabou de cadastrar 500
+ * unidades consiga imprimir as 500 etiquetas numa requisição só.
+ */
+const TAMANHO_FOLHA_PADRAO = 100
+
+const consultaEtiquetas = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    pagina: { type: 'integer', minimum: 1, default: 1 },
+    tamanhoPagina: {
+      type: 'integer',
+      minimum: 1,
+      maximum: MAXIMO_UNIDADES,
+      default: TAMANHO_FOLHA_PADRAO,
+    },
+    // Repetível na query (`?unidadeIds=a&unidadeIds=b`). Sem ele, a folha é o
+    // estoque inteiro do SKU — ver `etiqueta.service.ts`.
+    unidadeIds: {
+      type: 'array',
+      maxItems: MAXIMO_UNIDADES,
+      items: { type: 'string', format: 'uuid' },
+    },
+  },
+} as const
+
+type ConsultaEtiquetas = {
+  pagina: number
+  tamanhoPagina: number
+  unidadeIds?: string[]
+}
+
 export async function rotasUnidade(app: FastifyInstance): Promise<void> {
   // Recebimento de mercadoria é atribuição de gestão (RF03).
   const somenteGestor = { preHandler: [autenticar, exigirPapel(Papel.GESTOR)] }
@@ -80,6 +115,33 @@ export async function rotasUnidade(app: FastifyInstance): Promise<void> {
       if (!resultado.ok) return reply.code(STATUS[resultado.motivo]).send(FALHAS[resultado.motivo])
 
       return reply.code(201).send({ unidades: resultado.unidades, avisos: resultado.avisos })
+    },
+  )
+
+  /**
+   * As etiquetas imprimíveis do produto (RF04). Também `GESTOR`: etiquetar é a
+   * continuação do recebimento, não fluxo de balcão.
+   *
+   * Consultar não grava evento — mesma leitura de T13 para a fila de descarte.
+   * A consequência honesta é que o sistema não sabe quantas vezes uma etiqueta
+   * foi reimpressa, dado que interessaria à RNF08; está registrado como
+   * limitação em `docs/notas-para-artigo.md`.
+   */
+  app.get<{ Params: { id: string }; Querystring: ConsultaEtiquetas }>(
+    '/produtos/:id/unidades/etiquetas',
+    { ...somenteGestor, schema: { params: parametrosId, querystring: consultaEtiquetas } },
+    async (request, reply) => {
+      const resultado = await listarEtiquetas(request.params.id, {
+        pagina: request.query.pagina,
+        tamanhoPagina: request.query.tamanhoPagina,
+        unidadeIds: request.query.unidadeIds,
+      })
+
+      if (!resultado.ok) return reply.code(STATUS[resultado.motivo]).send(FALHAS[resultado.motivo])
+
+      // Produto sem nada a etiquetar é 200 com lista vazia, nunca 404: é o
+      // estado de quem já imprimiu tudo.
+      return resultado.folha
     },
   )
 }

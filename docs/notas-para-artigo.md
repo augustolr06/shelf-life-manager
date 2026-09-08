@@ -576,3 +576,87 @@ copiada.
 três caminhos reusados), RF11/RF12
 
 **Data:** 2026-09-08
+
+---
+
+## O identificador cabe exatamente no menor símbolo com a maior proteção — e isso não foi sorte gerenciada
+
+**Contexto do problema:** o controle manual identifica o produto pelo que já vem impresso na
+embalagem — o código de barras do fabricante, quando existe, ou nada. Nenhum dos dois
+identifica a **unidade física**, que é o nível em que o problema da validade acontece: dois
+frascos idênticos do mesmo SKU, validades diferentes, indistinguíveis na prateleira. A
+solução por unidade exige colar em cada frasco uma etiqueta nova, e é aí que o mundo físico
+impõe sua condição: a etiqueta precisa caber numa embalagem pequena, muitas vezes curva e
+brilhante, e continuar legível depois de manuseio, atrito e gordura de mão.
+
+**Alternativas consideradas:** codificar no QR uma URL apontando para o sistema, que é o
+padrão da indústria e permitiria ler a etiqueta com qualquer aplicativo de câmera. E usar um
+nível de correção de erro intermediário, que é o padrão das bibliotecas.
+
+**Solução adotada:** o símbolo carrega o código puro (10 caracteres) e usa o nível de
+correção de erro **mais alto** que a norma do QR oferece. As duas escolhas se sustentam numa
+coincidência aritmética que só apareceu ao implementar: um QR da menor versão possível
+(21×21 módulos) comporta, em modo alfanumérico e correção máxima, **exatamente 10
+caracteres** — que é o comprimento do identificador escolhido em outra tarefa, por outro
+motivo (evitar caracteres que se confundem quando alguém digita o código à mão).
+
+**Por que resolve o problema / trade-offs:** o resultado é que a etiqueta usa a proteção
+máxima contra dano físico — cerca de 30% do símbolo pode ser recuperado — **sem pagar um
+único módulo a mais de tamanho**. Numa embalagem pequena, tamanho de símbolo e robustez são
+normalmente um trade-off direto: mais dados ou mais redundância significam mais módulos no
+mesmo espaço, cada um menor, e módulo pequeno é o que a câmera erra num frasco curvo. Aqui
+os dois lados ganharam ao mesmo tempo, e a razão é que o dado codificado é curto — o que só
+foi possível porque a etiqueta aponta para um identificador **interno** em vez de carregar
+uma URL. A escolha de não codificar URL tem um custo real e declarado: a etiqueta não é
+legível por aplicativos genéricos de câmera, só pelo sistema. Em troca, ela não fica
+amarrada a um endereço de implantação — trocar o domínio do sistema inutilizaria o estoque
+inteiro já etiquetado, que é um risco desproporcional para uma loja que colou etiqueta em
+centenas de frascos.
+
+O ponto generalizável para o artigo: **restrições que parecem de camadas independentes
+podem estar acopladas por aritmética, e o acoplamento só aparece na implementação.** O
+formato do identificador foi decidido pensando em quem digita, não em quem imprime; a
+decisão de impressão herdou dele uma folga que ninguém planejou. Vale registrar também a
+direção contrária, que é a parte incômoda: a folga acabou. O identificador agora está
+travado em 10 caracteres — um a mais derruba o símbolo para a versão seguinte, mais denso —
+e essa restrição nasceu depois de a validação física da etiqueta já estar planejada, e antes
+de ela ter sido feita. Uma decisão tomada cedo, por um motivo, tornou-se cara de revisar por
+outro.
+
+**Tarefa relacionada:** T14 (o símbolo), T05 (o formato do identificador), T16/RNF08 (a
+validação física que ainda pode reabrir os dois)
+
+**Data:** 2026-09-08
+
+---
+
+## O que o sistema deliberadamente não sabe: quantas etiquetas foram reimpressas
+
+**Contexto do problema:** a etiqueta é o elo mais frágil da solução por unidade física. Ela
+se solta, borra, é coberta pelo dedo de quem segura o frasco, ou simplesmente não lê sob a
+luz da loja. Cada uma dessas falhas empurra a atendente para o fallback de digitação manual
+— e, se a etiqueta se perdeu de vez, para a reimpressão.
+
+**Alternativas consideradas:** gravar um evento a cada geração de etiqueta, o que permitiria
+contar reimpressões e usar esse número como indicador indireto de fragilidade física da
+solução.
+
+**Solução adotada:** não gravar. A geração de etiquetas é uma consulta, e consultas não
+escrevem no registro de eventos — a mesma regra aplicada à fila de descarte pendente.
+
+**Por que resolve o problema / trade-offs:** é uma limitação a declarar honestamente, não
+uma virtude. A contagem de reimpressões seria um dado bom para a pesquisa: ela mede
+exatamente o que o requisito de legibilidade física teme, e mediria em operação real, com o
+frasco na prateleira e a luz que a loja tem — coisa que um teste de legibilidade feito uma
+vez, em condições controladas, não alcança. O sistema, como está, é mudo sobre a própria
+fragilidade: ele registra a leitura que falhou (a digitação manual fica no log como leitura
+de código não encontrado, decisão de outra tarefa), mas não registra a etiqueta que precisou
+ser refeita. Medir isso exigiria uma ação explícita de "reimprimir", distinta de "imprimir
+pela primeira vez" — o sistema não sabe qual das duas está acontecendo, porque não sabe o
+que já foi impresso. É trabalho futuro, e o artigo deve dizer isso em vez de apresentar a
+solução como instrumentada de ponta a ponta.
+
+**Tarefa relacionada:** T14 (a geração sem evento), T16/RNF08 (a validação física que este
+dado complementaria), RF12
+
+**Data:** 2026-09-08
