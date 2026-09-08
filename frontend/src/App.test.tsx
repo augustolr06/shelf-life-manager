@@ -10,6 +10,13 @@ const GESTOR = {
   papel: 'GESTOR' as const,
 }
 
+const ATENDENTE = {
+  id: '22222222-2222-2222-2222-222222222222',
+  nome: 'Atendente de Balcão',
+  email: 'atendente@estoque.local',
+  papel: 'ATENDENTE' as const,
+}
+
 const buscar = vi.fn<typeof fetch>()
 
 const SESSAO_ATIVA = () => respostaFalsa(200, { usuario: GESTOR })
@@ -122,5 +129,35 @@ describe('App — guardião de sessão', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/conexão/i))
     expect(screen.getByLabelText(/e-mail/i)).toBeInTheDocument()
+  })
+
+  describe('navegação entre telas (T05)', () => {
+    it('troca do catálogo para o recebimento sem recarregar a página', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
+
+      render(<App />)
+      fireEvent.click(await screen.findByRole('button', { name: /registrar recebimento/i }))
+
+      expect(
+        await screen.findByRole('heading', { name: /registrar recebimento/i }),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', { name: /catálogo de produtos/i }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('não oferece o recebimento ao ATENDENTE', async () => {
+      rotear({
+        'GET /auth/me': () => respostaFalsa(200, { usuario: ATENDENTE }),
+        'GET /produtos': CATALOGO_VAZIO,
+      })
+
+      render(<App />)
+      await screen.findByRole('heading', { name: /catálogo de produtos/i })
+
+      // Conveniência de interface: quem recusa de fato é o 403 do backend
+      // (RF03), coberto por `backend/tests/unidade.test.ts`.
+      expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    })
   })
 })

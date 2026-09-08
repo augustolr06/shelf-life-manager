@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
+import { TelaRecebimento } from './pages/TelaRecebimento'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Usuario } from './services/auth'
 
 /**
@@ -13,9 +14,18 @@ type EstadoSessao =
   | { situacao: 'anonimo' }
   | { situacao: 'autenticado'; usuario: Usuario }
 
+/**
+ * Navegação por estado, sem biblioteca de roteamento. T03b registrou que o
+ * roteamento entraria quando fosse necessário; com duas telas ainda não é —
+ * o custo (URL própria por tela, histórico do navegador) só se paga a partir
+ * do fluxo de leitura de QR, em T10.
+ */
+type Aba = 'produtos' | 'recebimento'
+
 export function App() {
   const [sessao, setSessao] = useState<EstadoSessao>({ situacao: 'verificando' })
   const [aviso, setAviso] = useState<string | null>(null)
+  const [aba, setAba] = useState<Aba>('produtos')
 
   useEffect(() => {
     let ativo = true
@@ -73,6 +83,10 @@ export function App() {
 
   const { usuario } = sessao
 
+  // Recebimento é restrito a GESTOR (RF03). Esconder a aba é conveniência de
+  // interface: quem recusa continua sendo o 403 do backend (RNF04).
+  const podeReceber = usuario.papel === 'GESTOR'
+
   return (
     <div className="aplicacao">
       <header className="barra-topo">
@@ -93,8 +107,33 @@ export function App() {
         </p>
       )}
 
+      {podeReceber && (
+        <nav className="abas" aria-label="Seções do sistema">
+          {(
+            [
+              ['produtos', 'Catálogo de produtos'],
+              ['recebimento', 'Registrar recebimento'],
+            ] as const
+          ).map(([chave, rotulo]) => (
+            <button
+              key={chave}
+              type="button"
+              className={aba === chave ? 'aba ativa' : 'aba'}
+              aria-current={aba === chave ? 'page' : undefined}
+              onClick={() => setAba(chave)}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </nav>
+      )}
+
       <main>
-        <TelaProdutos usuario={usuario} />
+        {aba === 'recebimento' && podeReceber ? (
+          <TelaRecebimento />
+        ) : (
+          <TelaProdutos usuario={usuario} />
+        )}
       </main>
     </div>
   )
