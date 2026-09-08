@@ -15,6 +15,9 @@ frontend/dev-dist/
 # Testes / cobertura
 coverage/
 
+# Snapshots e screenshots do playwright-cli (conferência manual, não versionada)
+.playwright-cli/
+
 # Logs
 *.log
 npm-debug.log*

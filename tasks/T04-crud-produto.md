@@ -27,4 +27,5 @@ Cadastro de unidades individuais — isso é T05.
 - 25 testes de rota no backend (`backend/tests/produto.test.ts`), com o Prisma Client mockado, cobrindo papel, validação de corpo, paginação, filtro de inativos e tradução de erro do Prisma (P2002/P2025) em 409/404
 - 9 testes de componente (`frontend/src/pages/TelaProdutos.test.tsx`)
 - Conferência por `curl` contra o PostgreSQL real: criação com normalização, duplicata em minúsculas rejeitada com 409, 403 para ATENDENTE, busca sem diferenciar maiúsculas, `DELETE` seguido de consulta direta ao banco mostrando que a linha continua lá com `ativo = f`
-- Conferência no navegador com `playwright-cli` **não executada** — mesma indisponibilidade registrada em T03b (nenhum navegador compatível instalado na máquina)
+- Conferência no navegador com `playwright-cli`, executada em 2026-09-07 após o Chrome ser instalado: cadastro com normalização (`  prf-003 ` → `PRF-003`), duplicata exibindo a mensagem do backend com os campos preservados, Inativar removendo o produto da listagem padrão, filtro de inativos trazendo-o de volta como `Inativo`, Reativar, e busca sem diferenciar maiúsculas
+- **A conferência no navegador encontrou um bug que os testes e o `curl` não pegavam**: o preflight CORS recusava `PATCH` e `DELETE`. Corrigido e coberto por `backend/tests/cors.test.ts` — ver `docs/decisoes.md` (2026-09-07)

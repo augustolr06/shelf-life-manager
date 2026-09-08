@@ -67,7 +67,6 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | Assim que T05 gerar códigos | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16) | Pode reabrir o formato do `codigoQr`, que é provisório |
 | Ao concluir T10 | Teste da câmera em celular real (RF05). `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — **avisar o orientando** | Fluxo de leitura de QR não verificado no dispositivo-alvo |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
-| Antes da próxima tarefa de UI | Instalar um navegador para o `playwright-cli` (`playwright-cli install-browser firefox`). Hoje ele está instalado sem navegador compatível, e a conferência de T03b/T04 no navegador não pôde ser executada | Alterações de tela seguem conferidas só por Vitest, sem verificação visual |
 
 ---
 

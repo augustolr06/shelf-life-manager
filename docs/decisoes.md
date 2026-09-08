@@ -115,3 +115,13 @@ Quatro decisões tomadas pelo orientando em resposta a pontos levantados no fech
 **Serviço devolve resultado discriminado (`{ ok: true, produto } | { ok: false, motivo }`) em vez de lançar exceção de domínio.** Segue a convenção que T03 já usava (`autenticarCredenciais` devolve `null`): o serviço descreve o que aconteceu, e a rota escolhe o status HTTP. Justificativa: evita criar uma hierarquia de erros e um `setErrorHandler` global agora, o que mudaria o tratamento das rotas de auth já entregues.
 
 **Testes de T04 seguem com o Prisma mockado, e a verificação contra o banco real foi feita por `curl`.** O que T04 precisa provar é o contrato das rotas — papel, validação de corpo, tradução de erro do Prisma em status HTTP. A checagem manual incluiu um `SELECT` direto no container depois do `DELETE`, mostrando a linha ainda presente com `ativo = f`. A conferência no navegador continua pendente pelo mesmo motivo de T03b (nenhum navegador compatível com o `playwright-cli` instalado).
+
+## 2026-09-07 — CORS recusava PATCH e DELETE (achado da conferência no navegador, T04)
+
+**`app.register(cors, ...)` passa a declarar `methods: ['GET', 'POST', 'PATCH', 'DELETE']` explicitamente.** O padrão do `@fastify/cors` responde ao preflight com `Access-Control-Allow-Methods: GET,HEAD,POST` — apenas os métodos safelisted do CORS. Com isso, os botões Inativar e Reativar da tela de produtos falhavam no navegador com `blocked by CORS policy`, embora `PATCH` e `DELETE` funcionassem perfeitamente pela API.
+
+**Por que nenhuma verificação anterior pegou.** Os testes de rota usam `app.inject()`, que entra no Fastify sem passar por navegador e portanto sem preflight. As conferências manuais usaram `curl`, que também não faz preflight — uma requisição `DELETE` avulsa devolvia 200 normalmente. O erro só existe na etapa `OPTIONS` que o navegador dispara sozinho antes de um método não-safelisted, e portanto só aparece quando há um navegador de verdade no circuito.
+
+**Regressão coberta por `backend/tests/cors.test.ts`**, que dispara o `OPTIONS` de preflight para os quatro métodos usados e confere `Access-Control-Allow-Methods` e `Access-Control-Allow-Credentials`. Isso mantém o achado testado sem depender do navegador em toda execução da suíte.
+
+**Consequência para o roteiro de trabalho.** É a primeira evidência concreta, dentro deste projeto, de que a conferência no navegador exigida pelo `CLAUDE.md` não é redundante com Vitest e `curl`: ela cobre uma camada — o que o navegador exige antes de deixar a requisição sair — que nenhuma das outras duas alcança. Vale lembrar disso em T10, onde `getUserMedia` e o comportamento offline da RNF07 têm a mesma natureza.

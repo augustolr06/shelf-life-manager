@@ -17,7 +17,7 @@ Tarefa criada em 2026-09-07, fora do backlog original: T03 entregou apenas o lad
 - [x] Botão de sair chamando `POST /auth/logout` e voltando à tela de login
 - [x] Nome e papel do usuário logado visíveis na interface
 - [x] Testes de componente (Vitest + Testing Library, `fetch` mockado) cobrindo: login com sucesso, credencial inválida, sessão restaurada, e logout
-- [ ] Conferência no navegador com `playwright-cli` conforme CLAUDE.md, restrita ao fluxo login → conteúdo → logout — **não executada**: o `playwright-cli` está instalado mas sem navegador compatível na máquina (espera `chrome` em `/opt/google/chrome` e `firefox-1542`; há `firefox-1522`). Em substituição, os contratos de `/auth/login`, `/auth/me` e `/auth/logout` foram conferidos por `curl` e batem com o que o frontend assume
+- [x] Conferência no navegador com `playwright-cli` conforme CLAUDE.md, restrita ao fluxo login → conteúdo → logout. Executada em 2026-09-07 após o Chrome ser instalado na máquina: login com credencial do seed, sessão restaurada com nome e papel na barra de topo, logout voltando à tela de login. Sem erro de runtime no console — os 401 registrados são a resposta esperada de `/auth/me` sem sessão
 
 ## Notas técnicas
 - O `App` passa a ser o guardião de sessão: decide entre "carregando", "login" e "autenticado". As telas de domínio (T04 em diante) são renderizadas dentro do ramo autenticado e assumem que há usuário.

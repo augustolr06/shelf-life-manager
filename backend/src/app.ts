@@ -16,7 +16,16 @@ export function buildApp(): FastifyInstance {
 
   // O cookie de sessão vem de outra origem (frontend em 5173, backend em
   // 3333), então o navegador só o envia se o CORS permitir credenciais.
-  app.register(cors, { origin: env.FRONTEND_ORIGIN, credentials: true })
+  //
+  // `methods` é obrigatório: o padrão do @fastify/cors é apenas os métodos
+  // safelisted do CORS (GET, HEAD, POST), e sem esta lista o preflight de
+  // PATCH e DELETE é recusado pelo navegador — falha que não aparece em
+  // chamada de `curl`, que não faz preflight.
+  app.register(cors, {
+    origin: env.FRONTEND_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  })
 
   // Ordem importa: o @fastify/jwt lê o token do cookie, então o parser de
   // cookie precisa estar registrado antes.
