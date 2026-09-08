@@ -39,3 +39,27 @@ export function gerarCodigosQr(quantidade: number): string[] {
   while (codigos.size < quantidade) codigos.add(gerarCodigoQr())
   return [...codigos]
 }
+
+/**
+ * Prepara para consulta um código que pode ter vindo digitado à mão — o
+ * fallback do RF05, usado quando a etiqueta não lê na câmera.
+ *
+ * Além de caixa e espaços, desfaz as confusões que o próprio alfabeto
+ * Crockford antecipa: quem digita vê um `1` impresso e escreve `I` ou `L`, vê
+ * um `0` e escreve `O`. Como o gerador nunca emite essas três letras, mapeá-las
+ * de volta não pode colidir com nenhum código válido — e o prefixo `PRF` não
+ * contém nenhuma delas, então a substituição pode ser aplicada ao texto todo.
+ *
+ * O que esta função **não** faz é julgar: código que continua fora do
+ * `PADRAO_CODIGO_QR` depois de normalizado segue para a consulta do mesmo
+ * jeito, e volta como `QR_NAO_ENCONTRADO`. Recusar antes apagaria do
+ * `EventoLog` a leitura de uma etiqueta danificada, que é dado da pesquisa
+ * (RF12).
+ */
+export function normalizarCodigoQr(entrada: string): string {
+  return entrada
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/[IL]/g, '1')
+    .replace(/O/g, '0')
+}

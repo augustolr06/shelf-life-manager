@@ -7,7 +7,10 @@
  * calendário avança do dia em que ela foi escrita.
  */
 
-import { Papel, type PrismaClient, StatusUnidade, type UnidadeProduto } from '@prisma/client'
+import { Papel, type PrismaClient, StatusUnidade, type UnidadeProduto, type Usuario } from '@prisma/client'
+import type { FastifyInstance } from 'fastify'
+import { NOME_COOKIE_SESSAO } from '../../src/modules/auth/cookie.js'
+import type { PayloadToken } from '../../src/modules/auth/tipos.js'
 import { hojeComoData } from '../../src/shared/data.js'
 import { gerarCodigosQr } from '../../src/modules/unidade/codigoQr.js'
 
@@ -73,4 +76,21 @@ export function criarUnidade(
 
 export function eventosDe(prisma: PrismaClient, tipoEvento: string) {
   return prisma.eventoLog.findMany({ where: { tipoEvento } })
+}
+
+/**
+ * O cookie de sessão de um usuário já existente no banco, para `app.inject()`.
+ *
+ * Assina o token direto em vez de passar por `POST /auth/login`: o cenário
+ * cria usuários com hash de senha inventado (login não é o objeto destas
+ * suítes), e o payload é o mesmo que a rota de login monta.
+ */
+export function cookieDeSessao(app: FastifyInstance, usuario: Usuario): Record<string, string> {
+  const payload: PayloadToken = {
+    sub: usuario.id,
+    nome: usuario.nome,
+    email: usuario.email,
+    papel: usuario.papel,
+  }
+  return { [NOME_COOKIE_SESSAO]: app.jwt.sign(payload) }
 }

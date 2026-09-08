@@ -149,3 +149,19 @@ export async function limparBanco(prisma: PrismaClient): Promise<void> {
   const lista = tabelas.map((t) => `"public"."${t.tablename}"`).join(', ')
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${lista} RESTART IDENTITY CASCADE`)
 }
+
+/**
+ * O mesmo client, memoizado.
+ *
+ * As suítes de endpoint precisam que o app e o próprio teste falem com a
+ * mesma conexão: o app chega ao banco por `src/db/prisma.ts`, que é um client
+ * único apontado para o `DATABASE_URL` de desenvolvimento. Substituir aquele
+ * módulo por este client redireciona o destino sem trocar o comportamento —
+ * é Prisma de verdade contra Postgres de verdade, só que no banco descartável.
+ */
+let compartilhado: PrismaClient | undefined
+
+export function clienteCompartilhadoDeTeste(): PrismaClient {
+  compartilhado ??= criarClienteDeTeste()
+  return compartilhado
+}

@@ -152,3 +152,33 @@ paga por isso — inclua limitações honestamente, não só os pontos fortes.
 **Tarefa relacionada:** T06 (caso de teste), T07 (implementação)
 
 **Data:** 2026-09-08
+
+---
+
+## O bloqueio não é um erro: por que o código de status HTTP virou uma decisão de projeto
+
+**Contexto do problema:** o comportamento central do sistema — barrar a saída do frasco errado e apontar o certo — é, do ponto de vista de quem programa, "a requisição não deu certo". A tentação é traduzir isso no protocolo: devolver um código de erro HTTP, como se faz com dado inválido. É uma escolha que parece técnica e trivial, e não é nem uma coisa nem outra.
+
+**Alternativas consideradas:** mapear cada veredito num código de status (não encontrado, conflito, e assim por diante), que é a convenção usual em APIs. A alternativa adotada foi responder sempre "requisição bem-sucedida" para toda leitura que o sistema conseguiu processar, com o veredito no corpo da resposta, reservando os códigos de erro para o que não chegou a ser leitura (sessão ausente, requisição malformada, falha do servidor).
+
+**Por que resolve o problema / trade-offs:** três consequências, e nenhuma delas é de estilo. A primeira é de interface: bibliotecas de rede e programadores tratam resposta de erro pelo caminho de exceção, e caminho de exceção atrai mensagem genérica — "algo deu errado, tente novamente". Seria a frase errada exatamente no momento mais importante do sistema, quando a vendedora precisa ler uma instrução específica ("devolva este frasco, pegue o de validade tal"). O bloqueio não é o sistema falhando; é o sistema funcionando. A segunda é de instrumentação, e é a mais concreta: o aplicativo é um PWA, e a camada de rede do navegador pode repetir automaticamente requisições que falharam. Uma repetição dessas gera um segundo registro de leitura no log — e o log é o instrumento de coleta da pesquisa, cujo indicador central (a taxa de acerto na primeira leitura) tem justamente o número de leituras no denominador. Codificar o veredito no protocolo colocaria o comportamento de retry da rede dentro da estatística do trabalho. A terceira é operacional: se a interação mais frequente do balcão for contabilizada como erro, a taxa de erro do serviço deixa de servir para detectar que o serviço está com problema. Trade-off honesto: a escolha contraria a convenção que um leitor de API espera, e por isso ela precisa estar documentada — o que se ganha é que existe um único campo a interpretar, e ele vem do servidor, coerente com a decisão de projeto de que o cliente nunca decide o veredito.
+
+**Tarefa relacionada:** T08 (endpoint de leitura), T10 (tela que consome o veredito)
+
+**Data:** 2026-09-08
+
+---
+
+## Uma especificação pode ser internamente incoerente sem que ninguém perceba — até alguém tentar implementá-la
+
+**Contexto do problema:** o documento de arquitetura do projeto descreve, numa seção, a função de validação como fazendo tudo de uma vez: ao reconhecer que o frasco lido é o correto, ela registra a saída e baixa a unidade dentro da mesma transação. Em outra seção, a tabela de endpoints da API lista uma operação separada de "confirmar saída", posterior à leitura. As duas descrições convivem no mesmo documento, escritas em momentos diferentes, e nenhuma revisão as pegou. Só ao expor a função pela API é que a contradição aparece: se a leitura já efetivou a venda, a confirmação não tem o que confirmar.
+
+**Alternativas consideradas:** resolver na hora, escolhendo o modelo de dois passos (ler, mostrar, confirmar) por ser o que a tabela de endpoints previa. Isso exigiria ou revalidar a regra inteira na segunda chamada — porque aceitar o veredito que o cliente afirma seria justamente o furo que o projeto fecha ao manter a decisão no servidor — ou reservar a unidade entre as duas chamadas, que é o estado intermediário que o projeto decidiu não ter. A primeira opção quebraria a função em duas ("decidir" e "efetivar") e invalidaria a bateria de testes escrita antes da implementação, que o método do trabalho manda não editar depois.
+
+**Solução adotada:** registrar a incoerência de forma datada e explícita, implementar a tarefa corrente sobre o comportamento que já está testado, e empurrar a escolha para a tarefa que é dona daquele endpoint. A resposta da leitura foi redigida como fato consumado ("saída registrada"), para não induzir na tela um passo que não existe.
+
+**Por que resolve o problema / trade-offs:** a observação que interessa ao artigo não é qual dos dois modelos vence — é que a incoerência era invisível enquanto o documento era só documento. Ela não apareceu na revisão do texto; apareceu quando uma parte do sistema precisou consumir a outra. Isso é um argumento a favor do método de desenvolvimento adotado (fatias verticais, cada uma consumindo a anterior) e um contraponto honesto à ideia de que a especificação precede a implementação: aqui a implementação **auditou** a especificação. Vale mencionar também o custo da disciplina: seria mais rápido decidir na hora, e mais barato no curto prazo; o que se ganha ao adiar é que a decisão passa pelo orientando, com as duas consequências à vista, em vez de ser tomada de passagem por quem estava com o editor aberto. Do ponto de vista de produto, a escolha entre um e dois passos não é cosmética — ela decide se uma leitura acidental vende o item, o que num balcão real exige um caminho de estorno que o projeto ainda não tem.
+
+**Tarefa relacionada:** T08 (onde apareceu), T09 (onde precisa ser decidida)
+
+**Data:** 2026-09-08
