@@ -501,3 +501,46 @@ Fastify em inglês. Traduzir `FST_ERR_VALIDATION` para o formato `{erro, mensage
 projeto é tarefa de backend e não entrou aqui. Mesmo feita, não substituiria o espelho da
 Decisão 3: mensagem genérica de "confira os campos" é pior que desabilitar o botão com a
 contagem à vista.
+
+## 2026-09-08 — Formato uniforme de erro da API (T12b)
+
+**Mensagem genérica com os campos ao lado, e não tradução regra a regra do ajv** (validado
+pelo orientando antes da implementação). Traduzir fielmente cada erro do ajv — formato,
+mínimo, máximo, tipo, aninhamento em `unidades[2].dataValidade` — produziria uma segunda
+declaração das mesmas restrições que o schema já declara e que as telas já espelham, com o
+custo permanente de manter as duas em sincronia. A resposta traz uma `mensagem` única
+("Alguns campos do formulário não foram aceitos...") mais `campos: ['justificativa']`, fora
+da mensagem: nome de campo do JSON é diagnóstico, não necessariamente o rótulo que o
+usuário vê na tela. Isso **não afrouxa** a Decisão 3 de T12 — quem orienta o usuário
+continua sendo o formulário, com botão desabilitado e contagem à vista; o handler é a rede
+embaixo, para quando a tela não antecipou e para os clientes que não são a tela.
+
+**O 500 entrou na mesma tarefa, e é a metade mais importante.** Sem `setErrorHandler`, o
+padrão do Fastify devolve ao navegador a mensagem original de qualquer exceção sem
+`statusCode` — e `produto.service.ts` e `unidade.service.ts` relançam o erro do Prisma nos
+casos que não tratam a mão. Um erro do Prisma carrega nome de tabela, de coluna e, na
+violação de unicidade, o valor que colidiu, que pode ser dado de negócio (RNF09). Passa a
+responder texto fixo, com o erro completo só no log do servidor. Ficou na mesma tarefa
+porque é o mesmo handler: deixar de fora significaria fechar o vazamento menor e manter
+aberto o maior.
+
+**O handler troca o corpo da resposta, nunca o status.** Erro de cliente que o Fastify já
+classificou (JSON malformado, content-type não suportado) preserva o status original e sai
+como `REQUISICAO_INVALIDA`. Isso é o que permitiu os 177 testes anteriores continuarem
+verdes sem edição: as asserções de 400 existentes olham só `statusCode`.
+
+**As recusas de negócio continuam nas rotas, e de propósito.** Elas saem por
+`reply.code().send()` e nunca chegam ao handler, que só vê o que o Fastify gerou.
+`UNIDADE_NAO_VENCIDA` explica o caso; nenhuma mensagem genérica explicaria. Padronizar
+esses códigos entre módulos seria refatoração de contrato e mexeria em testes de T03–T11 —
+fora de escopo.
+
+**Descoberto ao escrever os testes: dois padrões do ajv no Fastify limitam o que `campos`
+pode prometer.** `allErrors: false` faz a validação parar na primeira falha, então `campos`
+traz um campo por vez, não a lista completa do formulário. E `removeAdditional` faz
+`additionalProperties: false` **apagar** a propriedade desconhecida antes de validar, em vez
+de recusá-la — um corpo com campo a mais passa pelo schema (segue e para na autenticação),
+e por isso `campos` nunca cita campo fora do schema. Nenhum dos dois padrões foi alterado:
+mudar a configuração do ajv afetaria a validação de todas as rotas já testadas, o que
+excede uma tarefa de formato de resposta. Ambos estão documentados em `arquitetura.md`
+seção 5.1 e cobertos por teste que descreve o comportamento real.

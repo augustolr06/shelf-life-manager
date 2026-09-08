@@ -33,36 +33,40 @@ tela não antecipou — e para os clientes que não são a tela.
 
 ## Critério de aceite
 
-- [ ] `setErrorHandler` registrado **uma vez**, em `app.ts`, junto do resto da montagem da
+- [x] `setErrorHandler` registrado **uma vez**, em `app.ts`, junto do resto da montagem da
       instância. Nenhuma rota trata erro de schema por conta própria
-- [ ] Violação de schema (`FST_ERR_VALIDATION`) responde **400** no formato de erro que o
+- [x] Violação de schema (`FST_ERR_VALIDATION`) responde **400** no formato de erro que o
       projeto já usa nas recusas escritas à mão: `{ erro, mensagem }`, com
       `erro: 'CORPO_INVALIDO'`
-- [ ] O status **não muda**: o que era 400 continua 400. Esta tarefa troca o corpo da
+- [x] O status **não muda**: o que era 400 continua 400. Esta tarefa troca o corpo da
       resposta, nada mais
-- [ ] As recusas redigidas pelas rotas (`UNIDADE_NAO_VENCIDA`, `VALIDADE_INALTERADA`,
+- [x] As recusas redigidas pelas rotas (`UNIDADE_NAO_VENCIDA`, `VALIDADE_INALTERADA`,
       `PAPEL_INSUFICIENTE` e as demais) **não passam pelo handler** — elas já saem prontas
       via `reply.code().send()`, e o handler só vê o que o Fastify gerou
-- [ ] Campos recusados vão num array `campos` na resposta, para diagnóstico. O texto
+- [x] Campos recusados vão num array `campos` na resposta, para diagnóstico. O texto
       exibido ao usuário continua sendo `mensagem`, e só ele — ver Decisão 1
-- [ ] Erro não tratado responde **500** `{ erro: 'ERRO_INTERNO', mensagem }` sem repassar o
+- [x] Erro não tratado responde **500** `{ erro: 'ERRO_INTERNO', mensagem }` sem repassar o
       texto da exceção, com o erro completo no log do servidor — ver Decisão 2
-- [ ] Rota inexistente responde 404 no mesmo formato (`setNotFoundHandler`), para que o
+- [x] Rota inexistente responde 404 no mesmo formato (`setNotFoundHandler`), para que o
       cliente não precise distinguir dois formatos de erro conforme o que deu errado
-- [ ] Testes novos em `backend/tests/erros.test.ts`: corpo inválido devolvendo
+- [x] Testes novos em `backend/tests/erros.test.ts`: corpo inválido devolvendo
       `CORPO_INVALIDO` com os campos; nenhuma resposta de erro contendo `must NOT` ou
       `Bad Request`; rota inexistente no formato do projeto; e erro interno não vazando a
       mensagem da exceção
-- [ ] **Os 177 testes atuais continuam verdes sem edição.** Foi conferido antes de abrir a
+- [x] **Os 177 testes atuais continuam verdes sem edição.** Foi conferido antes de abrir a
       tarefa: as asserções existentes de 400 olham só `statusCode` — a única que lê o corpo
       (`erro: 'VALIDADE_INALTERADA'`, em `excecaoVencido.test.ts`) é recusa de rota, que não
       passa pelo handler
-- [ ] `npm run typecheck` limpo. Nenhuma mudança no frontend: `ErroApi` já lê `erro` e
+- [x] `npm run typecheck` limpo. Nenhuma mudança no frontend: `ErroApi` já lê `erro` e
       `mensagem`, e passará a encontrá-los onde hoje encontra `message`
-- [ ] `docs/arquitetura.md` seção 5 registra o formato uniforme de erro da API
-- [ ] `docs/decisoes.md` com a entrada do dia
+- [x] `docs/arquitetura.md` seção 5 registra o formato uniforme de erro da API
+- [x] `docs/decisoes.md` com a entrada do dia
 
-## Pontos que precisam da sua validação antes de eu codar
+## Pontos decididos pelo orientando antes da implementação
+
+> **Resolvido em 2026-09-08:** ambas as propostas foram aceitas como escritas abaixo —
+> mensagem genérica com `campos` ao lado (Decisão 1) e o 500 tratado nesta mesma tarefa
+> (Decisão 2). Registrado em `docs/decisoes.md`.
 
 **Decisão 1 — mensagem genérica com os campos ao lado, não tradução campo a campo.**
 Traduzir fielmente cada erro do ajv (formato, mínimo, máximo, tipo, propriedade
@@ -104,3 +108,16 @@ significa manter aberto o vazamento maior dos dois.
 - **Internacionalização.** O sistema é de uma loja, em português.
 - **Padronizar códigos de erro entre módulos** (por exemplo, unificar nomes de `erro` já
   existentes): é refatoração de contrato e mexeria em testes de T03–T11.
+
+## Descoberto durante a implementação
+
+- **`campos` lista um campo por vez.** O ajv do Fastify roda com `allErrors: false` e para
+  na primeira falha. O array é pista de diagnóstico, não relatório de formulário.
+- **`additionalProperties: false` filtra, não recusa.** Com o `removeAdditional` padrão, a
+  propriedade fora do schema é apagada do corpo antes da validação, e a requisição segue.
+  Por isso `campos` nunca cita campo desconhecido. Nenhuma das duas configurações foi
+  alterada — mexer nelas mudaria a validação de todas as rotas já testadas.
+- **Os 400 do framework que não vêm de schema** (JSON malformado, content-type não
+  suportado) preservam o status e saem como `REQUISICAO_INVALIDA`. Foi o que manteve a
+  promessa de "o status não muda".
+- Suíte final: **185 testes verdes** (177 anteriores, sem edição, mais 8 de `erros.test.ts`).

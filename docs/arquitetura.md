@@ -271,6 +271,36 @@ O corpo de `/saidas/ler` aceita, além do `codigoQr`, um `sessaoVendaId` opciona
 gerado no cliente que agrupa as saídas de um mesmo atendimento para fins de relatório.
 Não cria estado nem semântica transacional (PRD seção 6.2).
 
+### 5.1 Formato de erro da API
+
+Toda resposta de erro — recusa de negócio, violação de schema, rota inexistente ou falha
+interna — tem o mesmo corpo, para que o cliente não precise distinguir formatos conforme o
+que deu errado:
+
+```json
+{ "erro": "CODIGO_DA_RECUSA", "mensagem": "Texto em português exibível ao usuário." }
+```
+
+`erro` é o código estável, que a interface usa para distinguir casos sem julgar nada por
+conta própria (RNF04); `mensagem` é o único texto que vai à tela.
+
+As recusas de negócio são **escritas nas rotas**, com código e texto específicos do caso
+(`UNIDADE_NAO_VENCIDA`, `PAPEL_INSUFICIENTE`, `VALIDADE_INALTERADA`, ...). O que o próprio
+Fastify gera passa pelo `setErrorHandler`/`setNotFoundHandler` registrados em
+`backend/src/app.ts` (T12b), única fonte destes três casos:
+
+| Situação | Status | `erro` | Observação |
+|---|---|---|---|
+| Violação de JSON Schema (corpo, query, params ou headers) | 400 | `CORPO_INVALIDO` | Acrescenta `campos: ['justificativa']` para diagnóstico. O texto exibido é sempre a `mensagem` genérica: traduzir regra a regra do ajv duplicaria as restrições que o schema já declara e as telas já espelham |
+| Demais recusas do framework (JSON malformado, content-type não suportado) | preserva o status | `REQUISICAO_INVALIDA` | O handler troca o corpo da resposta, nunca o status |
+| Exceção não tratada | 500 | `ERRO_INTERNO` | Texto fixo. A mensagem original fica **só** no log do servidor: erro do Prisma carrega nome de tabela, coluna e o valor que violou a constraint (RNF09) |
+| Rota inexistente | 404 | `ROTA_NAO_ENCONTRADA` | — |
+
+`campos` é pista de diagnóstico, não relatório de formulário: o ajv do Fastify roda com
+`allErrors: false` e para na primeira falha. E `additionalProperties: false`, com o
+`removeAdditional` padrão, **filtra** a propriedade desconhecida em vez de recusá-la — por
+isso `campos` nunca cita campo fora do schema.
+
 ## 6. Comportamento offline (RNF07)
 
 O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de leitura de QR. Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local.

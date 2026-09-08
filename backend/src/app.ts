@@ -9,6 +9,7 @@ import { rotasProduto } from './modules/produto/produto.routes.js'
 import { rotasSaida } from './modules/saida/saida.routes.js'
 import { rotasUnidade } from './modules/unidade/unidade.routes.js'
 import { env } from './shared/env.js'
+import { tratarErro, tratarRotaNaoEncontrada } from './shared/errosDaApi.js'
 
 /**
  * Monta a instância do Fastify sem subir o servidor, para que os testes
@@ -37,6 +38,13 @@ export function buildApp(): FastifyInstance {
     secret: env.JWT_SECRET,
     cookie: { cookieName: NOME_COOKIE_SESSAO, signed: false },
   })
+
+  // Toda falha que o próprio Fastify gera (schema, corpo malformado, exceção
+  // não tratada, rota inexistente) sai no formato `{ erro, mensagem }` que as
+  // rotas já usam nas recusas escritas à mão. Registrado aqui, e não em
+  // `server.ts`, para valer também nos testes com `app.inject()`.
+  app.setErrorHandler(tratarErro)
+  app.setNotFoundHandler(tratarRotaNaoEncontrada)
 
   app.register(rotasAuth)
   app.register(rotasProduto)

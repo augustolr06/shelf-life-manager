@@ -478,3 +478,46 @@ sobre o usuário e qual é sobre o mundo compartilhado.
 **Tarefa relacionada:** T12 (a tela da exceção), T11 (as recusas que ela exibe), RNF03/RNF04
 
 **Data:** 2026-09-08
+
+---
+
+## O padrão do framework é uma decisão de projeto que ninguém tomou
+
+**Contexto do problema:** um sistema que substitui controle manual é usado por quem não
+escreveu o software e não tem a quem perguntar no meio de um atendimento. Toda mensagem que
+chega ao balcão é interface, inclusive as que o desenvolvedor nunca redigiu. No estado
+anterior a esta tarefa, uma justificativa curta demais no fluxo de venda de produto vencido
+— o mais delicado do sistema — produzia na tela `body/justificativa must NOT have fewer
+than 10 characters`: o texto interno do validador, em inglês, citando o caminho do campo no
+corpo da requisição HTTP. Nenhuma linha de código do projeto pedia isso; era o padrão do
+framework aparecendo onde ninguém olhou.
+
+**Alternativas consideradas:** traduzir cada regra do validador para português (mínimo,
+máximo, formato, tipo, aninhamento) daria a melhor mensagem possível, mas produziria uma
+segunda declaração das restrições que o schema já declara — duas cópias da mesma regra para
+manter em sincronia, exatamente o defeito que a RNF03 combate no núcleo do sistema. Citar o
+nome do campo na mensagem exibida ("Confira: justificativa") custa pouco, mas expõe o
+identificador técnico do JSON, que nem sempre é o rótulo que a pessoa vê no formulário.
+
+**Solução adotada:** um tratador único, na montagem da aplicação, que converte tudo que o
+framework gera para o mesmo formato `{ erro, mensagem }` das recusas escritas à mão — com
+uma mensagem genérica honesta e os campos recusados num array separado, para diagnóstico.
+As recusas de negócio continuam redigidas nas rotas, caso a caso, e não passam pelo
+tratador: "esta unidade não está vencida" explica o que nenhuma mensagem genérica
+explicaria. A camada genérica é a rede embaixo, não o substituto da mensagem específica.
+
+**Por que resolve o problema / trade-offs:** o achado que interessa ao artigo é que o
+vazamento maior não era o de linguagem, e sim o de conteúdo. Sem tratador, uma exceção não
+prevista devolve ao navegador a mensagem original do ORM — nome de tabela, nome de coluna
+e, na violação de unicidade, o próprio valor que colidiu. Num sistema que registra quem
+autorizou a venda de produto vencido e com qual justificativa (RNF09/LGPD), isso é dado de
+negócio saindo pela porta do erro. O mesmo tratador que traduz a recusa de formulário fecha
+esse vazamento, e a segunda metade é a que tem consequência jurídica. Fica a limitação a
+declarar com honestidade: o validador do framework para na primeira falha e remove campos
+desconhecidos em vez de recusá-los, então a lista de campos devolvida é pista de
+diagnóstico, não relatório completo do formulário — quem orienta o usuário continua sendo a
+tela, não a resposta de erro.
+
+**Tarefa relacionada:** T12b (o tratador), T12 (onde o defeito apareceu), RNF04, RNF09
+
+**Data:** 2026-09-08
