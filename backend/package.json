@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:sem-banco": "vitest run --exclude \"tests/fifo/**\" --exclude \"tests/saida/**\" --exclude \"tests/evento-log/**\"",
+    "test:sem-banco": "vitest run --exclude \"tests/fifo/**\" --exclude \"tests/saida/**\" --exclude \"tests/evento-log/**\" --exclude \"tests/excecao-vencido/**\"",
     "test:fifo": "vitest run tests/fifo",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "prisma:generate": "prisma generate",
@@ -17,7 +17,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
     "test:saida": "vitest run tests/saida",
-    "test:evento-log": "vitest run tests/evento-log"
+    "test:evento-log": "vitest run tests/evento-log",
+    "test:excecao": "vitest run tests/excecao-vencido"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

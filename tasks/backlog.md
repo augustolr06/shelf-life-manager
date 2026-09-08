@@ -27,11 +27,11 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 
 ## Incremento 3 — Exceção de unidade vencida (PRD seção 6.1)
 
-| ID | Tarefa | Status | Depende de |
-|---|---|---|---|
-| T11 | Backend: ramo `EXCECAO_VENCIDO` + 3 endpoints (correção, descarte, override) | pendente | T07 |
-| T12 | Frontend: tela de exceção com os 3 caminhos, override restrito a GESTOR | pendente | T11 |
-| T13 | Fila de descarte pendente no painel do GESTOR (RF11) | pendente | T11 |
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T11 | Backend: ramo `EXCECAO_VENCIDO` + 3 endpoints (correção, descarte, override) | concluída | T07 | `tasks/T11-excecao-vencido-backend.md` |
+| T12 | Frontend: tela de exceção com os 3 caminhos, override restrito a GESTOR | pendente | T11 | — |
+| T13 | Fila de descarte pendente no painel do GESTOR (RF11) | pendente | T11 | — |
 
 ## Incremento 4 — Cadastro em lote e etiquetas
 

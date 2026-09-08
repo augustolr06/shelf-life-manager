@@ -385,3 +385,65 @@ fechando o portão e `online` reabrindo; nenhum erro de console além dos dois 4
 do veredito e o código a buscar cabem sem rolagem. `CONFIRMAR` ficou de fora pelo mesmo
 motivo de T08 e T09 — consumiria uma unidade do banco de desenvolvimento, e já tem casos
 automatizados.
+
+## 2026-09-08 — Exceção de unidade vencida: os três caminhos (T11)
+
+**A correção de validade revalida o FIFO no servidor, na mesma transação — e pode terminar
+com a unidade vendida.** O PRD (6.1) diz "revalida o FIFO do zero" sem dizer quem revalida.
+A alternativa era a tela corrigir e depois reenviar o QR para `/saidas/ler`. Escolhida a
+revalidação server-side, validada pelo orientando: a tela não pode esquecer de fazê-la, e a
+unidade fica sob o mesmo lock do início ao fim, sem instante em que outra atendente veja o
+estoque pela metade. A consequência é coerente com T09 — como não existe
+`POST /saidas/confirmar`, um veredito `CONFIRMAR` na revalidação é a venda já feita. O
+número de `LEITURA_QR_SAIDA` seria o mesmo nas duas opções (dois eventos: leitura original
+e revalidação), então a escolha não mexe no denominador da RF12.
+
+**A pré-condição "está vencida" é o que impede o override de furar o FIFO.** Se
+`/excecao-vencido/override` aceitasse qualquer unidade `EM_ESTOQUE`, um gestor poderia usá-lo
+para vender fora de ordem com uma justificativa qualquer, e o bloqueio reativo do RF06
+viraria opcional para quem tem o papel. Vale para os três caminhos, mas é neste que ela
+deixa de ser validação de formulário e vira trava: o override é escape do bloqueio de
+**validade**, e só dele. Unidade que vence hoje não está vencida — a fronteira é a mesma
+comparação do ramo 3 de `validarSaidaFifo` (`dataValidade < hoje`, RNF01).
+
+**Falha de pré-condição é 4xx, ao contrário do veredito em 200 de `/saidas/ler`.** T08
+decidiu que todo veredito de leitura responde 200 porque a leitura é uma pergunta cuja
+resposta pode ser "não pode" — resultado, não falha de protocolo. Aqui a assimetria é
+proposital: a tela **afirma** uma ação sobre uma unidade cujo estado ela julga conhecer, e
+409 é a palavra exata para "o recurso não está no estado que você supôs". 404 para unidade
+inexistente, 409 para já baixada e para não vencida, 400 para correção que não muda nada.
+
+**Módulo próprio `excecao-vencido`, e não os três caminhos espalhados pelos módulos
+existentes.** Correção em `unidade`, descarte em `descarte` e override em `saida` seria a
+divisão por entidade tocada; a divisão adotada é por decisão tomada. Os três são uma escolha
+de três vias, de uma tela só (T12), com as mesmas pré-condições — e é isso que o leitor
+precisa encontrar junto. `modules/descarte` continua reservado para a fila do gestor (RF11,
+T13), que é leitura e não criação.
+
+**`motivo` do descarte é opcional; `justificativa` do override é obrigatória (10 a 500
+caracteres).** A seção 6.1 do PRD pede fricção deliberada no override e ação padrão nos dois
+primeiros caminhos. Exigir texto livre a cada frasco vencido no balcão colocaria o atrito
+exatamente onde ele reduz a coleta do dado de perda — que é o dado que a pesquisa quer. Sem
+`motivo`, grava-se "Unidade vencida constatada na leitura de saída.". O mínimo de 10
+caracteres recusa "ok" sem virar redação.
+
+**Quem executa e quem autoriza o override são o mesmo gestor.** O sistema não tem escalação
+de papel dentro da sessão de uma atendente (não há PIN de gerente): o endpoint é
+`GESTOR`-only, e `Saida.usuarioId` e `Saida.autorizadoPorId` recebem o mesmo id. Os dois
+campos continuam separados no schema porque uma escalação futura os preencheria diferente —
+fundi-los agora seria perder a pergunta. Na prática, a gestora assume a sessão para
+autorizar.
+
+**Duas extrações em código de T07/T08, sem mudança de comportamento** (validadas pelo
+orientando): o `SELECT ... FOR UPDATE` saiu de `validarSaidaFifo.ts` para
+`src/modules/unidade/travarUnidade.ts`, agora nas duas chaves (`codigoQr` e `id`); e
+`UnidadeNaResposta` mais a montagem unidade+produto saíram de `saida.service.ts` para
+`src/modules/unidade/unidadeNaResposta.ts`, porque descarte e override devolvem a mesma
+forma. `saida.service.ts` reexporta o tipo, e `montarResposta` virou
+`montarRespostaDeLeitura` exportada, para que a revalidação da correção devolva o veredito
+no contrato idêntico ao de `/saidas/ler`. A suíte de T06 seguiu nos 46, sem uma linha
+editada.
+
+**Descarte só para unidade vencida.** Frasco quebrado, avaria e furto não têm caminho no
+sistema: o PRD só prevê descarte dentro do fluxo da unidade vencida, e um motivo genérico de
+baixa é funcionalidade nova. Registrado como limitação em `docs/notas-para-artigo.md`.

@@ -315,3 +315,109 @@ verificação manual, com o motivo técnico anotado ao lado.
 legibilidade física do QR)
 
 **Data:** 2026-09-08
+
+
+---
+
+## Três caminhos para o mesmo frasco: o sistema separa causas que o processo manual junta
+
+**Contexto do problema:** no controle manual, quando a vendedora percebe no balcão que o
+produto na mão dela está com a validade expirada, existe um gesto só — decidir na hora o
+que fazer — e nenhum registro do que foi decidido. Três situações muito diferentes terminam
+iguais para quem quiser entender a operação depois: (i) a data na etiqueta estava errada e
+o produto está bom; (ii) o produto venceu mesmo e vai para o lixo; (iii) o produto venceu e
+foi vendido assim mesmo. Nenhuma delas deixa rastro, e as três desaparecem na mesma frase:
+"aconteceu de vez em quando". Quantificar perda é impossível quando a perda não se
+distingue do erro de cadastro.
+
+**Alternativas consideradas:** bloquear a venda de unidade vencida em definitivo, que é a
+resposta técnica óbvia e a que menos se parece com a loja real — a decisão comercial existe
+e continuaria acontecendo, só que fora do sistema, o que é o pior dos mundos para a
+pesquisa. Ou tratar a unidade vencida como um erro de leitura qualquer, devolvendo a
+atendente ao ponto de partida sem resolver nada — foi o estado do sistema entre T07 e esta
+tarefa.
+
+**Solução adotada:** ao detectar unidade vencida, o sistema para o fluxo de saída e oferece
+três caminhos explícitos, cada um com efeito próprio e evento próprio no log imutável:
+corrigir a validade (e revalidar o FIFO do zero, porque a data corrigida reordena a fila do
+SKU), dar baixa por descarte, ou autorizar a venda com justificativa obrigatória e restrita
+ao gestor. A pessoa continua decidindo — o sistema não decide por ela —, mas cada decisão
+passa a ter nome, autor e horário.
+
+**Por que resolve o problema / trade-offs:** o mesmo gesto de antes agora produz três dados
+distinguíveis, e é essa distinção que torna a perda mensurável: descarte é perda, correção
+é qualidade de cadastro, override é decisão comercial. Um indicador que some os três diria
+muito pouco. O custo é fricção real no balcão — a atendente precisa escolher, e no caminho
+do override precisa chamar quem tem o papel de gestor. A escolha de projeto foi distribuir
+essa fricção de forma desigual: descartar é o caminho fácil (nem motivo é obrigatório),
+porque é o que produz o dado que a pesquisa quer; autorizar é o caminho difícil. Fricção
+não é efeito colateral do sistema, é instrumento de projeto — e onde ela é colocada
+determina qual dado se consegue coletar.
+
+**Tarefa relacionada:** T11
+
+**Data:** 2026-09-08
+
+---
+
+## Uma exceção pode virar contorno de outra regra sem que ninguém tenha decidido isso
+
+**Contexto do problema:** o sistema tem dois bloqueios distintos, e eles se parecem
+bastante de dentro do código: o FIFO impede vender a unidade errada, e a validade impede
+vender a unidade vencida. O PRD prevê um escape para o segundo — a venda de unidade vencida
+mediante autorização registrada. Não prevê escape nenhum para o primeiro, e não poderia: o
+bloqueio FIFO é o objeto do trabalho.
+
+**Alternativas consideradas:** implementar o endpoint de autorização como ele se descreve
+em linguagem natural — "cria uma saída com justificativa, marcada como venda de unidade
+vencida". Essa leitura é fiel ao texto e produz um defeito grave: como o endpoint não passa
+pela validação de FIFO (e não deve passar, porque a unidade vencida está fora da fila por
+definição), ele aceitaria **qualquer** unidade em estoque. Um gestor com pressa teria, sem
+querer, um botão de "vender fora de ordem com justificativa" — e o bloqueio reativo, que é
+a contribuição central do sistema, viraria opcional para quem tem o papel.
+
+**Solução adotada:** o endpoint recusa unidade que não esteja vencida, com erro próprio, e
+essa recusa é conferida sob o mesmo lock das demais. O escape vale para um bloqueio só. O
+teste que prova isso não descreve um formulário inválido; ele monta o cenário do desvio —
+duas unidades válidas, a mais antiga em estoque — e verifica que a tentativa de autorizar a
+mais nova é recusada.
+
+**Por que resolve o problema / trade-offs:** a descoberta que interessa ao artigo é sobre
+escrita de requisito, não sobre código. A especificação da exceção estava completa quanto
+ao que ela **permite** e silenciosa quanto ao que ela **não** permite — e é justamente esse
+silêncio que uma implementação fiel converte em brecha. Num sistema cuja função é impor uma
+regra, cada mecanismo de exceção precisa declarar a qual regra ele se aplica; caso
+contrário ele se aplica a todas. O custo aqui é nenhum: o caminho legítimo continua
+funcionando igual. O custo estaria na versão sem a trava, e seria invisível até alguém
+analisar por que o indicador de acerto na primeira leitura melhorou tanto.
+
+**Tarefa relacionada:** T11 (a trava), T07 (o bloqueio que ela protege)
+
+**Data:** 2026-09-08
+
+---
+
+## O que o sistema ainda não sabe fazer com um frasco: avaria, quebra e furto
+
+**Contexto do problema:** a perfumaria perde produto por mais de um motivo. O vencimento é
+o que este trabalho ataca, mas o frasco que cai e quebra, o item avariado no transporte e o
+furto também tiram unidades da prateleira — e, hoje, tiram do estoque físico sem tirar do
+estoque do sistema.
+
+**Solução adotada:** nenhuma, deliberadamente. A baixa por descarte só aceita unidade
+vencida; qualquer outra é recusada. Isso mantém o dado de perda limpo — todo `Descarte` no
+banco é perda por validade, sem necessidade de filtrar por motivo escrito à mão — e mantém
+o escopo da tarefa dentro do que o PRD especifica.
+
+**Por que resolve o problema / trade-offs:** é uma limitação a declarar no artigo, não um
+esquecimento. Na loja real, a unidade quebrada vai continuar aparecendo como
+`EM_ESTOQUE` até alguém tropeçar nela numa leitura de QR, e o total de unidades em estoque
+do painel será otimista nessa medida. O trabalho futuro é uma baixa por motivo genérico,
+separada da baixa por validade — separada justamente para que o indicador de perda por
+vencimento continue significando uma coisa só. Junta-se aqui outra limitação já registrada:
+a venda é irreversível no sistema, inclusive a autorizada por override, porque não há
+estorno.
+
+**Tarefa relacionada:** T11 (o que ficou de fora), T13 (fila de descarte pendente)
+
+**Data:** 2026-09-08

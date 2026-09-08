@@ -6,6 +6,7 @@ import {
   type TipoEvento,
 } from '../evento-log/eventoLog.service.js'
 import { hojeComoData } from '../../shared/data.js'
+import { travarUnidadePorCodigo } from '../unidade/travarUnidade.js'
 
 /**
  * Núcleo do sistema (RF06).
@@ -41,7 +42,10 @@ export async function validarSaidaFifo(
   tx: ClienteDeTransacao,
   sessaoVendaId?: string | null,
 ): Promise<Veredito> {
-  const unidade = await bloquearUnidade(tx, codigoQr)
+  // O lock da RNF02 vem de `unidade/travarUnidade.ts`, que é o único lugar do
+  // sistema com o `SELECT ... FOR UPDATE` — os três caminhos da unidade
+  // vencida (T11) precisam do mesmo lock, pela outra chave.
+  const unidade = await travarUnidadePorCodigo(tx, codigoQr)
   const veredito = await decidir(codigoQr, usuarioId, unidade, tx, sessaoVendaId ?? null)
 
   // Depois de decidir, e não antes, para que o registro carregue o veredito:
@@ -150,37 +154,6 @@ async function decidir(
   })
 
   return { tipo: 'CONFIRMAR', unidade: baixada }
-}
-
-/**
- * Toma o lock da linha e devolve a unidade já tipada.
- *
- * O `FOR UPDATE` exige query raw — a API de alto nível do Prisma não expõe
- * lock de linha, e é por isso que a seção 1 da arquitetura escolheu Prisma
- * "com query raw para lock explícito". A releitura pelo client tipado custa
- * uma viagem a mais, e paga por duas coisas: o `Veredito` carrega um
- * `UnidadeProduto` de verdade (com `dataValidade` convertida e `status` como
- * enum) em vez de linha crua, e a leitura acontece **depois** do lock, já no
- * `READ COMMITTED` — que é o que faz a transação perdedora enxergar a baixa
- * da vencedora e devolver `UNIDADE_JA_BAIXADA` em vez de estourar na
- * restrição `@unique` de `Saida.unidadeId`.
- *
- * O lock é da unidade lida, nunca do SKU: travar o produto inteiro
- * serializaria o balcão, com duas atendentes esperando uma pela outra para
- * vender frascos diferentes do mesmo perfume.
- */
-async function bloquearUnidade(
-  tx: ClienteDeTransacao,
-  codigoQr: string,
-): Promise<UnidadeProduto | null> {
-  const travadas = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "UnidadeProduto" WHERE "codigoQr" = ${codigoQr} FOR UPDATE
-  `
-
-  const id = travadas[0]?.id
-  if (id === undefined) return null
-
-  return tx.unidadeProduto.findUniqueOrThrow({ where: { id } })
 }
 
 /**

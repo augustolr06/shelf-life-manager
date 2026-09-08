@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 1 e 6 revisadas em T10)
+Última atualização: 2026-09-08 (seções 2, 4 e 5 revisadas em T11)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -28,6 +28,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /produto
       /unidade
       /saida          <- contém validarSaidaFifo.ts (RNF03: função única)
+      /excecao-vencido <- os três caminhos da unidade vencida (PRD 6.1)
       /descarte
       /alerta
       /evento-log
@@ -213,7 +214,14 @@ Sem `LEITURA_QR_SAIDA` em toda leitura não há denominador para a taxa de acert
 
 **`tentativas` é derivado, não persistido.** Não há contador em `UnidadeProduto`, e a seção 6.2 do PRD proíbe estado intermediário no servidor. O número é a contagem de `ALERTA_FIFO_DISPARADO` do mesmo `produtoId` e mesmo `usuarioId` desde a última `SAIDA_CONFIRMADA` daquele par, incluindo o bloqueio da chamada corrente — o primeiro bloqueio devolve `tentativas: 1`. `Saida.tentativasAteAcerto` recebe esse total no momento da confirmação, e `Saida.alertaFifoDisparado` é `true` sempre que ele for maior que zero.
 
-**O lock é da unidade lida, não do SKU.** Duas atendentes vendendo unidades diferentes do mesmo produto não podem esperar uma pela outra.
+**O lock é da unidade lida, não do SKU.** Duas atendentes vendendo unidades diferentes do mesmo produto não podem esperar uma pela outra. Desde T11 o `SELECT ... FOR UPDATE` mora em `src/modules/unidade/travarUnidade.ts`, nas duas chaves de que o sistema precisa (`codigoQr` para a leitura, `id` para os caminhos da exceção) — a decisão continua toda aqui, o lock é que passou a ser compartilhado.
+
+**A função tem um segundo chamador desde T11**, e continua sendo a única a decidir: a
+correção de validade (`POST /excecao-vencido/corrigir`) revalida o FIFO chamando esta mesma
+função, dentro da transação em que corrigiu a data. Ela grava o `LEITURA_QR_SAIDA` da
+revalidação como em qualquer outra passagem — são dois eventos para uma resolução de
+unidade vencida (o da leitura original e o da revalidação), que é também o que uma releitura
+manual produziria.
 
 ## 5. Contratos de API (principais endpoints)
 
@@ -241,6 +249,23 @@ revalidar o FIFO inteiro (aceitar o veredito afirmado pelo cliente violaria a RN
 manter reserva no servidor (proibido pela seção 6.2 do PRD). Removido em T09
 (`docs/decisoes.md`, 2026-09-08): quando `/saidas/ler` responde `CONFIRMAR`, a venda já
 aconteceu.
+
+**Os três endpoints de `/excecao-vencido`** (T11) recebem a unidade pelo `unidadeId` que o
+veredito `EXCECAO_VENCIDO` devolveu, mais o `sessaoVendaId` opcional. Conferem as mesmas
+três pré-condições, **sob o lock da RNF02**: unidade existe (senão 404
+`UNIDADE_NAO_ENCONTRADA`), está `EM_ESTOQUE` (senão 409 `UNIDADE_JA_BAIXADA`) e está
+vencida (senão 409 `UNIDADE_NAO_VENCIDA`).
+
+| Rota | Corpo além de `unidadeId` | Sucesso | Efeito |
+|---|---|---|---|
+| `corrigir` | `dataValidade` (`AAAA-MM-DD`) | 200 `{ correcao, revalidacao }` | Atualiza a validade, grava `VALIDADE_CORRIGIDA` com o valor anterior e **revalida o FIFO na mesma transação**, chamando `validarSaidaFifo`. `revalidacao` é o mesmo contrato de `/saidas/ler` — se o veredito for `CONFIRMAR`, a venda já aconteceu. Data igual à atual → 400 `VALIDADE_INALTERADA`; data no passado é aceita e revalida como `EXCECAO_VENCIDO` |
+| `descartar` | `motivo` (opcional, ≤280) | 201 | Cria `Descarte`, status → `DESCARTADA`, grava `DESCARTE_REGISTRADO`. Sem `motivo`, grava texto padrão: a fricção da seção 6.1 é do override, não deste caminho |
+| `override` | `justificativa` (10–500, obrigatória) | 201 | Cria `Saida` com `vendaDeUnidadeVencida = true`, `justificativaOverride` e `autorizadoPorId`, status → `VENDIDA`, grava `VENDA_VENCIDA_AUTORIZADA`. `tentativasAteAcerto = 0`: não passou pelo laço do FIFO. Não chama `validarSaidaFifo` |
+
+A pré-condição de vencimento é o que impede o override de virar um contorno do bloqueio de
+FIFO: ele é escape do bloqueio de **validade**, e só dele. Falha de pré-condição é 4xx e
+não veredito em 200 como em `/saidas/ler` — ali a tela pergunta, aqui ela afirma uma ação
+sobre um estado que julga conhecer (`docs/decisoes.md`, 2026-09-08).
 
 O corpo de `/saidas/ler` aceita, além do `codigoQr`, um `sessaoVendaId` opcional — UUID
 gerado no cliente que agrupa as saídas de um mesmo atendimento para fins de relatório.

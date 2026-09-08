@@ -1,6 +1,11 @@
-import type { Produto, UnidadeProduto } from '@prisma/client'
 import { prisma } from '../../db/prisma.js'
 import { normalizarCodigoQr } from '../unidade/codigoQr.js'
+import {
+  comoDataDeTela,
+  comProduto,
+  comProdutoJaLido,
+  type UnidadeNaResposta,
+} from '../unidade/unidadeNaResposta.js'
 import { validarSaidaFifo, type Veredito } from './validarSaidaFifo.js'
 
 /**
@@ -13,19 +18,13 @@ import { validarSaidaFifo, type Veredito } from './validarSaidaFifo.js'
  * está vazando para fora da função: é isso que a RNF03 proíbe.
  */
 
-/** Como uma unidade aparece na resposta da API. */
-export type UnidadeNaResposta = {
-  id: string
-  codigoQr: string
-  /** Data de calendário `AAAA-MM-DD`, nunca instante ISO (RNF01). */
-  dataValidade: string
-  produto: {
-    id: string
-    codigoInterno: string
-    nome: string
-    marca: string
-  }
-}
+/**
+ * A forma da unidade na resposta mudou para `unidade/unidadeNaResposta.ts` em
+ * T11, quando os três caminhos da unidade vencida passaram a devolvê-la também.
+ * Reexportada daqui porque é este o módulo que T08 e T10 documentam como o
+ * contrato de `/saidas/ler`.
+ */
+export type { UnidadeNaResposta }
 
 /**
  * O veredito como o frontend o recebe. É espelho do tipo `Veredito`: o mesmo
@@ -59,7 +58,7 @@ export async function lerCodigoQr(
     validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId ?? null),
   )
 
-  return montarResposta(codigoQr, veredito)
+  return montarRespostaDeLeitura(codigoQr, veredito)
 }
 
 /**
@@ -69,8 +68,13 @@ export async function lerCodigoQr(
  *
  * Fora da transação de propósito — são consultas de apresentação, e prendê-las
  * ao lock atrasaria a próxima leitura do mesmo frasco sem motivo.
+ *
+ * Exportada desde T11: a correção de validade da seção 6.1 do PRD revalida o
+ * FIFO e precisa devolver o veredito novo **no mesmo contrato** desta rota. Uma
+ * segunda tradução do mesmo `Veredito` seria uma segunda versão da resposta que
+ * a tela lê (RNF04).
  */
-async function montarResposta(codigoQr: string, veredito: Veredito): Promise<RespostaLeitura> {
+export async function montarRespostaDeLeitura(codigoQr: string, veredito: Veredito): Promise<RespostaLeitura> {
   switch (veredito.tipo) {
     case 'ERRO':
       return {
@@ -141,31 +145,3 @@ const MENSAGEM_DE_ERRO = {
   UNIDADE_JA_BAIXADA:
     'Esta unidade já saiu do estoque — foi vendida ou descartada. Leia outra unidade.',
 } as const
-
-async function comProduto(unidade: UnidadeProduto): Promise<UnidadeNaResposta> {
-  const produto = await prisma.produto.findUniqueOrThrow({ where: { id: unidade.produtoId } })
-  return comProdutoJaLido(unidade, produto)
-}
-
-function comProdutoJaLido(unidade: UnidadeProduto, produto: Produto): UnidadeNaResposta {
-  return {
-    id: unidade.id,
-    codigoQr: unidade.codigoQr,
-    dataValidade: unidade.dataValidade.toISOString().slice(0, 10),
-    produto: {
-      id: produto.id,
-      codigoInterno: produto.codigoInterno,
-      nome: produto.nome,
-      marca: produto.marca,
-    },
-  }
-}
-
-/**
- * `AAAA-MM-DD` vira `DD/MM/AAAA` só dentro da mensagem, que é texto para
- * humanos. O campo `dataValidade` da resposta continua no formato de máquina.
- */
-function comoDataDeTela(dataIso: string): string {
-  const [ano, mes, dia] = dataIso.split('-')
-  return `${dia}/${mes}/${ano}`
-}
