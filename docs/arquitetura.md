@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 2, 4 e 5 revisadas em T11)
+Última atualização: 2026-09-08 (seções 2 e 5 revisadas em T13)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -29,7 +29,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /unidade
       /saida          <- contém validarSaidaFifo.ts (RNF03: função única)
       /excecao-vencido <- os três caminhos da unidade vencida (PRD 6.1)
-      /descarte
+      /descarte       <- a fila do que venceu e ainda está em estoque (RF11)
       /alerta
       /evento-log
     /db
@@ -266,6 +266,26 @@ A pré-condição de vencimento é o que impede o override de virar um contorno 
 FIFO: ele é escape do bloqueio de **validade**, e só dele. Falha de pré-condição é 4xx e
 não veredito em 200 como em `/saidas/ler` — ali a tela pergunta, aqui ela afirma uma ação
 sobre um estado que julga conhecer (`docs/decisoes.md`, 2026-09-08).
+
+**`GET /descartes/pendentes`** (T13) devolve a fila da RF11: as unidades `EM_ESTOQUE`
+cuja `dataValidade` já passou, ordenadas da mais vencida para a menos (desempate por
+`codigoQr`, para a paginação ser estável) e paginadas no mesmo formato de `GET /produtos`
+(`pagina`, `tamanhoPagina`, padrão 20, máximo 100):
+
+```json
+{
+  "unidades": [{ "...UnidadeNaResposta": "...", "diasVencida": 47, "dataEntrada": "..." }],
+  "total": 12, "pagina": 1, "tamanhoPagina": 20
+}
+```
+
+Cada item é o `UnidadeNaResposta` das demais respostas — é o que o painel dos três caminhos
+já recebe — mais `diasVencida` e `dataEntrada`. **A cláusula da fila é a negação exata do
+filtro do pool prioritário** do passo 4 da seção 4 (`dataValidade >= hoje`), com o mesmo
+`hojeComoData()`: se as duas divergirem, aparece uma faixa de unidades que não sai pelo FIFO
+nem consta da fila, invisível dos dois lados. Unidade de produto inativo entra na fila
+(o frasco continua na prateleira). Fila vazia é 200 com lista vazia, nunca 404. A rota não
+grava evento: consultar não é ato operacional.
 
 O corpo de `/saidas/ler` aceita, além do `codigoQr`, um `sessaoVendaId` opcional — UUID
 gerado no cliente que agrupa as saídas de um mesmo atendimento para fins de relatório.

@@ -33,6 +33,19 @@ type Props = {
   unidade: UnidadeLida
   /** Esconder caminho por papel é conveniência: quem recusa é o 403 (RNF04). */
   papel: Papel
+  /**
+   * Se o override cabe neste contexto. Padrão `true`, que é o balcão.
+   *
+   * A fila de descarte (T13) passa `false`: lá não há venda acontecendo. O
+   * override é a autorização de uma venda de produto vencido com o cliente na
+   * frente — é assim que a seção 6.1 do PRD o descreve, e é o que justifica a
+   * fricção deliberada. Numa varredura de estoque, o mesmo botão registraria
+   * `Saida` de unidades que ninguém pediu, em lote, longe do ato que o
+   * registro documenta — e esse registro é permanente (RNF05) e tem peso
+   * legal. Quem autoriza de fato continua sendo o servidor: esconder aqui não
+   * fecha o endpoint, só não o oferece onde ele não faz sentido.
+   */
+  permitirOverride?: boolean
   /** O atendimento em curso acompanha os três caminhos, como acompanha as leituras. */
   sessaoVendaId: string | null
   /** A correção revalida o FIFO no servidor e devolve um veredito comum. */
@@ -48,6 +61,7 @@ type Props = {
 export function PainelExcecaoVencido({
   unidade,
   papel,
+  permitirOverride = true,
   sessaoVendaId,
   aoRevalidar,
   aoResolver,
@@ -55,6 +69,7 @@ export function PainelExcecaoVencido({
   aoCairConexao,
 }: Props) {
   const gestor = papel === 'GESTOR'
+  const podeAutorizar = gestor && permitirOverride
 
   const [novaValidade, setNovaValidade] = useState(unidade.dataValidade)
   const [motivo, setMotivo] = useState('')
@@ -158,9 +173,12 @@ export function PainelExcecaoVencido({
           perda que a pesquisa quer medir. */}
       <div className="caminho caminho-descarte">
         <h5>A unidade está vencida mesmo</h5>
+        {/* A frase não diz por qual caminho a unidade chegou aqui: desde T13 o
+            painel também é aberto pela fila de descarte, onde não houve leitura
+            de QR nenhuma. */}
         <p>
           A unidade sai do estoque e entra no relatório de perdas. O motivo é opcional — sem
-          ele, o sistema registra que o vencimento foi constatado na leitura de saída.
+          ele, o sistema registra o texto padrão de unidade vencida.
         </p>
         <div className="campo">
           <label htmlFor="motivo-descarte">Motivo (opcional)</label>
@@ -179,7 +197,7 @@ export function PainelExcecaoVencido({
       </div>
 
       {/* Caminho 3. Último, e atrás de um passo a mais. */}
-      {gestor ? (
+      {podeAutorizar ? (
         <div className="caminho caminho-override">
           {overrideAberto ? (
             <form onSubmit={autorizar}>
@@ -232,12 +250,14 @@ export function PainelExcecaoVencido({
           )}
         </div>
       ) : (
-        // Botão inerte no balcão é pior que ausência (T10, Decisão 4): a tela
-        // diz onde os outros dois caminhos estão, em vez de exibi-los mortos.
-        <p className="subtitulo">
-          Corrigir a validade cadastrada e autorizar a venda de unidade vencida são ações do
-          gestor.
-        </p>
+        !gestor && (
+          // Botão inerte no balcão é pior que ausência (T10, Decisão 4): a tela
+          // diz onde os outros dois caminhos estão, em vez de exibi-los mortos.
+          <p className="subtitulo">
+            Corrigir a validade cadastrada e autorizar a venda de unidade vencida são ações do
+            gestor.
+          </p>
+        )
       )}
 
       {erro && (

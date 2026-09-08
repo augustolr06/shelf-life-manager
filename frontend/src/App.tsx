@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
@@ -45,6 +46,14 @@ const TELAS: readonly Tela[] = [
     rotulo: 'Catálogo de produtos',
     papeis: ['ATENDENTE', 'GESTOR'],
     elemento: (usuario) => <TelaProdutos usuario={usuario} />,
+  },
+  {
+    caminho: '/descartes',
+    rotulo: 'Fila de descarte',
+    // Mesma lista da rota `GET /descartes/pendentes`: varredura de estoque é
+    // trabalho de gestão, não de balcão (RF11).
+    papeis: ['GESTOR'],
+    elemento: (usuario) => <TelaDescartesPendentes usuario={usuario} />,
   },
   {
     caminho: '/recebimento',

@@ -544,3 +544,55 @@ e por isso `campos` nunca cita campo fora do schema. Nenhum dos dois padrões fo
 mudar a configuração do ajv afetaria a validação de todas as rotas já testadas, o que
 excede uma tarefa de formato de resposta. Ambos estão documentados em `arquitetura.md`
 seção 5.1 e cobertos por teste que descreve o comportamento real.
+
+## 2026-09-08 — Fila de descarte pendente (T13)
+
+**A fila não oferece o override, e é a única diferença entre o painel do balcão e o da
+fila** (validado pelo orientando antes da implementação). Os três caminhos da seção 6.1 do
+PRD são reusados sem reimplementação — `PainelExcecaoVencido` ganhou uma prop
+`permitirOverride`, com padrão `true` para que a tela de leitura não mudasse. O motivo é que
+o override é a autorização de uma **venda** de produto vencido, com cliente diante do
+balcão; é assim que o PRD o descreve, e é o que justifica a fricção deliberada. Numa
+varredura de estoque não há venda: o mesmo botão registraria `Saida` de unidades que
+ninguém pediu, em lote, longe do ato que o registro documenta — e esse registro é
+permanente (RNF05) e tem peso legal. Esconder é conveniência de interface, como sempre: o
+endpoint continua aberto ao GESTOR, e quem autoriza de fato é o servidor (RNF04).
+
+**A cláusula da fila é a negação exata do filtro do pool prioritário, com `hojeComoData()`
+compartilhada.** Se as duas noções de "vencido" divergirem — inclusive na borda do dia
+corrente — aparece uma faixa de unidades que não sai pelo FIFO nem consta da fila,
+invisível dos dois lados. A unidade que vence *hoje* fica fora da fila e dentro do pool, e
+há teste para essa borda especificamente.
+
+**`diasVencida` é calculado no servidor.** A tela precisa mostrar urgência, e derivá-la de
+`dataValidade` no navegador seria a primeira comparação de datas do `frontend/src` —
+sujeita ao fuso do aparelho, que não é necessariamente o da loja (RNF01). Custo aceito: um
+campo derivado que envelhece se a página ficar aberta virando o dia. A fila envelhece de
+qualquer forma, porque outra pessoa pode resolver uma unidade a qualquer momento.
+
+**A resolução pela fila vai sem `sessaoVendaId`.** O agrupador existe para amarrar as saídas
+de um mesmo cliente no balcão (T09); inventar um para uma varredura de estoque poluiria o
+relatório com atendimentos que nunca existiram. A consequência é boa para a pesquisa: um
+`DESCARTE_REGISTRADO` sem agrupador e sem `LEITURA_QR_SAIDA` antes é, por si só, a marca de
+que a perda foi descoberta ativamente e não no balcão.
+
+**Correção recarrega a fila; descarte remove a linha direto.** O descarte é terminal — a
+unidade saiu do estoque, e a tela sabe disso pela resposta. A correção pode terminar em
+três estados diferentes (fora da fila, ainda na fila com contagem nova, ou vendida na
+revalidação), e quem sabe qual deles é o servidor: a fila é relida em vez de a tela
+adivinhar.
+
+**Achado da conferência no navegador: desfecho bom não tinha cor no projeto.** `.erro` e
+`.aviso` são ambos vermelhos, e o descarte concluído — que é o desfecho desejado da fila —
+aparecia como se tivesse falhado. Entrou `.nota-sucesso`, e a tela escolhe o tom pelo mesmo
+critério com que a tela de leitura escolhe layout: pelo que o servidor respondeu. Correção
+que revalida em `CONFIRMAR` é sucesso; bloqueio de FIFO e unidade já baixada por outra
+pessoa não são.
+
+**Observação registrada, sem correção nesta tarefa: o motivo padrão de descarte assume o
+balcão.** `MOTIVO_PADRAO_DE_DESCARTE` é "Unidade vencida constatada na leitura de saída." —
+texto que fica errado quando o descarte vem da fila, onde não houve leitura nenhuma. O
+motivo é o registro da perda, que é o dado da pesquisa, então isso importa. Corrigir exige
+mexer no contrato de `/excecao-vencido/descartar` (T11), fora do escopo declarado desta
+tarefa; a tela já permite digitar um motivo, e a conferência foi feita com um. Fica como
+candidato a tarefa própria, no mesmo formato do `errorHandler` de T12 que virou T12b.

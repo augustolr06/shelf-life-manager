@@ -521,3 +521,58 @@ tela, não a resposta de erro.
 **Tarefa relacionada:** T12b (o tratador), T12 (onde o defeito apareceu), RNF04, RNF09
 
 **Data:** 2026-09-08
+
+---
+
+## A perda que ninguém encontra: o limbo entre o bloqueio do FIFO e o relatório de perdas
+
+**Contexto do problema:** o controle manual descobre a unidade vencida por acaso — alguém
+esbarra nela ao procurar outra coisa, ou o cliente pede justamente aquele frasco. A versão
+automatizada do mesmo problema é sutil e foi encontrada durante a implementação: ao excluir
+as unidades vencidas do pool de candidatas prioritárias (exigência do PRD, sem a qual o
+sistema empurraria produto vencido para o cliente), o software cria um estado em que a
+unidade não sai pelo fluxo de venda **e** não aparece em nenhum relatório de perda, porque
+perda só existe depois do descarte registrado. Ela continua contada como estoque, ocupando
+prateleira, sem nunca ser oferecida a ninguém. A regra que protege o cliente é a mesma que
+esconde a unidade — e o sistema, sozinho, não tinha caminho para reencontrá-la.
+
+**Alternativas consideradas:** descartar automaticamente o que vence, o que transformaria em
+baixa contábil silenciosa um ato que a loja precisa executar fisicamente (alguém tem de
+retirar o frasco da prateleira) e destruiria a distinção entre "venceu" e "foi constatado
+vencido". Ou tratar a unidade vencida como prioritária na leitura seguinte, que é exatamente
+o que o PRD proíbe. Ou esperar o alerta de vencimento próximo (requisito de outro
+incremento) resolver o caso: não resolve — o alerta fala do que **vai** vencer, e nada
+recolhe o que já venceu antes de o alerta existir ou apesar dele.
+
+**Solução adotada:** uma listagem ativa no painel do gestor, cuja condição é a negação exata
+do filtro que o motor de FIFO usa para excluir vencidas do pool, avaliada contra a mesma
+noção de "hoje". As duas cláusulas são complementares por construção: toda unidade em
+estoque está de um lado ou do outro. Resolver a partir da lista reusa os mesmos três
+caminhos da exceção de balcão, sem uma segunda implementação — com uma exclusão deliberada,
+descrita abaixo.
+
+**Por que resolve o problema / trade-offs:** o achado que interessa ao artigo é que a
+descoberta passiva e a descoberta ativa produzem **dados diferentes sobre a mesma perda**, e
+o registro precisa saber distinguir uma da outra. Um descarte vindo do balcão carrega a
+leitura de QR que o antecedeu e o agrupador do atendimento; um descarte vindo da varredura
+não tem nenhum dos dois, e é essa ausência que identifica sua origem — sem campo novo,
+sem sinalizador inventado. A distinção importa para a variável dependente da pesquisa: a
+perda encontrada por varredura mede o estoque parado, e a encontrada no balcão mede o
+quanto o controle manual deixaria passar até o cliente. Somá-las sem distinguir subestima
+uma e superestima a outra. Fica também uma limitação a declarar: a fila mostra o que já
+venceu, e depende de o gestor abri-la — o sistema torna a perda **encontrável**, não
+inevitável de encontrar.
+
+**Uma restrição de design não se transporta sozinha de um contexto para outro.** O override
+de venda de unidade vencida foi deixado fora da fila, embora seja tecnicamente o mesmo
+endpoint e o mesmo papel. Ele é escape do balcão, com cliente à frente, e é o cliente
+presente que dá sentido à fricção que o PRD exige. Oferecido numa varredura de estoque, o
+mesmo botão viraria uma forma de dar baixa em lote como "venda autorizada" de coisas que
+ninguém comprou — o registro permanente de um ato que não aconteceu. Vale ao artigo porque
+o PRD não previa este segundo contexto: a restrição precisou ser reinterpretada, não
+copiada.
+
+**Tarefa relacionada:** T13 (a fila), T07 (a exclusão do pool que cria o limbo), T11 (os
+três caminhos reusados), RF11/RF12
+
+**Data:** 2026-09-08

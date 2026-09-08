@@ -598,3 +598,63 @@ textarea {
 .resultado-override {
   border-left-color: var(--cor-erro);
 }
+
+/* Desfecho bom precisa de cor própria: `.erro` e `.aviso` são ambos vermelhos,
+   e um descarte concluído exibido em vermelho lê-se como falha. */
+.nota-sucesso {
+  margin: 0.5rem 0 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.375rem;
+  background: #ecfdf5;
+  color: var(--cor-primaria-escura);
+  font-size: 0.875rem;
+}
+
+/* Fila de descarte pendente (RF11, T13). Lista longa, lida em pé na
+   prateleira: cada unidade é um cartão inteiro, não uma linha de tabela. */
+.tela-descartes h2 {
+  margin: 0 0 0.25rem;
+}
+
+.tela-descartes > .subtitulo {
+  margin: 0 0 1rem;
+}
+
+.resumo-fila {
+  margin: 0 0 0.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.fila-descarte {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pendente {
+  border: 1px solid var(--cor-borda);
+  /* A mesma cor de `.resultado-vencido`: é a mesma unidade vencida, vista
+     do painel do gestor em vez do balcão. */
+  border-left: 4px solid #7c3aed;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: #fff;
+}
+
+.pendente h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pendente > .dados-pendente > .subtitulo {
+  margin: 0.125rem 0 0.5rem;
+}
+
+/* O alvo de toque precisa dar conta de uma mão só, com o frasco na outra. */
+.pendente > button {
+  margin-top: 0.75rem;
+  min-height: 2.75rem;
+}
