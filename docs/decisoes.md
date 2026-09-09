@@ -1189,3 +1189,61 @@ diferentes de propósito: `dataValidade` é `DATE` e é fatiada como texto para 
 fuso (RNF01), enquanto `Saida.dataHora` é um instante e **deve** ser convertida para a hora
 local de quem lê o relatório. Ter as duas no mesmo arquivo é o que deixa a diferença visível
 para quem for escrever a próxima tela.
+
+---
+
+## 2026-09-09 — Configuração de produção: cookie cross-site, rewrite de SPA, conexão de migração e troca de senha (T23, fatia 3)
+
+Antecipação de parte de T23, para viabilizar um deploy de piloto com dois usuários antes de
+T22. Todas as decisões abaixo têm a mesma forma: o comportamento correto em produção é
+diferente do comportamento correto em desenvolvimento, e a diferença **não é observável por
+nenhum teste deste projeto**, porque `app.inject()` não é um navegador e `npm run dev` não é
+uma hospedagem.
+
+**O cookie de sessão passa a `SameSite=None` + `Secure` quando `NODE_ENV=production`.** Com
+frontend e API em hosts distintos, `'lax'` faz o navegador descartar o cookie na resposta do
+login — sem erro de servidor, sem entrada de log, sem teste vermelho: o sintoma é 401 em toda
+rota protegida. `cookie.ts` já previa o caso em comentário desde T03; agora está no código.
+Os dois atributos ligam pelo mesmo `NODE_ENV` de propósito, porque `None` sem `Secure` é
+recusado por todos os navegadores atuais, e a suíte cobre a invariante, não só os dois ramos.
+Se um dia frontend e API dividirem o mesmo domínio registrável, isto pode voltar a `'lax'`,
+que é a opção mais conservadora — está anotado no próprio arquivo.
+
+**`frontend/vercel.json` reescreve qualquer caminho para `index.html`.** Desde T10 cada tela
+tem URL própria; sem o rewrite, abrir ou recarregar `/leitura` direto devolve o 404 da
+hospedagem. A alternativa aparente — o `navigateFallback` que o `vite-plugin-pwa` já gera —
+**não resolve**: ele só age depois que o service worker instalou, e a primeira visita é
+anterior a isso. A regra `/(.*)` pode ser tão larga porque `rewrites` só age quando nenhum
+arquivo do build casou com o caminho, então o `sw.js`, o manifest e os assets continuam sendo
+servidos normalmente. O arquivo é de configuração da plataforma; se a hospedagem mudar, o
+equivalente dela é obrigatório e não opcional.
+
+**O datasource ganhou `directUrl`.** A aplicação fala pelo pooler (`DATABASE_URL`) e o
+`prisma migrate` pela conexão direta (`DIRECT_URL`), porque pooler em modo transaction não
+sustenta o advisory lock da migração. Em desenvolvimento as duas apontam para o mesmo
+Postgres do `docker-compose`, e por isso a variável entrou nos dois `.env.example`: ela é
+obrigatória em toda execução do `migrate`, inclusive local. A alternativa (passar a URL direta
+na linha de comando só no deploy) foi descartada por ser um passo que se esquece exatamente
+uma vez, no dia da migração de produção.
+
+**`postinstall: prisma generate`.** Hospedagem reaproveita `node_modules` em cache, e o
+`postinstall` do próprio Prisma não roda nesse caso — o Client sai desatualizado em relação ao
+schema. É a recomendação da documentação do Prisma para esse ambiente.
+
+**Trocar senha é script, não rota: `npm run usuario:senha -- <email>`.** O único caminho para
+uma conta existir ainda é o `seed.ts`, que grava uma senha padrão conhecida e a imprime no
+terminal — aceitável em `localhost`, inaceitável num endereço público. A alternativa seria
+uma rota de troca de senha, que é superfície nova na API, com autorização e testes próprios, e
+que T22 substituiria em seguida. O script é operado por quem já tem acesso ao banco, e
+portanto não amplia o que essa pessoa podia fazer. Três decisões dentro dele: a senha é lida
+do **stdin** (argumento fica no histórico do shell e na lista de processos); o piso é de **12
+caracteres**, escolhido para recusar a senha do seed, que tem dez; e a **conta de sistema é
+recusada explicitamente**, preservando a propriedade que `usuarioDoSistema.ts` documenta — ela
+não autentica, e nada deve poder torná-la autenticável. A regra mora em `auth.service.ts` e é
+testada; o `.cli.ts` é só a casca que lê argumento e imprime.
+
+**O custo do bcrypt saiu para `modules/auth/hashDeSenha.ts`.** Estava declarado em
+`auth.service.ts` e em `seed.ts`, com um comentário em cada lado pedindo que não divergissem;
+o script seria a terceira cópia. Divergência aqui não produz falha: `bcrypt.compare` lê o
+custo de dentro do próprio hash e confere normalmente — o efeito é uma senha gravada mais
+fraca do que se imagina, sem sintoma nenhum. Um lugar só era o que o comentário já pedia.

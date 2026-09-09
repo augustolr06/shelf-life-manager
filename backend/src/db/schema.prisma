@@ -9,7 +9,13 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Em produção com banco gerenciado, `url` é a string **com pooler** (é por
+  // ela que a aplicação fala) e `directUrl` é a conexão direta, usada só pelo
+  // `prisma migrate`. A separação não é otimização: o pooler em modo transaction
+  // não sustenta o advisory lock que a migração usa, e migrar por ele falha.
+  // Em desenvolvimento as duas apontam para o mesmo Postgres do docker-compose.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Papel {

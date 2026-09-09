@@ -10,14 +10,13 @@
 //
 // Idempotente: rodar duas vezes não duplica nem sobrescreve senha alterada.
 import 'dotenv/config'
-import bcrypt from 'bcryptjs'
 import { Papel, PrismaClient } from '@prisma/client'
 import { DADOS_DO_USUARIO_DO_SISTEMA } from '../modules/alerta/usuarioDoSistema.js'
+import { gerarHashDeSenha } from '../modules/auth/hashDeSenha.js'
 
 const prisma = new PrismaClient()
 
 const SENHA_PADRAO = 'estoque123'
-const CUSTO_BCRYPT = 10
 
 const usuarios = [
   { nome: 'Gestora de Loja', email: 'gestor@estoque.local', papel: Papel.GESTOR },
@@ -33,7 +32,7 @@ const CONFIGURACAO_PADRAO = { diasAntecedencia: 30, canal: 'IN_APP' }
 
 async function main() {
   for (const usuario of usuarios) {
-    const senhaHash = await bcrypt.hash(SENHA_PADRAO, CUSTO_BCRYPT)
+    const senhaHash = await gerarHashDeSenha(SENHA_PADRAO)
 
     await prisma.usuario.upsert({
       where: { email: usuario.email },

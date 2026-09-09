@@ -1236,3 +1236,43 @@ configuração externa que o projeto tinha eliminado de propósito.
 T03 (a RF01 como foi implementada), RF01, RF08
 
 **Data:** 2026-09-09
+
+---
+
+## A garantia offline só vale a partir da segunda visita — e quem a sustenta antes disso é a hospedagem
+
+**Contexto do problema:** a RNF07 existe porque o balcão não pode ficar sem saber o que fazer
+quando a rede cai: o app instalado tem de abrir e **dizer** que está sem rede, em vez de
+mostrar o erro do navegador, que não explica nada a quem está com um cliente na frente. T10
+resolveu isso com o service worker e um `navigateFallback` para o app shell, e o comportamento
+foi conferido em navegador com a rede desligada.
+
+**Solução adotada:** um arquivo de configuração da hospedagem reescrevendo qualquer caminho
+para `index.html`, ao lado do fallback que o service worker já fazia.
+
+**Por que resolve o problema / trade-offs:** o que apareceu ao preparar o deploy é que o
+fallback do service worker **não cobre a primeira visita**, e não podia cobrir: ele é código
+que só passa a existir no aparelho depois de uma visita bem-sucedida. Como desde T10 cada tela
+tem URL própria, o primeiro acesso a `/leitura` — que é exatamente como a atendente recebe o
+link, e exatamente o que acontece ao recarregar a página — resolve no servidor, não no service
+worker, e devolve a página de erro da hospedagem se nada tiver sido configurado lá. A
+funcionalidade parece existir porque foi testada na ordem em que o desenvolvedor navega: abre
+a raiz, faz login, clica no menu. A ordem em que o usuário chega é outra.
+
+O ponto que interessa ao artigo é o formato do erro, mais do que o erro: **uma garantia
+implementada em código ficou dependente de uma linha de configuração fora do repositório, e a
+dependência não é declarada em lugar nenhum.** Nenhum teste alcança isso — não é lógica, é
+roteamento de quem serve os arquivos — e a checagem que existia (`network-state-set offline`
+no navegador de desenvolvimento) passava, porque o service worker já estava instalado ali. É a
+mesma classe de degradação silenciosa já registrada a propósito da suíte que promete rodar sem
+banco e do relógio da RF08 que assume um processo de longa duração: em todos os três casos, a
+promessa continua escrita e verdadeira no código, e falsa no ambiente onde alguém usa.
+
+Para um trabalho que propõe um PWA como substituto de controle manual em loja pequena, a
+ressalva honesta é essa: **"funciona offline" é uma afirmação sobre a segunda visita em
+diante**, e a primeira depende de configuração de infraestrutura que o artigo precisa
+mencionar junto com o requisito, não como detalhe de implantação.
+
+**Tarefa relacionada:** T23 (fatia 3), T10 (onde a RNF07 foi implementada), RNF07
+
+**Data:** 2026-09-09

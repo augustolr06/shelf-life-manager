@@ -69,7 +69,7 @@ o produto, não a operação dele.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T22 | Cadastro e gestão de usuários pelo GESTOR (RF01) | pendente | T03b, T04 | `tasks/T22-gestao-de-usuarios.md` |
-| T23 | Endurecimento e preparação de deploy | pendente | T22 | `tasks/T23-preparacao-deploy.md` |
+| T23 | Endurecimento e preparação de deploy | em-andamento | T22 | `tasks/T23-preparacao-deploy.md` |
 
 **T22 — escopo.** Hoje as únicas contas do sistema nascem de `src/db/seed.ts`, com senha
 padrão compartilhada e e-mails `@estoque.local`; não existe rota de usuário nem troca de
@@ -100,6 +100,13 @@ mesmo nem a conta de sistema da varredura (`modules/alerta/usuarioDoSistema.ts`)
    um `docs/deploy.md` com o roteiro de subida e de restauração de backup — o `EventoLog` é
    append-only e é a base do indicador do TCC (RF12), então perdê-lo é perder o dado do
    artigo.
+
+**Estado de T23 (2026-09-09):** a fatia de configuração de produção — cookie cross-site,
+rewrite de SPA, `directUrl`, `postinstall` do Prisma e troca de senha por script — foi
+antecipada e está concluída, porque é o que permite um deploy de piloto com dois usuários
+sem depender de T22. Seguem pendentes o limite de tentativas no login, o `helmet`, a decisão
+de hospedagem com o ajuste do relógio da RF08, e o `docs/deploy.md` com a rotina de backup.
+Detalhes por fatia em `tasks/T23-preparacao-deploy.md`.
 
 Ordem sugerida: T22 antes de T23, porque não faz sentido publicar na internet um sistema
 cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a demonstração da
