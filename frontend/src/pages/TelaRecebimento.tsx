@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ErroApi } from '../services/api'
 import { formatarData } from '../services/datas'
 import { listarProdutos, type Produto } from '../services/produtos'
@@ -7,6 +8,7 @@ import {
   type ItemLote,
   type ResultadoRecebimento,
 } from '../services/unidades'
+import type { ImpressaoPedida } from './TelaEtiquetas'
 
 /**
  * Recebimento de mercadoria (RF03). A tela existe para o caso que o controle
@@ -18,6 +20,7 @@ import {
 const LINHA_VAZIA: ItemLote = { dataValidade: '', quantidade: 1 }
 
 export function TelaRecebimento() {
+  const navegar = useNavigate()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [totalProdutos, setTotalProdutos] = useState(0)
   const [termo, setTermo] = useState('')
@@ -90,6 +93,25 @@ export function TelaRecebimento() {
     } finally {
       setEnviando(false)
     }
+  }
+
+  /**
+   * Leva o lote recém-cadastrado para a folha de etiquetas (T15).
+   *
+   * Os ids vão por estado de rota e não pela URL: um recebimento de 500
+   * unidades daria cerca de 18 KB de query string. Recarregar a folha no mesmo
+   * navegador mantém o lote (o React Router guarda o estado no History API);
+   * levar o endereço para outra aba ou outro aparelho, não — e lá a folha cai
+   * no seletor em vez de abrir sozinha o estoque inteiro do SKU.
+   */
+  function imprimirEtiquetas(resultado: ResultadoRecebimento) {
+    const escolhido = produtos.find((produto) => produto.id === produtoId)
+    const pedido: ImpressaoPedida = {
+      produtoId,
+      produtoNome: escolhido?.nome ?? '',
+      unidadeIds: resultado.unidades.map((unidade) => unidade.id),
+    }
+    navegar('/etiquetas', { state: pedido })
   }
 
   const totalUnidades = linhas.reduce((soma, linha) => soma + (linha.quantidade || 0), 0)
@@ -220,9 +242,13 @@ export function TelaRecebimento() {
           ))}
 
           <p className="subtitulo">
-            Anote ou imprima estes códigos e cole cada um na sua unidade. A impressão de etiquetas
-            entra em uma etapa seguinte do projeto.
+            Cada unidade recebeu um código próprio. Imprima as etiquetas e cole uma em cada
+            frasco antes de guardá-los na prateleira.
           </p>
+
+          <button type="button" onClick={() => imprimirEtiquetas(recebido)}>
+            Imprimir etiquetas destas unidades
+          </button>
 
           <table>
             <thead>

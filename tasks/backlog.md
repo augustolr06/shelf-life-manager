@@ -40,7 +40,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 |---|---|---|---|---|
 | T14 | Geração de QR codes únicos por unidade (RF04) | concluída | T05 | `tasks/T14-geracao-qr-unidade.md` |
 | T14b | `tests/descarte` fora das exclusões de `test:sem-banco` (achado de T14) | concluída | — | `tasks/T14b-test-sem-banco.md` |
-| T15 | Renderização/impressão de etiquetas para embalagens pequenas (RF04) | pendente | T14 | — |
+| T15 | Renderização/impressão de etiquetas para embalagens pequenas (RF04) | concluída | T14 | `tasks/T15-etiquetas-impressao.md` |
 | T16 | Validação manual de legibilidade física do QR em loja (RNF08) — tarefa não-código | pendente | T15 | — |
 
 ## Incremento 5 — Alertas proativos
@@ -66,7 +66,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 
 | Quando | O quê | Impacto se falhar |
 |---|---|---|
-| **Já é possível** — T14 gera o símbolo imprimível (`GET /produtos/:id/unidades/etiquetas`) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16). O símbolo é versão 1 nível H, o menor com a maior proteção — mas o tamanho em papel só é decidido em T15 | Pode reabrir o formato do `codigoQr`, que é provisório e agora está travado em 10 caracteres pelo nível H (`docs/decisoes.md`, T14). Quanto antes for feito, menos código depende do formato atual |
+| **Agora, e sem depender de mais código** — T15 imprime a folha (tela `/etiquetas`) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16). Imprima a mesma folha nos três tamanhos (15, 20 e 25 mm — o rodapé de cada folha diz qual é), recorte, cole em frascos reais e leia com o celular. O resultado esperado é um veredito por tamanho | Pode reabrir o formato do `codigoQr`, que é provisório e está travado em 10 caracteres pelo nível H (`docs/decisoes.md`, T14), **e** decide qual tamanho fica fixo no código. Quanto antes for feito, menos código depende do formato atual |
 | **Agora** — T10 concluída | Teste da câmera em celular real (RF05): a câmera abre, decodifica a etiqueta impressa, e o veredito aparece. `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — é a única parte de T10 sem cobertura automatizada, isolada em `components/LeitorCamera.tsx`. No mesmo aparelho, conferir que a URL usada é segura: sem HTTPS não há câmera **nem** `crypto.randomUUID`, e o agrupamento de atendimento cai fora | Fluxo de leitura de QR não verificado no dispositivo-alvo |
 | Junto com o teste da câmera | Instalar o PWA no celular e abrir com o modo avião ligado: deve abrir e mostrar o bloqueio explícito da RNF07, não o erro de rede do navegador | O comportamento offline foi conferido em navegador de desktop (`network-state-set offline`), não no app instalado |
 | ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |

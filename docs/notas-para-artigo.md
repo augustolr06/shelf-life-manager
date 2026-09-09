@@ -712,3 +712,54 @@ se perdeu), T14 (onde o defeito foi encontrado), RNF01, RNF02
 **Data:** 2026-09-08
 
 ---
+
+## O custo operacional do controle por unidade é medido em milímetros de embalagem
+
+**Contexto do problema:** a decisão fundadora deste trabalho — identificar a **unidade
+física**, e não o lote — foi tomada na primeira nota deste arquivo, e o custo dela ficou
+registrado ali em uma frase: "cada unidade individual precisa ser fisicamente etiquetada".
+T15 é onde essa frase vira problema concreto, e ele não é de software. Uma perfumaria vende
+frascos de 30 ml, batons, amostras: superfícies pequenas, curvas e brilhantes, quase sempre
+já ocupadas pelo rótulo do fabricante. O espaço disponível para a etiqueta do sistema é o que
+sobra — e o símbolo QR precisa caber nesse resto **e** continuar legível por uma câmera de
+celular sob a luz da loja.
+
+**Alternativas consideradas:** fixar um tamanho de etiqueta no código, escolhido pela
+referência técnica (algo em torno de 0,5 mm por módulo para impressora comum), e tratar o
+assunto como resolvido. Era o caminho natural, e é o que a maioria das implementações faz.
+Foi descartado por contradizer o que a própria RNF08 exige: validar a leitura em superfície
+real **antes** de congelar o formato. Um valor fixo no código transforma cada tentativa de
+validação física numa alteração de software.
+
+**Solução adotada:** a folha de impressão oferece três tamanhos de símbolo (15, 20 e 25 mm de
+lado, que dão módulos de ~0,52, ~0,69 e ~0,86 mm), e **imprime no rodapé qual tamanho gerou
+aquela folha**. O que sai no papel ao lado do símbolo foi reduzido ao mínimo defensável:
+o código em texto, porque a digitação manual é o fallback quando a câmera falha, e a data de
+validade, porque é o que um humano precisa ver na prateleira sem escanear nada. O nome do
+produto ficou de fora — já está impresso no frasco pelo fabricante, e ali ele disputaria
+espaço com o símbolo.
+
+**Por que resolve o problema / trade-offs:** o ponto que interessa ao artigo é que a
+granularidade por unidade **empurra uma parte da solução para fora do software**. O sistema
+pode provar que o símbolo é um QR válido de versão 1 nível H (T14 provou, relendo a matriz de
+módulos do próprio SVG entregue), e não pode provar que ele é legível colado num frasco
+curvo. Essa fronteira não é uma limitação de implementação a ser superada com mais código: é
+a natureza do problema. A solução adotada não tenta atravessá-la — instrumenta a travessia,
+entregando uma folha de teste que já sai identificada pelo tamanho, para que a validação
+física (RNF08) produza um resultado que se possa citar: "15 mm falhou em frasco curvo, 20 mm
+passou".
+
+O trade-off assumido: enquanto essa validação não acontece, **o sistema tem três respostas
+possíveis para uma pergunta que deveria ter uma**. Um artigo honesto precisa dizer que o
+tamanho da etiqueta ainda não está decidido, e que a decisão depende de um teste com régua,
+tesoura e o celular da loja — não de mais uma iteração de desenvolvimento. Some-se a isso que
+a impressão sai pelo diálogo do navegador em papel comum, sem impressora de etiquetas
+dedicada, o que introduz variação de fidelidade entre navegadores e configurações de margem
+que só a medição física resolve.
+
+**Tarefa relacionada:** T15, T16/RNF08 (a validação que decide), T14 (o símbolo), T05 (o
+formato do código), RF04
+
+**Data:** 2026-09-08
+
+---

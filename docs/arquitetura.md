@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 1 e 5 revisadas em T14)
+Última atualização: 2026-09-08 (seções 1 e 5 revisadas em T14; seção 5.2, sobre a etiqueta física, acrescentada em T15)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -288,7 +288,8 @@ dessa combinação — e o módulo **lança** se a versão mudar, para que um fo
 como falha e não como etiqueta silenciosamente mais densa. O símbolo carrega o código puro,
 nunca uma URL; sai sem largura, altura, `id`, `class` ou `style`, porque o tamanho físico é
 decisão da impressão (T15) e a folha embute dezenas deles na mesma página. A query aceita
-`unidadeIds` repetível, que restringe às unidades de um recebimento recém-cadastrado; id que
+`unidadeIds` repetível, que restringe às unidades de um recebimento recém-cadastrado (é como
+a tela de T15 imprime o lote que acabou de chegar em vez do estoque inteiro do SKU); id que
 não pertence ao produto ou já saiu do estoque é ignorado, não recusado. Produto inativo
 devolve etiquetas (o frasco continua na prateleira, como na fila de T13); produto inexistente
 é 404, e produto sem nada a etiquetar é 200 com lista vazia. A rota não grava evento: gerar
@@ -348,6 +349,30 @@ Fastify gera passa pelo `setErrorHandler`/`setNotFoundHandler` registrados em
 `allErrors: false` e para na primeira falha. E `additionalProperties: false`, com o
 `removeAdditional` padrão, **filtra** a propriedade desconhecida em vez de recusá-la — por
 isso `campos` nunca cita campo fora do schema.
+
+### 5.2 A etiqueta física (T15)
+
+O único lugar do sistema dimensionado em **milímetros**: o resto é tela, aqui é papel. A
+folha vive em `frontend/src/pages/TelaEtiquetas.tsx` (rota `/etiquetas`, `GESTOR`) e consome
+`GET /produtos/:id/unidades/etiquetas` sem acrescentar nada ao dado — o símbolo, a ordem
+(validade crescente, a mesma do FIFO) e a validade chegam prontos do servidor.
+
+- **Impressão pelo navegador**, `window.print()` mais um bloco `@media print` em
+  `estilos.css` que remove barra de topo, abas, seletores e botões. Sem geração de PDF e sem
+  dependência nova; a contrapartida é que a fidelidade depende do navegador e das margens do
+  diálogo, e por isso a medida final é física (RNF08 / T16).
+- **Três tamanhos de símbolo** — 15, 20 e 25 mm de lado, aplicados por
+  `[data-tamanho-mm]` na folha, com 20 mm de padrão. Com os 29 módulos do `viewBox` de T14,
+  dão módulos de ~0,52, ~0,69 e ~0,86 mm. O tamanho escolhido **sai impresso no rodapé**,
+  para que a validação física de T16 saiba de qual folha está falando.
+- **Cada etiqueta traz símbolo, `codigoQr` em texto e validade** — e nada mais. O texto
+  sustenta o fallback manual de T10; a validade é o que se lê na prateleira sem escanear; o
+  nome do produto ficaria disputando espaço com o símbolo numa embalagem pequena (RF04).
+- **O lote recém-recebido chega por estado de rota**, não pela URL (500 UUIDs seriam ~18 KB
+  de query string). Entrar na tela sem esse estado **não carrega nada**: a gestora escolhe o
+  produto e pede, porque abrir sozinha o estoque inteiro do SKU faria reimprimir etiqueta de
+  frasco já etiquetado.
+- **Imprime-se a página carregada**, no mesmo esquema de paginação da rota.
 
 ## 6. Comportamento offline (RNF07)
 

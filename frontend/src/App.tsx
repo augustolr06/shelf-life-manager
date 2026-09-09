@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
+import { TelaEtiquetas } from './pages/TelaEtiquetas'
 import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
@@ -60,6 +61,16 @@ const TELAS: readonly Tela[] = [
     rotulo: 'Registrar recebimento',
     papeis: ['GESTOR'],
     elemento: () => <TelaRecebimento />,
+  },
+  {
+    caminho: '/etiquetas',
+    rotulo: 'Etiquetas',
+    // Mesma lista da rota `GET /produtos/:id/unidades/etiquetas`: etiquetar é
+    // recebimento de mercadoria, não fluxo de balcão (RF04).
+    papeis: ['GESTOR'],
+    // Sem `usuario`: o produto e as unidades a imprimir chegam pelo estado de
+    // rota que a tela de recebimento manda, ou pelo seletor da própria tela.
+    elemento: () => <TelaEtiquetas />,
   },
 ]
 

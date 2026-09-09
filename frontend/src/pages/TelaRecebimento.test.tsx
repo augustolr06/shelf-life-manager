@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaRecebimento } from './TelaRecebimento'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
@@ -31,6 +32,26 @@ function unidade(codigoQr: string, dataValidade: string) {
 }
 
 const buscar = vi.fn<typeof fetch>()
+
+/**
+ * A tela ganhou um botão que navega para a folha de etiquetas (T15), então
+ * passou a precisar de roteador. O destino é um dublê que mostra o estado de
+ * rota recebido — é por ele que as unidades do lote viajam, e não pela URL.
+ */
+function DestinoDasEtiquetas() {
+  return <pre data-testid="estado-recebido">{JSON.stringify(useLocation().state)}</pre>
+}
+
+function renderizarRecebimento() {
+  return render(
+    <MemoryRouter initialEntries={['/recebimento']}>
+      <Routes>
+        <Route path="/recebimento" element={<TelaRecebimento />} />
+        <Route path="/etiquetas" element={<DestinoDasEtiquetas />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
 
 /** Preenche a linha de validade de índice `indice`. */
 function preencherLinha(indice: number, validade: string, quantidade?: number) {
@@ -69,7 +90,7 @@ describe('TelaRecebimento (RF03)', () => {
   it('carrega o catálogo para escolher o produto', async () => {
     buscar.mockResolvedValueOnce(catalogo())
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
 
     expect(await screen.findByRole('option', { name: /PRF-001/ })).toBeInTheDocument()
     // Sem `incluirInativos`: o backend recusa receber unidade de produto
@@ -92,7 +113,7 @@ describe('TelaRecebimento (RF03)', () => {
       }),
     )
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await selecionarProduto()
 
     preencherLinha(0, '2027-03-01')
@@ -122,7 +143,7 @@ describe('TelaRecebimento (RF03)', () => {
         respostaFalsa(201, { unidades: [unidade('PRF-AB12CD', '2027-03-01')], avisos: [] }),
       )
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await selecionarProduto()
     preencherLinha(0, '2027-03-01')
     fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
@@ -147,7 +168,7 @@ describe('TelaRecebimento (RF03)', () => {
       }),
     )
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await selecionarProduto()
     preencherLinha(0, '2020-01-01')
     fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
@@ -165,7 +186,7 @@ describe('TelaRecebimento (RF03)', () => {
       }),
     )
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await selecionarProduto()
     preencherLinha(0, '2027-03-01')
     fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
@@ -178,7 +199,7 @@ describe('TelaRecebimento (RF03)', () => {
   it('só habilita o envio com produto escolhido e todas as validades preenchidas', async () => {
     buscar.mockResolvedValueOnce(catalogo())
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await screen.findByRole('option', { name: /PRF-001/ })
 
     const enviar = screen.getByRole('button', { name: /^registrar recebimento$/i })
@@ -198,7 +219,7 @@ describe('TelaRecebimento (RF03)', () => {
         respostaFalsa(201, { unidades: [unidade('PRF-AB12CD', '2027-03-01')], avisos: [] }),
       )
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await selecionarProduto()
     preencherLinha(0, '2027-03-01')
     fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
@@ -209,10 +230,36 @@ describe('TelaRecebimento (RF03)', () => {
     expect(screen.getByRole('button', { name: /^registrar recebimento$/i })).toBeDisabled()
   })
 
+  it('leva as unidades recém-cadastradas para a folha de etiquetas', async () => {
+    buscar
+      .mockResolvedValueOnce(catalogo())
+      .mockResolvedValueOnce(
+        respostaFalsa(201, {
+          unidades: [unidade('PRF-AB12CD', '2027-03-01'), unidade('PRF-EF34GH', '2026-11-30')],
+          avisos: [],
+        }),
+      )
+
+    renderizarRecebimento()
+    await selecionarProduto()
+    preencherLinha(0, '2027-03-01')
+    fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
+
+    await screen.findByText('PRF-AB12CD')
+    fireEvent.click(screen.getByRole('button', { name: /imprimir etiquetas destas unidades/i }))
+
+    // Os ids vão por estado de rota: 500 UUIDs numa query string seriam ~18 KB.
+    expect(JSON.parse(screen.getByTestId('estado-recebido').textContent ?? '')).toEqual({
+      produtoId: ID_PRODUTO,
+      produtoNome: PERFUME.nome,
+      unidadeIds: ['unidade-PRF-AB12CD', 'unidade-PRF-EF34GH'],
+    })
+  })
+
   it('remove uma linha de validade, mantendo ao menos uma', async () => {
     buscar.mockResolvedValueOnce(catalogo())
 
-    render(<TelaRecebimento />)
+    renderizarRecebimento()
     await screen.findByRole('option', { name: /PRF-001/ })
 
     expect(screen.getByRole('button', { name: /remover validade 1/i })).toBeDisabled()

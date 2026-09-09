@@ -714,3 +714,65 @@ as suas tarefas; a de T13 era a única sem, mesmo deslize e mesma origem do outr
 "224 verdes" em prosa, mas a própria decomposição dela (199 herdados + 11 do símbolo + 17 da
 rota) soma 227, que é o que a suíte devolve hoje. Nenhum teste foi tocado nesta tarefa — só o
 número escrito estava errado. Fica aqui para o número não continuar se propagando.
+
+## 2026-09-08 — A etiqueta vira papel: dimensionamento, impressão e o que ocupa espaço (T15)
+
+**A impressão é do navegador (`window.print()` + `@media print`), sem geração de PDF.** A
+alternativa seria uma biblioteca de PDF no servidor ou no cliente; seria dependência de peso
+para resolver o que o navegador já resolve, e me obrigaria a decidir margens de página no
+lugar do driver da impressora — que é quem conhece o papel. O custo honesto: a fidelidade
+depende do navegador e das margens configuradas no diálogo, e dois navegadores podem
+imprimir o mesmo milímetro com meio ponto de diferença. Como a RNF08 exige medição física de
+qualquer forma (T16), essa variação será medida com régua no papel em vez de presumida a
+partir do código.
+
+**O tamanho do símbolo é escolhido na tela, entre 15, 20 e 25 mm, e não fixado no código.**
+Com os 29 módulos do `viewBox` de T14 (21 do símbolo mais 4+4 da zona de silêncio), dão
+módulos de ~0,52, ~0,69 e ~0,86 mm; a referência prática para câmera de celular com
+impressora comum fica em torno de 0,5 mm por módulo, o que faz de 15 mm o limite inferior
+plausível. O motivo de ser seletor: a RNF08 manda validar fisicamente **antes** de congelar o
+formato da etiqueta, e um valor fixo obrigaria a editar e reimplantar o frontend a cada
+tentativa de T16. O tamanho escolhido sai impresso no rodapé da folha, para que a validação
+física saiba de qual folha está falando. Depois de T16, fixar o vencedor é uma linha — e aí
+com dado físico por trás.
+
+**Na etiqueta vão símbolo, código e validade; o nome do produto fica de fora.** O símbolo é
+o que a câmera lê (T10); o código em texto é o que a atendente digita quando a câmera falha,
+e o fallback manual de T10 fica inútil se esse texto não estiver no frasco; a validade é o
+que um humano precisa ver na prateleira sem escanear nada. O nome do produto já vem impresso
+no frasco pelo fabricante, e cada elemento a mais disputa espaço com o símbolo numa embalagem
+pequena — que é literalmente o que a RF04 pede.
+
+**Uma tela para os dois momentos, com o lote viajando por estado de rota.** Imprimir o que
+acabou de chegar e reimprimir a etiqueta que se soltou são a mesma folha, e o filtro
+`unidadeIds` de T14 existe para o primeiro caso. Os ids vão por estado do `react-router` e
+não pela URL: 500 UUIDs seriam cerca de 18 KB de query string. Entrar na tela **sem** esse
+estado não carrega nada — a gestora precisa escolher o produto e pedir. Carregar sozinha o
+estoque inteiro do SKU faria imprimir uma segunda etiqueta para frascos já etiquetados, que é
+como se duplicam identificadores no mundo físico.
+
+**Correção de uma afirmação minha, encontrada na conferência.** Eu havia registrado, no
+código e no arquivo da tarefa, que recarregar a página perderia o lote. É falso: o React
+Router guarda o estado no History API e o F5 no mesmo navegador mantém as unidades. O que não
+sobrevive é levar o endereço para outra aba ou outro aparelho — e é aí que a tela cai no
+seletor. A regra de não carregar sozinha continua valendo; a justificativa é que estava
+errada.
+
+**O SVG do servidor é injetado com `dangerouslySetInnerHTML`.** Ele é produzido por
+`simboloQr.ts` a partir de um código que casa com `PADRAO_CODIGO_QR`, e T14 garantiu no
+critério de aceite que sai sem script, evento, `id`, `class` ou `style`. A alternativa
+defensiva seria um `data:` URI dentro de `<img>`, que isolaria o conteúdo do documento — mas
+o transformaria em imagem externa, tratada de forma diferente por algumas configurações de
+impressão, e ele precisa ser elemento de verdade para herdar o tamanho em milímetros da
+folha. Fica registrado que a API com "dangerously" no nome foi usada de propósito, e por quê.
+
+**Imprime-se a página carregada, não o conjunto inteiro.** O teto de 500 do backend é por
+requisição; a tela usa a paginação normal e diz na cara que imprime uma página por vez.
+Concatenar páginas exigiria acumular várias requisições para um botão de impressão, e
+imprimiria o que não está na tela.
+
+**A folha impressa foi conferida em mídia `print`, não só em tela.** `playwright-cli pdf`
+aplica o `@media print`, e o texto extraído do PDF resultante contém apenas os códigos, as
+validades e o rodapé — nenhuma barra de topo, aba, seletor ou botão. É o equivalente, para
+uma folha de papel, do que T14 fez ao reler a matriz de módulos de volta do SVG: verificar o
+artefato entregue, e não a intenção do código.
