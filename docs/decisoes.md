@@ -776,3 +776,74 @@ aplica o `@media print`, e o texto extraído do PDF resultante contém apenas os
 validades e o rodapé — nenhuma barra de topo, aba, seletor ou botão. É o equivalente, para
 uma folha de papel, do que T14 fez ao reler a matriz de módulos de volta do SVG: verificar o
 artefato entregue, e não a intenção do código.
+
+---
+
+## 2026-09-08 — Configuração da janela de antecedência dos alertas (T17)
+
+**A configuração é uma coleção, não um valor único, e as quatro operações são CRUD
+completo** (validado pelo orientando antes da implementação). A seção 5 da arquitetura
+previa `GET/POST /configuracao-alerta`; entraram também `PATCH` e `DELETE` em
+`/configuracao-alerta/:id`. O nome singular da rota ficou como estava, pelo mesmo motivo que
+`/descartes/pendentes` ficou em T13: é o nome que o documento fixou, e trocá-lo por
+elegância criaria divergência entre a arquitetura e o código. O que justifica a coleção é o
+uso: uma janela larga (30 dias) serve para decisão comercial e uma estreita (7 dias) para
+última chamada, com canais possivelmente distintos — e o modelo de T02 já é uma tabela com
+`id` e 1:N para `Alerta`, não uma linha de parâmetro.
+
+**`DELETE` inativa (`ativo = false`), nunca exclui.** É o precedente do catálogo de produtos
+(T04), com uma razão a mais e mais forte: `Alerta.configuracaoId` é FK obrigatória, então
+apagar uma configuração que já emitiu alertas ou quebra a integridade referencial ou leva
+junto o histórico de alertas emitidos — que é dado da pesquisa (RF12/RF13). Inativar preserva
+a leitura "este alerta foi emitido sob a janela de 30 dias que hoje não existe mais".
+Reativar é `PATCH { ativo: true }`, como no catálogo. A listagem devolve ativas e inativas
+juntas: uma configuração invisível não teria como ser reativada pela interface.
+
+**`canal` é conjunto fechado de três valores (`IN_APP`, `PUSH`, `AMBOS`) numa coluna
+`String`.** O `AMBOS` existe porque a RF08 fala em "alerta in-app **e/ou** notificação push"
+num campo só — o valor precisa conseguir dizer "os dois", e a alternativa seria obrigar a
+gestora a manter duas configurações espelhadas para a mesma janela. O fechamento do conjunto
+não é opcional (canal livre é dado que T19 teria de adivinhar como entregar), mas mora no
+`enum` do JSON Schema e na constante do serviço, não num `enum` do Prisma: a seção 3 da
+arquitetura declara `canal String`, e um `enum` no banco custaria uma migração numa tarefa
+que o schema de T02 já atende. A trava é mais fraca do que seria no banco, e isso fica
+registrado: uma escrita direta por `psql` passa.
+
+**Duas configurações ativas não podem ter a mesma antecedência, e a garantia é de
+aplicação.** Duas janelas de 30 dias fariam o job de T18 gerar dois `Alerta` para a mesma
+unidade no mesmo dia, inflando a contagem de alertas emitidos que a RF13 vai reportar — é
+número da pesquisa, não duplicata de tela. A verificação acontece dentro de um
+`prisma.$transaction`, e não como índice único no banco, porque "único entre as ativas" é
+índice parcial e exigiria SQL cru na migração. É deliberadamente o oposto da escolha da
+RNF02: lá o dado em disputa é o estoque, com dois atendimentos simultâneos sobre o mesmo
+frasco; aqui é uma gestora mexendo em configuração. A colisão é avaliada sobre o **estado
+resultante**, não sobre o corpo recebido — reativar uma janela de 30 dias é recusado se
+outra de 30 dias tiver surgido enquanto ela estava inativa, mesmo que o `PATCH` só traga
+`ativo`.
+
+**`diasAntecedencia` vai de 1 a 365.** O 0 significaria "avise no dia em que vence", e esse
+dia a unidade ainda está no pool do FIFO e ainda é vendável (a borda que T13 testou); no dia
+seguinte ela já aparece na fila de descarte. O 0 duplicaria por notificação, com um dia de
+diferença, o que a fila já mostra por varredura. O teto de 365 é arbitrário e existe para
+que um erro de digitação (3650) não vire uma janela que inclui o estoque inteiro e
+transforme o alerta em ruído constante.
+
+**Nenhuma rota desta tarefa grava `EventoLog`.** Os nove tipos do PRD são lista fechada, e
+`eventoLog.service.ts` registra por escrito que acrescentar um tipo depois do piloto começar
+quebra a comparabilidade dos dados coletados antes e depois. Nenhum dos nove descreve
+mudança de configuração, e inventar o décimo para uma tela de parâmetro seria o tipo de
+acréscimo que aquele comentário existe para impedir. A consequência foi aceita
+conscientemente e está declarada em `docs/notas-para-artigo.md`: alterar a janela no meio do
+piloto não deixa rastro.
+
+**O seed passa a criar uma janela de 30 dias / `IN_APP`.** É o exemplo da jornada J3 do PRD.
+Sem nenhuma configuração, o job de T18 sobe com nada a fazer e a tela abre vazia na
+demonstração — o que parece defeito e não é. A idempotência é por "já existe alguma
+configuração?", e não por chave natural, porque a tabela não tem `unique`: rodar o seed de
+novo não sobrescreve a janela que a gestora ajustou.
+
+**A tela diz que a verificação periódica ainda não existe.** Entre T17 e T18, configurar uma
+janela não produz alerta nenhum. O aviso é uma linha de texto e sai quando o job entrar; sem
+ele, a ausência de alerta se lê como defeito. Ele usa classe própria (`.nota-informativa`) e
+não `.aviso`, que é vermelho como o `.erro` — o mesmo achado que T13 registrou ao criar
+`.nota-sucesso`: informação neutra e falha não podem ter a mesma cor.

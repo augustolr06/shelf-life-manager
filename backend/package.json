@@ -20,7 +20,8 @@
     "test:evento-log": "vitest run tests/evento-log",
     "test:excecao": "vitest run tests/excecao-vencido",
     "test:descarte": "vitest run tests/descarte",
-    "test:etiquetas": "vitest run tests/etiquetas"
+    "test:etiquetas": "vitest run tests/etiquetas",
+    "test:alerta": "vitest run tests/alerta"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

@@ -763,3 +763,58 @@ formato do código), RF04
 **Data:** 2026-09-08
 
 ---
+
+## O parâmetro que muda o significado do dado sem deixar rastro
+
+**Contexto do problema:** todo o sistema construído até aqui é reativo. O bloqueio de FIFO
+age quando alguém lê um QR no balcão; a fila de descarte mostra a perda já consumada. Entre
+"o frasco está no estoque" e "o frasco venceu" existe uma janela em que ainda cabe decisão
+comercial — promoção, destaque na vitrine —, e é dela que a RF08 trata. O ponto interessante
+não é a janela em si, e sim que **o seu tamanho é um parâmetro que a loja define**. Trinta
+dias é razoável para um perfume e absurdo para um item de giro rápido; nenhum número
+escolhido no código serve para as duas coisas.
+
+**Alternativas consideradas:** fixar a antecedência no código (30 dias, o exemplo do próprio
+PRD) e tratar o assunto como resolvido. Seria mais simples e tornaria o dado da pesquisa
+trivialmente comparável — a janela seria a mesma o piloto inteiro, por construção. Foi
+descartado porque a RF08 pede explicitamente "janela definida pelo usuário", e porque um
+número fixo transformaria cada ajuste da loja numa alteração de software. O oposto —
+configuração por SKU ou por categoria — foi descartado por não estar no PRD e por multiplicar
+o problema descrito abaixo.
+
+**Solução adotada:** uma coleção de janelas configuráveis pelo gestor (antecedência em dias e
+canal de entrega), com inativação em vez de exclusão, para que um alerta já emitido continue
+apontando para a configuração sob a qual foi emitido. Duas janelas ativas com a mesma
+antecedência são recusadas, porque gerariam dois alertas para a mesma unidade no mesmo dia e
+inflariam a contagem de alertas emitidos que a RF13 vai reportar.
+
+**Por que resolve o problema / trade-offs:** o que interessa ao artigo é uma limitação que
+apareceu ao decidir o que **não** registrar. Os tipos de evento do `EventoLog` são uma lista
+fechada, e a razão de serem fechados é metodológica: acrescentar um tipo depois que o piloto
+começa quebra a comparabilidade entre os dados coletados antes e depois. Nenhum dos nove
+tipos descreve mudança de configuração, e nenhum foi acrescentado. A consequência é que **o
+sistema não sabe quando a janela de antecedência foi alterada, nem qual era antes**.
+
+Isso é diferente das outras coisas que o sistema deliberadamente não registra (quantas
+etiquetas foram reimpressas, por exemplo), porque aqui o dado não registrado **muda o
+significado dos dados que são registrados**. Se a gestora trocar 30 por 7 no meio do piloto,
+a série de alertas emitidos passa a misturar dois regimes, e a análise não tem como
+perceber: verá uma queda no número de alertas e poderá atribuí-la a melhora do estoque, quando
+a causa foi a mudança de um parâmetro. É uma variável independente que o experimento permite
+alterar sem instrumentar.
+
+Registrar isso honestamente vale mais do que corrigir por reflexo: a correção — um décimo
+tipo de evento — tem custo próprio, porque mexe justamente na lista que o desenho protege.
+Para o piloto, a mitigação é procedimental: anotar fora do sistema qualquer alteração da
+janela, com data. Para trabalho futuro, a alternativa é versionar a configuração em vez de
+alterá-la no lugar, o que daria à análise a fronteira exata entre um regime e o outro. A
+observação mais geral, e a que cabe no artigo: **em um sistema que também é instrumento de
+coleta, um parâmetro configurável é uma variável do experimento**, e o desenho precisa
+decidir explicitamente se ela vai ser observada ou congelada — decidir por omissão é o que
+produz a série ambígua.
+
+**Tarefa relacionada:** T17, T18/T19 (que consomem a configuração), RF08, RF12/RF13
+
+**Data:** 2026-09-08
+
+---

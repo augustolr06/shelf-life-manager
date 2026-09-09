@@ -2,7 +2,8 @@
 // dos endpoints das próximas tarefas sem cadastrar ninguém à mão.
 //
 // Não popula produtos nem unidades — isso depende das regras de cadastro
-// que só existem a partir de T04/T05.
+// que só existem a partir de T04/T05. Desde T17 popula também a janela de
+// antecedência padrão dos alertas (RF08).
 //
 // Idempotente: rodar duas vezes não duplica nem sobrescreve senha alterada.
 import 'dotenv/config'
@@ -19,6 +20,13 @@ const usuarios = [
   { nome: 'Atendente de Balcão', email: 'atendente@estoque.local', papel: Papel.ATENDENTE },
 ]
 
+/**
+ * A janela do exemplo da jornada J3 do PRD. Sem nenhuma configuração, o job de
+ * T18 sobe com nada a fazer e a tela de T17 abre vazia na demonstração — o que
+ * parece defeito e não é.
+ */
+const CONFIGURACAO_PADRAO = { diasAntecedencia: 30, canal: 'IN_APP' }
+
 async function main() {
   for (const usuario of usuarios) {
     const senhaHash = await bcrypt.hash(SENHA_PADRAO, CUSTO_BCRYPT)
@@ -33,6 +41,18 @@ async function main() {
   }
 
   console.log(`senha de ambos: ${SENHA_PADRAO} — apenas para desenvolvimento`)
+
+  // Idempotência sem chave natural: a tabela não tem `unique`, então o critério
+  // é "já existe alguma configuração?". Rodar o seed de novo não deve
+  // sobrescrever a janela que a gestora ajustou.
+  const jaConfigurado = await prisma.configuracaoAlerta.count()
+
+  if (jaConfigurado === 0) {
+    await prisma.configuracaoAlerta.create({ data: CONFIGURACAO_PADRAO })
+    console.log(
+      `configuração de alerta padrão: ${CONFIGURACAO_PADRAO.diasAntecedencia} dias / ${CONFIGURACAO_PADRAO.canal}`,
+    )
+  }
 }
 
 main()

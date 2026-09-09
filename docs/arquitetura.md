@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 1 e 5 revisadas em T14; seção 5.2, sobre a etiqueta física, acrescentada em T15)
+Última atualização: 2026-09-08 (seções 2, 3 e 5 revisadas em T17, que acrescentou as rotas de configuração de alerta; seção 5.2, sobre a etiqueta física, acrescentada em T15)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -31,7 +31,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /saida          <- contém validarSaidaFifo.ts (RNF03: função única)
       /excecao-vencido <- os três caminhos da unidade vencida (PRD 6.1)
       /descarte       <- a fila do que venceu e ainda está em estoque (RF11)
-      /alerta
+      /alerta         <- a janela de antecedência configurável (RF08)
       /evento-log
     /db
       schema.prisma
@@ -134,6 +134,8 @@ model Descarte {
 model ConfiguracaoAlerta {
   id               String   @id @default(uuid())
   diasAntecedencia Int
+  // Conjunto fechado `IN_APP | PUSH | AMBOS`, garantido no JSON Schema da
+  // rota e na constante `CANAIS` do serviço, não por `enum` do banco (T17).
   canal            String
   ativo            Boolean  @default(true)
   alertas          Alerta[]
@@ -239,7 +241,8 @@ manual produziria.
 | POST | `/excecao-vencido/descartar` | ATENDENTE, GESTOR | Caminho 2 da seção 6.1 do PRD |
 | POST | `/excecao-vencido/override` | GESTOR | Caminho 3 da seção 6.1 do PRD — exige justificativa |
 | GET | `/descartes/pendentes` | GESTOR | Fila de descarte pendente (RF11) |
-| GET/POST | `/configuracao-alerta` | GESTOR | RF08 |
+| GET/POST | `/configuracao-alerta` | GESTOR | Lista e cria janelas de antecedência (RF08) |
+| PATCH/DELETE | `/configuracao-alerta/:id` | GESTOR | Altera e **inativa** a janela (RF08) |
 | GET | `/dashboard` | GESTOR | RF13 |
 
 **Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
@@ -295,6 +298,32 @@ devolve etiquetas (o frasco continua na prateleira, como na fila de T13); produt
 é 404, e produto sem nada a etiquetar é 200 com lista vazia. A rota não grava evento: gerar
 etiqueta é consulta, e a consequência — o sistema não sabe quantas reimpressões houve — está
 declarada como limitação em `docs/notas-para-artigo.md`.
+
+**As quatro rotas de `/configuracao-alerta`** (T17) são o CRUD da janela de antecedência dos
+alertas proativos, todas `GESTOR`. A configuração é **coleção**, não valor único: uma janela
+larga (30 dias) serve para decisão comercial e uma estreita (7 dias) para última chamada.
+`GET` devolve `{ configuracoes: [...] }` com ativas e inativas juntas, ordenadas por
+`diasAntecedencia` decrescente e sem paginação (a lista tem ordem de grandeza de unidades);
+as demais devolvem `{ configuracao }`.
+
+```json
+{ "id": "...", "diasAntecedencia": 30, "canal": "IN_APP", "ativo": true }
+```
+
+`diasAntecedencia` é inteiro de **1 a 365** — o 0 fica de fora porque a unidade que vence
+hoje ainda está no pool do FIFO, e amanhã já estará na fila de descarte. `canal` é o conjunto
+fechado `IN_APP | PUSH | AMBOS`; o `AMBOS` existe porque a RF08 fala em "in-app **e/ou**
+push" num campo só. **Duas configurações ativas não podem ter a mesma antecedência** (409
+`ANTECEDENCIA_JA_CONFIGURADA`, no `POST` e no `PATCH`, inclusive ao reativar): duas janelas
+iguais gerariam dois `Alerta` para a mesma unidade no mesmo dia, inflando a contagem que a
+RF13 reporta. A garantia é de aplicação, dentro de uma transação, não índice único no banco.
+`DELETE` **inativa** (`ativo = false`) e nunca exclui, como em `/produtos/:id` e por uma
+razão a mais: `Alerta.configuracaoId` é FK obrigatória, e apagar levaria junto o histórico de
+alertas emitidos. Id inexistente é 404 `CONFIGURACAO_NAO_ENCONTRADA`. Nenhuma dessas rotas
+grava `EventoLog` — nenhum dos nove tipos do PRD descreve mudança de configuração, e a
+consequência (alterar a janela no meio do piloto não deixa rastro) está declarada em
+`docs/notas-para-artigo.md`. Nenhuma delas lê ou escreve `Alerta`: a varredura periódica é
+T18.
 
 **`GET /descartes/pendentes`** (T13) devolve a fila da RF11: as unidades `EM_ESTOQUE`
 cuja `dataValidade` já passou, ordenadas da mais vencida para a menos (desempate por

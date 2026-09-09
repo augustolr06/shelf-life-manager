@@ -149,6 +149,7 @@ input {
 }
 
 .formulario-produto,
+.formulario-configuracao-alerta,
 .filtros {
   display: flex;
   flex-wrap: wrap;
@@ -161,7 +162,8 @@ input {
   border: 1px solid var(--cor-borda);
 }
 
-.formulario-produto h3 {
+.formulario-produto h3,
+.formulario-configuracao-alerta h3 {
   width: 100%;
   margin: 0;
   font-size: 1rem;
@@ -180,7 +182,8 @@ input {
   font-weight: 600;
 }
 
-.formulario-produto .erro {
+.formulario-produto .erro,
+.formulario-configuracao-alerta .erro {
   width: 100%;
 }
 
@@ -812,4 +815,38 @@ textarea {
        que aprovou ou reprovou (RNF08). */
     color: #000;
   }
+}
+
+/* Configuração da janela de antecedência (RF08, T17). Tela de parâmetro, não
+   de frasco: formulário mais denso que as de balcão, ainda em alvo de toque de
+   celular — a gestora usa o mesmo aparelho. */
+.tela-configuracao-alerta h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+.tela-configuracao-alerta > .subtitulo {
+  margin: 0 0 1rem;
+}
+
+/* Informação neutra, e é por isso que não usa `.aviso`: ele é vermelho como o
+   `.erro` (ver `.nota-sucesso`), e "o job ainda não existe" não é falha da
+   ação que o gestor acabou de fazer. */
+.nota-informativa {
+  margin: 0 0 1rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.375rem;
+  border-left: 3px solid var(--cor-borda);
+  background: #f9fafb;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+/* A linha em edição ocupa a largura da tabela: são dois campos e dois botões,
+   e espremê-los nas colunas da linha normal encolheria o alvo de toque. */
+.edicao-configuracao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
 }

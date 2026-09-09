@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
 import { TelaLeituraQr } from './pages/TelaLeituraQr'
@@ -61,6 +62,16 @@ const TELAS: readonly Tela[] = [
     rotulo: 'Registrar recebimento',
     papeis: ['GESTOR'],
     elemento: () => <TelaRecebimento />,
+  },
+  {
+    caminho: '/alertas/configuracao',
+    rotulo: 'Alertas',
+    // Mesma lista das quatro rotas de `/configuracao-alerta`: a janela de
+    // antecedência é parâmetro de gestão, e mexer nela muda o que o sistema
+    // avisa a todo mundo (RF08).
+    papeis: ['GESTOR'],
+    // Sem `usuario`: a tela é GESTOR-only inteira, não tem ramo por papel.
+    elemento: () => <TelaConfiguracaoAlerta />,
   },
   {
     caminho: '/etiquetas',
