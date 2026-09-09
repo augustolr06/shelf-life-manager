@@ -16,11 +16,37 @@ const corpoLogin = {
 
 type CorpoLogin = { email: string; senha: string }
 
+/**
+ * O freio de força bruta do login (T23).
+ *
+ * Dez tentativas por minuto, por IP. O número é generoso de propósito: a loja
+ * inteira sai por **um** endereço público, então o limite é compartilhado
+ * entre as duas contas e precisa tolerar o erro de digitação de duas pessoas
+ * diferentes no mesmo minuto sem trancar o balcão. Quem protege a senha de
+ * verdade é o tamanho mínimo de 12 caracteres (`definirSenha`) somado ao custo
+ * do bcrypt; este limite existe para tornar inviável a varredura automatizada,
+ * não para ser a única defesa.
+ *
+ * Contado por IP, e não por e-mail: um atacante escolhe o e-mail que tenta, e
+ * limitar por ele deixaria a varredura livre trocando o alvo a cada tentativa.
+ * A contrapartida é a que está acima — o balcão compartilha a cota.
+ *
+ * **O contador é em memória do processo.** Em servidor único isso é exato; se
+ * a hospedagem escolhida em T23 for serverless, cada instância passa a ter o
+ * seu, e o limite efetivo vira o número de instâncias vezes dez. Continua
+ * valendo como freio, mas deixa de ser um teto — registrado em
+ * `docs/decisoes.md`, e é uma das coisas que a decisão de hospedagem muda.
+ *
+ * O corpo da recusa não é montado aqui: o plugin **lança** o erro, então quem
+ * o formata é o `tratarErro` de T12b, como todo 4xx do Fastify neste projeto.
+ */
+const LIMITE_DE_LOGIN = { max: 10, timeWindow: '1 minute' } as const
+
 export async function rotasAuth(app: FastifyInstance): Promise<void> {
   // RF01 — autenticação. Rota pública.
   app.post<{ Body: CorpoLogin }>(
     '/auth/login',
-    { schema: { body: corpoLogin } },
+    { schema: { body: corpoLogin }, config: { rateLimit: LIMITE_DE_LOGIN } },
     async (request, reply) => {
       const { email, senha } = request.body
       const usuario = await autenticarCredenciais(email, senha)

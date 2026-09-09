@@ -1,6 +1,8 @@
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
 import jwt from '@fastify/jwt'
+import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { NOME_COOKIE_SESSAO } from './modules/auth/cookie.js'
 import { rotasAlerta } from './modules/alerta/alerta.routes.js'
@@ -35,6 +37,34 @@ export function buildApp(): FastifyInstance {
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   })
+
+  // Cabeçalhos de segurança (T23). Duas opções são desligadas de propósito,
+  // porque esta API **só** responde JSON e vive num host diferente do frontend:
+  //
+  // - `contentSecurityPolicy`: CSP governa o que uma *página* pode carregar.
+  //   Nenhuma resposta daqui é documento — as etiquetas de T15 saem como texto
+  //   SVG dentro de JSON, e quem as renderiza é a tela. Mandar uma política
+  //   restritiva junto de um JSON não protege nada e vira ruído para depurar.
+  // - `crossOriginResourcePolicy`: o padrão do helmet é `same-origin`, que é
+  //   exatamente o que esta API não é. Deixá-lo ligado seria a mesma classe de
+  //   falha do cookie `SameSite` — recusa no navegador, sem erro no servidor.
+  //
+  // O que fica ligado é o que vale para uma API: `nosniff`, `X-Frame-Options`,
+  // `Referrer-Policy` e HSTS.
+  app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false,
+  })
+
+  // Freio de força bruta (T23). Registrado com `global: false`: o limite vale
+  // **só** onde a rota pedir, e hoje isso é apenas `POST /auth/login`.
+  //
+  // Um limite global seria ativamente nocivo aqui. O balcão lê QR em rajada —
+  // um atendimento com seis frascos são seis `POST /saidas/ler` em segundos, e
+  // o laço de revalidação de T08 pode multiplicar isso quando a atendente
+  // pega a unidade errada. Bloquear essa rajada é impedir a venda para
+  // proteger o login, que é o oposto da ordem de prioridade da loja.
+  app.register(rateLimit, { global: false })
 
   // Ordem importa: o @fastify/jwt lê o token do cookie, então o parser de
   // cookie precisa estar registrado antes.

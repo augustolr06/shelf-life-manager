@@ -101,12 +101,13 @@ mesmo nem a conta de sistema da varredura (`modules/alerta/usuarioDoSistema.ts`)
    append-only e é a base do indicador do TCC (RF12), então perdê-lo é perder o dado do
    artigo.
 
-**Estado de T23 (2026-09-09):** a fatia de configuração de produção — cookie cross-site,
-rewrite de SPA, `directUrl`, `postinstall` do Prisma e troca de senha por script — foi
-antecipada e está concluída, porque é o que permite um deploy de piloto com dois usuários
-sem depender de T22. Seguem pendentes o limite de tentativas no login, o `helmet`, a decisão
-de hospedagem com o ajuste do relógio da RF08, e o `docs/deploy.md` com a rotina de backup.
-Detalhes por fatia em `tasks/T23-preparacao-deploy.md`.
+**Estado de T23 (2026-09-09):** duas das quatro fatias estão concluídas. A de configuração de
+produção (cookie cross-site, rewrite de SPA, `directUrl`, `postinstall` do Prisma, troca de
+senha por script) e a de segurança de borda (limite de tentativas no login e `helmet`) foram
+antecipadas, porque juntas são o que permite um deploy de piloto com dois usuários sem
+depender de T22. Seguem pendentes a decisão de hospedagem com o ajuste do relógio da RF08 e o
+`docs/deploy.md` com a rotina de backup. Detalhes por fatia em
+`tasks/T23-preparacao-deploy.md`.
 
 Ordem sugerida: T22 antes de T23, porque não faz sentido publicar na internet um sistema
 cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a demonstração da

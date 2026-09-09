@@ -1247,3 +1247,43 @@ testada; o `.cli.ts` é só a casca que lê argumento e imprime.
 o script seria a terceira cópia. Divergência aqui não produz falha: `bcrypt.compare` lê o
 custo de dentro do próprio hash e confere normalmente — o efeito é uma senha gravada mais
 fraca do que se imagina, sem sintoma nenhum. Um lugar só era o que o comentário já pedia.
+
+---
+
+## 2026-09-09 — Segurança de borda: limite de tentativas no login e cabeçalhos (T23, fatia 1)
+
+**O limite de tentativas vale só em `POST /auth/login`.** O `@fastify/rate-limit` entrou com
+`global: false`, e a configuração mora na rota. Um limite global seria ativamente nocivo: o
+balcão lê QR em rajada — um atendimento com seis frascos são seis `POST /saidas/ler` em
+segundos, e o laço de revalidação de T08 multiplica isso quando a atendente pega a unidade
+errada. Bloquear essa rajada é impedir a venda para proteger o login, invertendo a ordem de
+prioridade da loja. A suíte tem asserção explícita para isso: trinta requisições seguidas a
+`/saidas/ler` e a `/health` não podem produzir 429.
+
+**Dez tentativas por minuto, por IP.** Contar por e-mail deixaria a varredura automatizada
+livre trocando o alvo a cada tentativa, então a chave é o IP. A contrapartida é específica
+deste cenário e vale registrar: a loja inteira sai por **um** endereço público, então as duas
+contas dividem a cota, e o número precisa tolerar o erro de digitação de duas pessoas no mesmo
+minuto. Dez é o meio-termo — quem protege a senha de verdade é o piso de 12 caracteres
+(fatia 3) somado ao custo do bcrypt, e este limite existe para inviabilizar varredura, não
+para ser a única defesa. **O contador vive na memória do processo:** em servidor único é
+exato; em serverless, cada instância tem o seu e o teto efetivo vira instâncias × 10. É mais
+uma coisa que a decisão de hospedagem (fatia 2) muda.
+
+**O corpo do 429 é montado pelo `tratarErro`, não pelo `errorResponseBuilder` do plugin.** A
+primeira versão desta tarefa usou o construtor do plugin e **respondeu 500**: o plugin
+`throw`-a o que aquele construtor devolve, e um objeto simples, sem `statusCode`, cai no
+handler de T12b como exceção não tratada. O conserto não foi devolver um `Error` com
+`statusCode` — foi tirar a formatação de lá. O handler já é o lugar único onde todo 4xx do
+Fastify vira `{ erro, mensagem }`; ter um segundo formatador para o mesmo corpo é a duplicação
+que produziu o defeito. O 429 ganhou ramo próprio, antes do genérico de 4xx, porque a
+orientação ao usuário é outra: não há nada errado nos dados, o que falta é esperar.
+
+**O helmet entrou com duas proteções desligadas de propósito.** `contentSecurityPolicy`: CSP
+governa o que uma *página* pode carregar, e nenhuma resposta desta API é documento — as
+etiquetas de T15 saem como texto SVG dentro de JSON, e quem as renderiza é a tela. Política
+restritiva junto de um JSON não protege nada e vira ruído na depuração.
+`crossOriginResourcePolicy`: o padrão do helmet é `same-origin`, que é exatamente o que esta
+API não é — deixá-lo ligado seria a mesma classe de falha silenciosa do cookie `SameSite`,
+recusa no navegador sem erro no servidor. Ficam ligados o `nosniff`, o `X-Frame-Options`, o
+`Referrer-Policy` e o HSTS, que são os que fazem sentido para uma API JSON.

@@ -22,13 +22,22 @@ de verdade.
 
 ## Critério de aceite
 
-### Fatia 1 — Segurança de borda (pendente)
+### Fatia 1 — Segurança de borda (concluída em 2026-09-09)
 
-- [ ] Limite de tentativas em `POST /auth/login`. Duas contas conhecidas e um endereço
-      público é força bruta livre; o `bcrypt` custo 10 é freio de ~100ms por tentativa, o que
-      atrasa mas não impede
-- [ ] `@fastify/helmet` registrado em `buildApp()`
-- [ ] Suíte cobrindo a recusa por excesso de tentativas (arquivo solto em `tests/`, sem banco)
+- [x] `@fastify/rate-limit` registrado com `global: false`, e o limite declarado **só** em
+      `POST /auth/login`: 10 tentativas por minuto, por IP. Um limite global travaria a
+      rajada de leituras de QR do balcão, que é o oposto da prioridade da loja
+- [x] `@fastify/helmet` registrado em `buildApp()`, com `contentSecurityPolicy` e
+      `crossOriginResourcePolicy` desligados — esta API só responde JSON e é consumida de
+      outro host, e o padrão `same-origin` do segundo recusaria no navegador exatamente o
+      acesso que ela existe para servir
+- [x] O corpo do 429 é montado pelo `tratarErro` de T12b, não pelo `errorResponseBuilder` do
+      plugin. O plugin **lança** o erro, então ele cai no handler de qualquer forma:
+      formatar dos dois lados foi o que fez a primeira versão responder 500
+- [x] `tests/limiteDeLogin.test.ts` — 9 asserções, sem banco: o limite permite as dez, recusa
+      a décima primeira com 429 no formato `{ erro, mensagem }`, conta também as tentativas
+      bem-sucedidas, **não** alcança `/saidas/ler` nem `/health` em rajada de trinta, e os
+      cabeçalhos do helmet saem com `nosniff` e sem CSP nem CORP
 
 ### Fatia 2 — Relógio da RF08 fora do processo (pendente, e só se o alvo for serverless)
 
@@ -88,6 +97,17 @@ deixaria passar exatamente aquilo de que o script existe para sair.
 lugares com um comentário em cada pedindo que não divergissem; o script seria o terceiro.
 Divergência aqui não falha: `bcrypt.compare` lê o custo de dentro do hash e confere
 normalmente — o efeito é senha antiga mais fraca do que se imagina, sem sintoma.
+
+**O limite é por IP, e a loja inteira tem um.** Contar por e-mail deixaria a varredura livre
+trocando o alvo a cada tentativa, então por IP é o certo — mas as duas contas dividem a cota,
+e é por isso que o número é dez, e não três: precisa caber o erro de digitação de duas pessoas
+no mesmo minuto sem trancar o balcão. Quem protege a senha de verdade é o piso de 12
+caracteres somado ao custo do bcrypt; este limite existe para inviabilizar varredura
+automatizada.
+
+**O contador vive na memória do processo.** Em servidor único é exato. Se a fatia 2 escolher
+serverless, cada instância passa a ter o seu e o teto efetivo vira o número de instâncias
+vezes dez — continua sendo freio, deixa de ser teto.
 
 **O rewrite não engole os arquivos estáticos.** Na Vercel, `rewrites` só age quando nenhum
 arquivo do build casou com o caminho, então `sw.js`, o manifest e os assets continuam sendo

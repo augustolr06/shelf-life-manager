@@ -1276,3 +1276,44 @@ mencionar junto com o requisito, não como detalhe de implantação.
 **Tarefa relacionada:** T23 (fatia 3), T10 (onde a RNF07 foi implementada), RNF07
 
 **Data:** 2026-09-09
+
+---
+
+## O controle de segurança que atrapalharia a venda: por que o freio é do login e não da API
+
+**Contexto do problema:** publicar o sistema num endereço público obriga a proteger o login
+contra tentativa automatizada — duas contas conhecidas e um formulário aberto é varredura
+livre. A resposta de manual é limitar requisições por origem, e a forma mais comum de aplicá-la
+é global, na entrada da API inteira, porque é uma linha de configuração e cobre tudo.
+
+**Alternativas consideradas:** limite global na API (descartado, ver abaixo); limite por conta
+de e-mail em vez de por origem, descartado porque o atacante escolhe o e-mail que tenta e
+trocá-lo a cada requisição contornaria a regra inteira.
+
+**Solução adotada:** o limite existe **só** na rota de login, e o teste que mais importa não é
+o que verifica a recusa — é o que verifica que trinta leituras de QR seguidas **não** são
+recusadas.
+
+**Por que resolve o problema / trade-offs:** o padrão de uso do balcão é o oposto do padrão
+que um limite de requisições supõe. Um atendimento com seis frascos são seis leituras em
+poucos segundos, e o laço de revalidação do FIFO multiplica isso justamente no caso ruim —
+quando a atendente pegou a unidade errada e o sistema a manda buscar outra. Uma proteção
+global transformaria o pior momento do atendimento (cliente esperando, frasco errado na mão)
+no momento em que o sistema para de responder. **A medida de segurança teria degradado
+exatamente o fluxo que o sistema existe para tornar viável**, e o sintoma apareceria no balcão
+como lentidão inexplicável em dia de movimento — não como incidente de segurança.
+
+Fica também uma limitação honesta sobre a granularidade possível: numa loja pequena, todos os
+aparelhos saem por **um** endereço público, então "por origem" e "por loja" são a mesma coisa,
+e a cota é compartilhada entre quem está vendendo. O número escolhido (dez por minuto) é
+menos uma medida de segurança do que uma negociação com a ergonomia: precisa caber o erro de
+digitação de duas pessoas no mesmo minuto. Quem sustenta a proteção de verdade é o tamanho
+mínimo da senha somado ao custo do algoritmo de hash — o limite serve para tornar a varredura
+inviável, não para ser a defesa principal. É um caso em que a literatura de segurança e a
+realidade operacional de uma loja de sete pessoas pedem números diferentes, e vale dizer qual
+dos dois governou a escolha.
+
+**Tarefa relacionada:** T23 (fatia 1), T08 (o laço de revalidação), T10 (a rajada do balcão),
+RF05, RF06
+
+**Data:** 2026-09-09

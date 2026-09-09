@@ -40,6 +40,17 @@ export const MENSAGEM_ERRO_INTERNO =
 export const MENSAGEM_ROTA_NAO_ENCONTRADA = 'Endereço não encontrado neste servidor.'
 
 /**
+ * Excesso de tentativas (T23). Mora aqui, e não no `errorResponseBuilder` do
+ * `@fastify/rate-limit`, porque o plugin **lança** o que aquele construtor
+ * devolve: o objeto cai neste handler de qualquer jeito, e formatar dos dois
+ * lados criaria duas fontes para o mesmo corpo de erro — foi assim que a
+ * primeira versão desta tarefa respondeu 500 no lugar de 429, com o formato
+ * certo escrito no lugar que não decide.
+ */
+export const MENSAGEM_MUITAS_TENTATIVAS =
+  'Muitas tentativas seguidas. Aguarde um minuto e tente de novo.'
+
+/**
  * Nomeia os campos recusados a partir de `error.validation` — a lista
  * estruturada do ajv, nunca por leitura da mensagem em inglês.
  *
@@ -100,6 +111,16 @@ export function tratarErro(
   }
 
   const status = erro.statusCode ?? 500
+
+  // Excesso de tentativas tem código próprio porque a orientação ao usuário é
+  // outra: não há nada errado nos dados, o que falta é esperar. Vem antes do
+  // ramo genérico de 4xx, que diria "confira os dados e tente de novo".
+  if (status === 429) {
+    return reply.code(429).send({
+      erro: 'MUITAS_TENTATIVAS',
+      mensagem: MENSAGEM_MUITAS_TENTATIVAS,
+    })
+  }
 
   // Erro de cliente que o Fastify já classificou (JSON malformado, por
   // exemplo). O status é preservado: esta camada troca o corpo da resposta,
