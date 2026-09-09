@@ -955,3 +955,23 @@ textarea {
   line-height: 1.25rem;
   text-align: center;
 }
+
+/* Bloco "Neste aparelho" da configuração de alertas (T19b). Separado do resto
+   da tela por borda, e não por cor: o que está acima vale para a loja inteira,
+   e o que está aqui vale só para o navegador que está na mão de quem lê. */
+.notificacoes-do-aparelho {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 0.5rem;
+}
+
+.notificacoes-do-aparelho h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.notificacoes-do-aparelho > button {
+  /* Alvo de toque no celular, como os botões da tela de alertas. */
+  min-height: 2.75rem;
+}

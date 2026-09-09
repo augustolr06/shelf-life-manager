@@ -993,3 +993,74 @@ aparece quando a gestora abre a lista.
 **A aba "Alertas" passou a ser a lista; o formulário de T17 virou "Configurar alertas".** O
 rótulo antigo levava ao formulário, e mantê-lo assim mandaria a gestora configurar quando ela
 quer ver o aviso.
+
+## 2026-09-09 — Notificação push do alerta proativo (T19b)
+
+**Os handlers de push entram por `importScripts` no service worker gerado, e não por
+`injectManifest`.** Decisão do orientando, contra o que a Decisão 1 de T19 tinha suposto. O
+service worker de hoje carrega três regras da RNF07 escritas em T10 — `navigateFallback`,
+`NetworkOnly` em `/saidas/ler` e `/health`, precache do app shell —, e `injectManifest`
+obriga a reescrever todas à mão, em código que nenhum teste do projeto cobre. Um erro ali não
+quebraria a tela de alertas: quebraria o comportamento offline do balcão. Com
+`workbox.importScripts: ['sw-push.js']`, tudo que T10 decidiu continua gerado pelo plugin e o
+arquivo novo só acrescenta `push` e `notificationclick`. A contrapartida declarada: ele vive
+em `public/`, fora do build do Vite — sem TypeScript, sem Vitest, sem `typecheck` —, e por
+isso é curto e não tem regra de negócio.
+
+**Uma notificação por passagem da varredura e por aparelho, agregada; nunca uma por unidade.**
+Decisão do orientando. O `Alerta` continua sendo por unidade no banco, porque é dele que a
+RF13 conta; a *entrega* não pode seguir a mesma granularidade. Um recebimento de 40 frascos
+entrando na janela dispararia 40 notificações no mesmo segundo, e o efeito prático de 40
+notificações é o de zero — a gestora desliga o aviso, e a RF08 morre no aparelho dela. O
+texto diz quantas unidades e em quais janelas, conta **unidades distintas** (a mesma unidade
+pode entrar em duas janelas na mesma passagem) e o toque abre `/alertas`. Não nomeia produto:
+notificação aparece em tela bloqueada, e com dezenas de unidades o nome de uma só seria
+arbitrário.
+
+**Nenhum décimo-primeiro tipo de evento.** Decisão do orientando. T19 acrescentou
+`ALERTA_LIDO` como ato consciente, e o comentário de `eventoLog.service.ts` diz desde T09 que
+cada acréscimo custa comparabilidade. O envio do push não é ato humano, não muda estoque, e o
+indicador de reação já sai do par `ALERTA_PROATIVO_EMITIDO` → `ALERTA_LIDO`. O que se perde
+está declarado em `docs/notas-para-artigo.md`: **o log não distingue "leu porque o push
+chegou" de "leu porque abriu o app"** — o dado não isola o efeito do push. A alternativa
+recusada seria `NOTIFICACAO_PUSH_ENVIADA` assinado pela conta de sistema; a pergunta
+continua respondível fora do log, porque a data de implantação do push separa os dois
+períodos do piloto.
+
+**As chaves VAPID são opcionais no ambiente, e não entram em `shared/env.ts`.** `JWT_SECRET` é
+obrigatória porque sem ela o sistema não tem sessão; push é diferente — uma máquina de
+desenvolvimento, a suíte de testes e uma loja que não queira notificação precisam subir o
+servidor sem chave nenhuma. É a **única exceção** à regra de que toda variável de ambiente
+mora em `env.ts`: `modules/push/vapid.ts` as lê de `process.env` **a cada chamada**, e não
+uma vez no import, para que os dois estados (configurado e não) sejam exercitáveis no mesmo
+processo pela suíte, e para que trocar a chave no servidor da loja seja um reinício e não um
+rebuild. Sem chaves: as três rotas de `/push` respondem 503 `PUSH_NAO_CONFIGURADO`, a
+varredura não tenta enviar (e loga uma vez, não a cada passagem) e a tela diz isso. O que não
+acontece é o servidor recusar-se a subir.
+
+**A inscrição é do aparelho, e o papel é conferido no envio.** `InscricaoPush` guarda
+`endpoint` (`@unique`), as duas chaves da RFC 8291 e o usuário que inscreveu. Reinscrever o
+mesmo `endpoint` **atualiza** e responde 200 em vez de 409: o navegador renova as chaves do
+mesmo aparelho por conta própria, e recusar deixaria o aparelho com chave velha, que falha em
+todo envio seguinte. O envio filtra por `papel: GESTOR` **no momento do envio**, e não no da
+inscrição — uma conta rebaixada para ATENDENTE para de receber sem que ninguém limpe tabela,
+e promovê-la de volta devolve a notificação sem reinscrever o aparelho.
+
+**O `endpoint` não sai do banco.** É credencial de envio: quem o tem manda notificação para
+aquele aparelho. Não volta em resposta de API (a inscrição devolve só `id` e `criadoEm`), não
+vai para o `EventoLog` e não aparece no log do servidor, que registra o `id` da inscrição.
+
+**O envio acontece depois do commit da varredura, e uma falha de push nunca desfaz um
+alerta.** Chamada HTTP dentro de `$transaction` seguraria a transação pela latência da rede,
+e um serviço de push fora do ar não pode fazer o `Alerta` deixar de existir — o registro é o
+que a RF13 conta, e o push é só o empurrão. A varredura acumula o que emitiu, chama o envio
+no fim e engole a falha com log, como o agendador de T18 já fazia com a varredura inteira.
+
+**Inscrição morta é apagada no primeiro 404/410, e push perdido não é reenviado.** 404 e 410
+são a forma padrão de o serviço do navegador dizer "este aparelho não existe mais"; sem
+apagar, a tabela vira lixo que a varredura tenta contatar todo dia. Não há fila de reenvio:
+a passagem seguinte não reemite o alerta (índice único de T18), então um push perdido está
+perdido — aceitável porque a lista in-app continua sendo a fonte de verdade.
+
+**O `ResumoDaVarredura` ganhou `notificacoesEnviadas`,** e as asserções de resumo da suíte de
+T18 foram atualizadas para o campo novo. É a única edição em teste existente nesta tarefa.

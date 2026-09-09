@@ -78,19 +78,34 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
     )
   })
 
-  it('aponta para a aba de alertas e declara que push ainda não sai do aparelho', async () => {
+  it('aponta para a aba de alertas e condiciona o push à autorização do aparelho', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
     render(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
-    // Desde T19 o aviso é entregue no aplicativo; o que ainda não existe é o
-    // push. Sem esta linha, uma janela configurada como push pareceria
-    // notificar o celular — e não notifica.
+    // Quarta versão do aviso (T19b): o push existe, e o que resta por dizer é
+    // que ele depende de cada aparelho ter autorizado. Sem esta linha, uma
+    // janela configurada como push pareceria notificar todo mundo.
     expect(screen.getByText(/verificação periódica roda automaticamente/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/notificação push ainda não está implantada/i),
+      screen.getByText(/para os aparelhos que tiverem autorizado o recebimento/i),
     ).toBeInTheDocument()
+  })
+
+  it('mostra o bloco de notificações deste aparelho', async () => {
+    buscar.mockResolvedValueOnce(lista([TRINTA]))
+
+    render(<TelaConfiguracaoAlerta />)
+    await screen.findByText('30 dias antes')
+
+    // Em jsdom não há service worker nem PushManager, então o bloco cai no
+    // estado "indisponível" — que é justamente o que a gestora vê num
+    // navegador sem suporte, e o que garante que ele não pede nada ao
+    // servidor nesse caso.
+    expect(screen.getByRole('heading', { name: 'Notificações neste aparelho' })).toBeInTheDocument()
+    expect(screen.getByText(/não oferece notificações/i)).toBeInTheDocument()
+    expect(buscar).toHaveBeenCalledTimes(1)
   })
 
   it('lista vazia tem estado próprio, não erro', async () => {

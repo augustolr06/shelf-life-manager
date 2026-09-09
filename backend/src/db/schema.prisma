@@ -35,6 +35,7 @@ model Usuario {
   descartes           Descarte[]
   eventos             EventoLog[]
   unidadesRegistradas UnidadeProduto[]
+  inscricoesPush      InscricaoPush[]
 }
 
 model Produto {
@@ -127,6 +128,31 @@ model Alerta {
   // ConfiguracaoAlerta, porque aqui quem escreve é um job automático e a
   // contagem de alertas emitidos é dado da pesquisa (RF13).
   @@unique([unidadeId, configuracaoId])
+}
+
+// T19b — um aparelho inscrito para receber a notificação push do alerta
+// proativo (RF08). A inscrição é do navegador, não da pessoa: a mesma gestora
+// no celular e no computador da loja são duas linhas.
+model InscricaoPush {
+  id String @id @default(uuid())
+
+  // A URL que o serviço de push do navegador (FCM, Mozilla, Apple) expõe para
+  // este aparelho. É credencial de envio: nunca sai em resposta de API, em
+  // EventoLog nem em log de servidor.
+  endpoint String @unique
+
+  // As duas chaves que a RFC 8291 exige para cifrar o payload. Vêm do
+  // navegador e são opacas para o servidor.
+  p256dh String
+  auth   String
+
+  // Quem inscreveu o aparelho. O envio confere o papel aqui, e não no momento
+  // da inscrição: uma conta rebaixada de GESTOR para ATENDENTE deixa de
+  // receber sem que ninguém precise limpar a tabela.
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  criadoEm DateTime @default(now())
 }
 
 model EventoLog {

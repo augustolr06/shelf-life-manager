@@ -79,7 +79,12 @@ describe('unidades que entram na janela', () => {
       configuracaoId: configuracao.id,
       lidoEm: null,
     })
-    expect(resumo).toEqual({ configuracoesAvaliadas: 1, unidadesNaJanela: 1, alertasEmitidos: 1 })
+    expect(resumo).toEqual({
+      configuracoesAvaliadas: 1,
+      unidadesNaJanela: 1,
+      alertasEmitidos: 1,
+      notificacoesEnviadas: 0,
+    })
   })
 
   it('a unidade que vence no último dia da janela entra; a do dia seguinte, não', async () => {
@@ -158,7 +163,12 @@ describe('quais configurações a varredura enxerga', () => {
     expect(emitidos).toHaveLength(2)
     expect(emitidos.map((a) => a.unidadeId)).toEqual([frasco.id, frasco.id])
     expect(emitidos.map((a) => a.configuracaoId).sort()).toEqual([larga.id, estreita.id].sort())
-    expect(resumo).toEqual({ configuracoesAvaliadas: 2, unidadesNaJanela: 2, alertasEmitidos: 2 })
+    expect(resumo).toEqual({
+      configuracoesAvaliadas: 2,
+      unidadesNaJanela: 2,
+      alertasEmitidos: 2,
+      notificacoesEnviadas: 0,
+    })
   })
 
   it('sem nenhuma configuração, a varredura é no-op e não é erro', async () => {
@@ -166,7 +176,12 @@ describe('quais configurações a varredura enxerga', () => {
 
     const resumo = await varrerEstoqueParaAlertas()
 
-    expect(resumo).toEqual({ configuracoesAvaliadas: 0, unidadesNaJanela: 0, alertasEmitidos: 0 })
+    expect(resumo).toEqual({
+      configuracoesAvaliadas: 0,
+      unidadesNaJanela: 0,
+      alertasEmitidos: 0,
+      notificacoesEnviadas: 0,
+    })
     expect(await alertas()).toHaveLength(0)
     expect(await eventosDe(prisma, 'ALERTA_PROATIVO_EMITIDO')).toHaveLength(0)
   })
@@ -177,7 +192,12 @@ describe('quais configurações a varredura enxerga', () => {
 
     const resumo = await varrerEstoqueParaAlertas()
 
-    expect(resumo).toEqual({ configuracoesAvaliadas: 1, unidadesNaJanela: 0, alertasEmitidos: 0 })
+    expect(resumo).toEqual({
+      configuracoesAvaliadas: 1,
+      unidadesNaJanela: 0,
+      alertasEmitidos: 0,
+      notificacoesEnviadas: 0,
+    })
   })
 })
 
@@ -194,7 +214,12 @@ describe('idempotência — a propriedade que sustenta o agendamento por interva
     // a contagem da pesquisa (RF13) sem aparecer em tela nenhuma.
     expect(await eventosDe(prisma, 'ALERTA_PROATIVO_EMITIDO')).toHaveLength(1)
     // A unidade continua na janela — o que não se repete é o alerta.
-    expect(resumo).toEqual({ configuracoesAvaliadas: 1, unidadesNaJanela: 1, alertasEmitidos: 0 })
+    expect(resumo).toEqual({
+      configuracoesAvaliadas: 1,
+      unidadesNaJanela: 1,
+      alertasEmitidos: 0,
+      notificacoesEnviadas: 0,
+    })
   })
 
   it('unidade cadastrada depois da primeira varredura é alertada na seguinte', async () => {
@@ -264,5 +289,110 @@ describe('o evento ALERTA_PROATIVO_EMITIDO', () => {
     await varrerEstoqueParaAlertas()
 
     expect(await eventosDe(prisma, 'ALERTA_PROATIVO_EMITIDO')).toHaveLength(0)
+  })
+})
+
+/**
+ * O gancho de T19b. A regra de quem recebe e quantas notificações saem é da
+ * suíte de `tests/push/`; o que se verifica **aqui** é só a costura: a
+ * varredura entrega ao envio o que ela acabou de gravar, e o alerta gravado
+ * sobrevive a um push que falhou.
+ */
+describe('a notificação push do que foi emitido (T19b)', () => {
+  it('entrega ao envio o que emitiu, com a janela e o canal de cada alerta', async () => {
+    const configuracao = await configurar(30, 'PUSH')
+    const frasco = await unidade(10)
+    const emitidos: unknown[] = []
+
+    const resumo = await varrerEstoqueParaAlertas({
+      enviar: async () => {
+        emitidos.push('enviado')
+      },
+    })
+
+    expect(resumo.alertasEmitidos).toBe(1)
+    // Sem inscrição nenhuma no banco, não há a quem enviar — o que importa
+    // neste caso é que a varredura chegou até o envio sem erro.
+    expect(resumo.notificacoesEnviadas).toBe(0)
+    expect(emitidos).toHaveLength(0)
+
+    // E o alerta que ela emitiu é o da janela configurada, com o canal dela.
+    const alerta = await prisma.alerta.findFirstOrThrow()
+    expect(alerta).toMatchObject({ unidadeId: frasco.id, configuracaoId: configuracao.id })
+  })
+
+  it('notifica o aparelho inscrito uma vez, com o que a passagem emitiu', async () => {
+    await configurar(30, 'AMBOS')
+    await unidade(10)
+    await unidade(20)
+    await prisma.inscricaoPush.create({
+      data: {
+        endpoint: 'https://push.exemplo.local/celular',
+        p256dh: 'p256dh',
+        auth: 'auth',
+        usuarioId: gestor.id,
+      },
+    })
+    const payloads: string[] = []
+
+    const resumo = await varrerEstoqueParaAlertas({
+      enviar: async (_destino, payload) => {
+        payloads.push(payload)
+      },
+    })
+
+    expect(resumo.alertasEmitidos).toBe(2)
+    expect(resumo.notificacoesEnviadas).toBe(1)
+    expect(payloads).toHaveLength(1)
+    expect(JSON.parse(payloads[0] as string)).toMatchObject({
+      titulo: '2 unidades perto do vencimento',
+    })
+  })
+
+  it('a segunda passagem não notifica de novo: não há alerta novo a anunciar', async () => {
+    await configurar(30, 'PUSH')
+    await unidade(10)
+    await prisma.inscricaoPush.create({
+      data: {
+        endpoint: 'https://push.exemplo.local/celular',
+        p256dh: 'p256dh',
+        auth: 'auth',
+        usuarioId: gestor.id,
+      },
+    })
+    const enviar = vi.fn(async () => {})
+
+    await varrerEstoqueParaAlertas({ enviar })
+    const segunda = await varrerEstoqueParaAlertas({ enviar })
+
+    expect(enviar).toHaveBeenCalledTimes(1)
+    expect(segunda.alertasEmitidos).toBe(0)
+    expect(segunda.notificacoesEnviadas).toBe(0)
+  })
+
+  it('push que falha não desfaz o alerta nem derruba a varredura', async () => {
+    await configurar(30, 'PUSH')
+    await unidade(10)
+    await prisma.inscricaoPush.create({
+      data: {
+        endpoint: 'https://push.exemplo.local/celular',
+        p256dh: 'p256dh',
+        auth: 'auth',
+        usuarioId: gestor.id,
+      },
+    })
+
+    const resumo = await varrerEstoqueParaAlertas({
+      enviar: async () => {
+        throw new Error('serviço de push fora do ar')
+      },
+      log: { warn: () => {} },
+    })
+
+    // O registro é o que a RF13 conta; o push é só o empurrão.
+    expect(resumo.alertasEmitidos).toBe(1)
+    expect(resumo.notificacoesEnviadas).toBe(0)
+    expect(await alertas()).toHaveLength(1)
+    expect(await eventosDe(prisma, 'ALERTA_PROATIVO_EMITIDO')).toHaveLength(1)
   })
 })

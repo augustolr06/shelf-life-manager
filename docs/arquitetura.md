@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-09 (seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-09-09 (seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -14,6 +14,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
 | Frontend | React + Vite + TypeScript | SPA leve, boa DX, plugin de PWA maduro. |
 | Roteamento | `react-router-dom` | Uma URL por tela, decidido em T10 depois de duas tarefas adiando (T03b, T05). Exige app shell em caminho fundo — resolvido pelo `navigateFallback` do service worker. |
 | PWA | `vite-plugin-pwa` | Manifest + service worker prontos para instalabilidade (RNF07). |
+| Notificação push | `web-push` (backend) | Implementa a criptografia de payload (RFC 8291) e a assinatura VAPID (RFC 8292) do Web Push. Escrever isso à mão não é o assunto do trabalho (RF08, T19b). Chaves **opcionais**: sem elas o servidor sobe inteiro e só a notificação some. |
 | Leitura de QR | `html5-qrcode` (câmera do navegador) | Compatível com PWA, sem exigir app nativo (RF05). |
 | Geração de QR | `qrcode` (node-qrcode), no servidor | Gera SVG sem dependência nativa e expõe os metadados do símbolo (versão, nível, matriz), que é o que permite testar o símbolo e não uma string opaca (RF04, T14). |
 | Autenticação | JWT em cookie `httpOnly` + `bcrypt` | Simples, sem estado de sessão a gerenciar no servidor. Atende RF01 e RNF09. |
@@ -156,6 +157,21 @@ model Alerta {
   @@unique([unidadeId, configuracaoId])
 }
 
+model InscricaoPush {
+  id        String   @id @default(uuid())
+  // A URL do serviço de push do navegador para este aparelho. É credencial de
+  // envio: não sai em resposta de API, em EventoLog nem em log de servidor.
+  endpoint  String   @unique
+  // As duas chaves que a RFC 8291 exige para cifrar o payload.
+  p256dh    String
+  auth      String
+  // O envio confere o papel aqui, e no momento do envio: conta rebaixada para
+  // ATENDENTE deixa de receber sem que ninguém limpe a tabela (T19b).
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  criadoEm  DateTime @default(now())
+}
+
 model EventoLog {
   id         String   @id @default(uuid())
   tipoEvento String
@@ -250,6 +266,9 @@ manual produziria.
 | PATCH/DELETE | `/configuracao-alerta/:id` | GESTOR | Altera e **inativa** a janela (RF08) |
 | GET | `/alertas` | GESTOR | Lista os alertas proativos emitidos pela varredura (RF08) |
 | POST | `/alertas/:id/lido` | GESTOR | Reconhece o alerta: grava `lidoEm` e `ALERTA_LIDO` (RF08) |
+| GET | `/push/chave-publica` | GESTOR | Chave pública VAPID, exigida pelo navegador para inscrever o aparelho (RF08) |
+| POST | `/push/inscricoes` | GESTOR | Inscreve **este aparelho** na notificação push (RF08) |
+| DELETE | `/push/inscricoes` | GESTOR | Remove a inscrição do aparelho, pelo `endpoint` no corpo (RF08) |
 | GET | `/dashboard` | GESTOR | RF13 |
 
 **Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
@@ -370,9 +389,26 @@ para reagir. A rota é **idempotente**: o segundo `POST` devolve o `lidoEm` orig
 grava um segundo evento — a corrida entre dois cliques é resolvida por um `updateMany`
 condicionado a `lidoEm: null`, sem lock (a RNF02 é sobre a baixa da unidade, que aqui não
 acontece). Id inexistente é 404 `ALERTA_NAO_ENCONTRADO`. "Lido" é da loja e não de cada
-gestor, porque `lidoEm` é uma coluna só. **Push continua sem implementação** (T19b): alerta
-de janela com canal `PUSH` ou `AMBOS` é entregue in-app, e a tela de configuração declara
-isso.
+gestor, porque `lidoEm` é uma coluna só. Alerta de janela com canal `PUSH` ou `AMBOS`
+aparece nesta lista como qualquer outro: o canal decide se **também** sai notificação, nunca
+se o alerta existe.
+
+**As três rotas de `/push`** (T19b) são a inscrição de aparelhos na notificação — a metade
+da RF08 que alcança quem **não abriu** o sistema. Todas `GESTOR`, pela mesma razão de T19.
+A inscrição é **do navegador, não da pessoa**: o celular da gestora e o computador da loja
+são duas linhas de `InscricaoPush`, e desativar num não cala o outro.
+`GET /push/chave-publica` devolve `{ chavePublica }` — servida por rota autenticada em vez
+de embutida no bundle, para que trocar o par VAPID seja um reinício e não um rebuild.
+`POST /push/inscricoes` recebe `{ endpoint, chaves: { p256dh, auth } }` e devolve
+`{ inscricao: { id, criadoEm } }`: **201** na primeira vez, **200** ao reinscrever o mesmo
+`endpoint` (o navegador renova as chaves por conta própria, e recusar com 409 deixaria o
+aparelho com chave velha, que falha em todo envio seguinte). `DELETE /push/inscricoes`
+recebe `{ endpoint }` e responde 204 — inclusive para endpoint desconhecido, porque o estado
+desejado já vale. As três respondem **503 `PUSH_NAO_CONFIGURADO`** quando o servidor não tem
+chaves VAPID: aceitar inscrição num servidor que não envia seria prometer aviso que nunca
+chega. Nenhuma grava `EventoLog` — a lista de tipos parou nos dez de T19
+(`docs/decisoes.md`, 2026-09-09). O `endpoint` é credencial de envio e **não volta em
+resposta nenhuma**.
 
 **`GET /descartes/pendentes`** (T13) devolve a fila da RF11: as unidades `EM_ESTOQUE`
 cuja `dataValidade` já passou, ordenadas da mais vencida para a menos (desempate por
@@ -489,7 +525,27 @@ usuário. A análise do piloto precisa saber excluí-la ao contar ações humana
 O agendador roda uma vez ao subir e a cada `ALERTA_INTERVALO_HORAS` (padrão 24); ignora o
 tique se a passagem anterior ainda não terminou, e uma falha de varredura é logada sem
 derrubar o servidor — o balcão continua vendendo. A entrega do que ela emite é das duas rotas
-de `/alertas` (T19), descritas na seção 5; o push continua fora (T19b).
+de `/alertas` (T19), descritas na seção 5.
+
+**A notificação push sai daqui** (T19b), em `modules/push/envioPush.ts`, chamado pela
+varredura **depois** que as transações comitaram e nunca de dentro de uma: uma chamada HTTP
+dentro de `$transaction` seguraria a transação pela latência da rede, e um serviço de push
+fora do ar não pode fazer o `Alerta` deixar de existir. São notificados só os alertas de
+janela com canal `PUSH` ou `AMBOS`, e só os aparelhos cujo dono é `GESTOR` **no momento do
+envio**.
+
+A notificação é **uma por passagem e por aparelho, agregada** ("12 unidades perto do
+vencimento · Janela de 30 dias"), e o toque abre `/alertas`. É a única granularidade
+diferente do resto do módulo: o `Alerta` é por unidade porque é dele que a RF13 conta, mas um
+recebimento de 40 frascos que virasse 40 notificações faria a gestora desligar o aviso — e o
+efeito prático de 40 notificações é o de zero. O texto não nomeia produto: notificação
+aparece em tela bloqueada, e quem detalha é a lista.
+
+Inscrição que responde **404 ou 410 é apagada na hora** (aparelho desinstalado, permissão
+revogada); qualquer outro erro é logado e a inscrição fica. **Não há fila de reenvio**: a
+passagem seguinte não reemite o alerta, então um push perdido está perdido — aceitável porque
+a lista in-app continua sendo a fonte de verdade. Um envio que falhe **não desfaz** alerta
+nenhum, e o `ResumoDaVarredura` ganhou `notificacoesEnviadas`.
 
 ## 6. Comportamento offline (RNF07)
 
@@ -502,6 +558,7 @@ Detalhado em T10, a partir da implementação:
 - **O veredito exibido é descartado quando a conexão cai.** Ele vale para o estoque de um instante: durante a queda, outra atendente pode ter baixado a unidade apontada.
 - **`/saidas/ler` e `/health` ficam em `NetworkOnly` no service worker**, sem retry automático — cache serviria decisão vencida, e retry gravaria um segundo `LEITURA_QR_SAIDA`, inflando o denominador da taxa de acerto na primeira leitura (RF12).
 - O `navigateFallback` do service worker faz o app instalado abrir sem rede para mostrar o bloqueio, e sustenta o recarregamento direto de uma URL de tela (seção 1, roteamento).
+- **Os handlers de push entram por `workbox.importScripts`** (T19b), e não trocando o `generateSW` por um `injectManifest`: as três regras acima continuam sendo geradas pelo plugin, em vez de virarem código nosso sem teste por trás — um erro ali quebraria o comportamento offline do balcão, e não a tela de alertas. O arquivo é `frontend/public/sw-push.js`, fora do build do Vite (sem TypeScript, sem Vitest), e por isso curto e sem regra de negócio: o texto da notificação vem pronto do servidor (RNF04).
 
 ## 7. Estratégia de testes
 

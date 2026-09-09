@@ -22,6 +22,11 @@ export const env = {
   // variável existe para que a demonstração possa usar um valor curto sem
   // alterar código.
   ALERTA_INTERVALO_HORAS: Number(process.env.ALERTA_INTERVALO_HORAS ?? 24),
+  // As chaves VAPID do Web Push (T19b) **não** entram aqui, e são a única
+  // exceção deste módulo: elas são opcionais (sem elas o servidor sobe inteiro,
+  // só sem notificação) e precisam ser lidas a cada uso, não uma vez no import
+  // — quem as lê é `modules/push/vapid.ts`, que documenta o motivo. Os nomes
+  // das variáveis estão em `.env.example`.
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
   NODE_ENV: process.env.NODE_ENV ?? 'development',
 } as const

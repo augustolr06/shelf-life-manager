@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { StatusUnidade } from '@prisma/client'
 import { prisma } from '../../db/prisma.js'
 import { dataParaPayload, registrarEvento } from '../evento-log/eventoLog.service.js'
+import { enviarNotificacoesPush, type OpcoesDeEnvio } from '../push/envioPush.js'
+import type { AlertaEmitido } from '../push/mensagemPush.js'
 import { hojeComoData } from '../../shared/data.js'
 import { usuarioDoSistema } from './usuarioDoSistema.js'
 
@@ -15,10 +17,14 @@ import { usuarioDoSistema } from './usuarioDoSistema.js'
  * virou perda. A jornada J3 do PRD pede o contrário disso — enxergar a unidade
  * enquanto ainda cabe decisão comercial.
  *
- * **Não entrega nada a ninguém.** Esta função escreve linhas de `Alerta` e os
- * eventos correspondentes; exibir, notificar e marcar como lido é T19.
+ * **A entrega in-app não é daqui.** Esta função escreve linhas de `Alerta` e os
+ * eventos correspondentes; exibir e marcar como lido é T19. O que ela passou a
+ * fazer em T19b é **notificar** — e ainda assim sem decidir nada sobre a
+ * notificação: ela entrega ao módulo `push` o que emitiu, depois de comitar, e
+ * segue adiante.
  *
- * Contrato: `tasks/T18-job-verificacao-alertas.md`.
+ * Contrato: `tasks/T18-job-verificacao-alertas.md` e
+ * `tasks/T19b-notificacao-push.md`.
  */
 
 export type ResumoDaVarredura = {
@@ -31,6 +37,12 @@ export type ResumoDaVarredura = {
    */
   unidadesNaJanela: number
   alertasEmitidos: number
+  /**
+   * Aparelhos notificados nesta passagem (T19b). Zero é o valor normal na
+   * maioria dos dias — passagem sem alerta novo não notifica ninguém — e
+   * também quando o servidor não tem chaves VAPID.
+   */
+  notificacoesEnviadas: number
 }
 
 const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000
@@ -42,7 +54,10 @@ function limiteDaJanela(hoje: Date, diasAntecedencia: number): Date {
   )
 }
 
-export async function varrerEstoqueParaAlertas(): Promise<ResumoDaVarredura> {
+export async function varrerEstoqueParaAlertas(
+  /** Injetável só para os testes; em produção é sempre o envio de verdade. */
+  opcoesDePush: OpcoesDeEnvio = {},
+): Promise<ResumoDaVarredura> {
   const hoje = hojeComoData()
 
   // Só as ativas: inativar é o que `DELETE /configuracao-alerta/:id` faz desde
@@ -57,7 +72,13 @@ export async function varrerEstoqueParaAlertas(): Promise<ResumoDaVarredura> {
     configuracoesAvaliadas: configuracoes.length,
     unidadesNaJanela: 0,
     alertasEmitidos: 0,
+    notificacoesEnviadas: 0,
   }
+
+  // O que esta passagem emitiu, acumulado para notificar **uma vez** no fim
+  // (T19b, Decisão 2): uma notificação por janela deixaria a gestora com duas
+  // no bolso quando 30 e 7 dias estão configuradas juntas.
+  const emitidos: AlertaEmitido[] = []
 
   if (configuracoes.length === 0) return resumo
 
@@ -148,6 +169,28 @@ export async function varrerEstoqueParaAlertas(): Promise<ResumoDaVarredura> {
     await prisma.$transaction([...criacoes, ...eventos])
 
     resumo.alertasEmitidos += candidatas.length
+
+    for (const unidade of candidatas) {
+      emitidos.push({
+        unidadeId: unidade.id,
+        diasAntecedencia: configuracao.diasAntecedencia,
+        canal: configuracao.canal,
+      })
+    }
+  }
+
+  // **Depois** das transações, nunca dentro (T19b, Decisão 7): uma chamada
+  // HTTP dentro de `$transaction` seguraria a transação pela latência da rede,
+  // e um serviço de push fora do ar não pode fazer o `Alerta` deixar de
+  // existir. O `try/catch` é a segunda metade da mesma regra — o envio já não
+  // lança por conta própria, e este é o cinto de segurança para o que
+  // escapar: a varredura precisa terminar dizendo a verdade sobre o que
+  // gravou, mesmo que ninguém tenha sido notificado.
+  try {
+    const envio = await enviarNotificacoesPush(emitidos, opcoesDePush)
+    resumo.notificacoesEnviadas = envio.notificacoesEnviadas
+  } catch (erro) {
+    console.error('envio de notificações push falhou; os alertas foram gravados', erro)
   }
 
   return resumo

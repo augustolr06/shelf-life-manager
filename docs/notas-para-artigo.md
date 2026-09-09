@@ -927,13 +927,10 @@ que ela revela sobre o problema vale mais que a tela em si.
 
 **Limitações a declarar sem rodeios:**
 
-- **A notificação push não está implantada.** A RF08 fala em "in-app e/ou push"; o que existe
-  é o in-app. Push exige inscrição por dispositivo, chaves VAPID, service worker próprio e
-  HTTPS em aparelho real — e, mais importante para o artigo, muda a natureza do aviso: o
-  in-app só alcança quem já abriu o sistema, e o push alcança quem não abriu. **A metade da
-  RF08 que falta é justamente a que atacaria o gargalo do item 1.** Enquanto isso, uma janela
-  configurada como push é entregue no aplicativo, e a tela diz isso — promessa parcial
-  declarada é preferível a aviso que não chega a lugar nenhum.
+- ~~**A notificação push não está implantada.**~~ **Resolvido em T19b** — ver a entrada
+  seguinte, "O aviso que alcança quem não abriu o sistema". O que continua verdadeiro, e que
+  motivou a tarefa, é o diagnóstico: o in-app só alcança quem já abriu o sistema, e **a
+  metade da RF08 que faltava era justamente a que ataca o gargalo do item 1**.
 - **"Lido" é da loja, não de cada pessoa.** `Alerta.lidoEm` é uma coluna só: com dois
   gestores, o que um marcar sai da vista do outro. Numa loja pequena isso é adequado (é
   literalmente o mesmo balcão); em qualquer escala maior, leitura por usuário seria
@@ -945,5 +942,84 @@ que ela revela sobre o problema vale mais que a tela em si.
 
 **Tarefa relacionada:** T19 (a entrega), T18 (a emissão), T17 (a janela), T13 (a fila, que
 divide a tela com o alerta vencido), RF08, RF12/RF13
+
+**Data:** 2026-09-09
+
+---
+
+## O aviso que alcança quem não abriu o sistema: o push e o que ele custa
+
+**Contexto do problema:** a entrega in-app (T19) fechou a cadeia da RF08 até a tela, e deixou
+declarado o gargalo — *"numa loja onde a gestora não abre o sistema, o alerta não chega a
+ninguém"*. É uma limitação de processo, não de código: o software vigia o estoque todo dia, e
+o resultado dessa vigilância fica esperando alguém decidir abri-lo. A notificação push é a
+única parte do sistema que **inverte a iniciativa** — em vez de a pessoa consultar o software,
+o software procura a pessoa. Vale registrar que essa é a diferença mais funda entre o processo
+manual e o automatizado nesta perfumaria: no manual, quem vigia e quem decide são a mesma
+pessoa no mesmo instante, e não existe "avisar".
+
+**Quatro coisas apareceram ao implementar:**
+
+1. **A entrega tem uma granularidade própria, diferente da do registro.** O `Alerta` é por
+   unidade física desde T18, e precisa ser: é dele que a RF13 conta "a unidade alertada foi
+   vendida antes de vencer?". A notificação **não pode** seguir a mesma granularidade — um
+   recebimento de 40 frascos com a mesma validade entrando na janela dispararia 40
+   notificações no mesmo segundo, e o efeito prático de 40 notificações é o de zero: a
+   gestora desliga o aviso, e a RF08 morre no aparelho dela. A solução (uma notificação
+   agregada por passagem, o detalhe na lista) é banal; o que não é banal, e vale ao artigo, é
+   que **o dado da pesquisa e o aviso ao humano pedem formas diferentes do mesmo fato**, e
+   confundi-las degrada os dois.
+
+2. **O canal de entrega decidiu o que a tela pode prometer.** A configuração da janela (T17)
+   já aceitava `PUSH` e `AMBOS` desde antes de existir push, e o aviso da tela precisou ser
+   reescrito **quatro vezes** ao longo de T17, T18, T19 e T19b — a cada tarefa, dizendo
+   exatamente até onde o sistema ia naquele momento. É um padrão que o trabalho adotou de
+   propósito: quando uma funcionalidade é entregue por fatias, a interface tem que declarar a
+   fatia atual, senão a configuração vira promessa falsa. O texto final não promete nem "você
+   será avisado" nem "isto não funciona": diz que a notificação vale **para os aparelhos que
+   tiverem autorizado o recebimento** — que é a verdade e é também o que a gestora precisa
+   fazer a seguir.
+
+3. **Push é o primeiro requisito cuja verificação não cabe na máquina de desenvolvimento.**
+   Web Push exige contexto seguro (HTTPS ou `localhost`), permissão concedida pelo usuário e
+   um serviço de push externo (FCM, Mozilla, Apple). A suíte cobre a regra — quem recebe,
+   quantas notificações, o que acontece com a inscrição morta —, e o navegador automatizado
+   cobre os estados da tela, **inclusive o de permissão negada**, que é o mais provável de
+   acontecer na loja. O que nenhum dos dois cobre é a notificação chegando: isso é verificação
+   de campo, no mesmo lote do teste de câmera de T10 e da leitura física do QR de T16. Vale
+   como observação metodológica: **num PWA, a fronteira entre o que se testa e o que se
+   confere em aparelho não é escolha do projeto, é imposta pela plataforma**.
+
+4. **A automação da entrega criou uma dependência de infraestrutura que a loja não controla.**
+   O alerta in-app depende do banco; o push depende de um serviço do fabricante do navegador
+   estar de pé e alcançável. O sistema trata isso sem drama — 404/410 apagam a inscrição
+   morta, outros erros são logados, e um push que falha não desfaz o alerta —, mas a
+   consequência é real e assimétrica: **a lista in-app continua sendo a fonte de verdade, e o
+   push é apenas o empurrão**. Foi essa assimetria que permitiu não construir fila de reenvio.
+
+**Limitações a declarar sem rodeios:**
+
+- **O log não isola o efeito do push.** A decisão consciente de parar em dez tipos de evento
+  (T19) tem este preço: o `ALERTA_LIDO` diz que a gestora reconheceu o aviso, mas não diz se
+  ela o reconheceu **porque a notificação chegou** ou porque abriu o sistema por conta
+  própria. Como o efeito do push no tempo de reação é exatamente a pergunta que esta tarefa
+  levanta, a resposta terá de vir de fora do log — comparando os períodos do piloto antes e
+  depois da implantação, o que é mais fraco e precisa ser dito.
+- **Push perdido está perdido.** Não há fila de reenvio: a passagem seguinte não reemite o
+  alerta (a idempotência de T18), então uma notificação que falhou não volta. É aceitável
+  porque a lista in-app não depende dela, mas significa que **o alcance do push é melhor que o
+  do in-app, e ainda assim não é garantido**.
+- **A notificação é da loja e chega a qualquer aparelho autorizado.** Como "lido" é da loja e
+  não de cada gestor (T19), e a inscrição é do aparelho e não da pessoa, dois gestores com
+  dois celulares recebem a mesma notificação e o reconhecimento de um vale pelos dois. Numa
+  perfumaria com um ou dois gestores isso é adequado; em qualquer escala maior, seria
+  requisito ter destinatário e leitura por pessoa.
+- **O texto da notificação não nomeia produto, de propósito.** Notificação aparece em tela
+  bloqueada, à vista de quem estiver por perto no balcão. É uma restrição de privacidade que
+  o processo manual não tinha — na prateleira, quem lê a etiqueta é quem está diante dela.
+
+**Tarefa relacionada:** T19b (o push), T19 (a entrega in-app, que ele empurra), T18 (a
+varredura, único momento em que há o que notificar), T17 (o canal), T10 (o service worker e a
+RNF07, que a solução preservou), RF08
 
 **Data:** 2026-09-09

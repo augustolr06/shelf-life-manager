@@ -9,6 +9,7 @@ import { rotasAuth } from './modules/auth/auth.routes.js'
 import { rotasDescarte } from './modules/descarte/descarte.routes.js'
 import { rotasExcecaoVencido } from './modules/excecao-vencido/excecaoVencido.routes.js'
 import { rotasProduto } from './modules/produto/produto.routes.js'
+import { rotasPush } from './modules/push/push.routes.js'
 import { rotasSaida } from './modules/saida/saida.routes.js'
 import { rotasUnidade } from './modules/unidade/unidade.routes.js'
 import { env } from './shared/env.js'
@@ -57,6 +58,7 @@ export function buildApp(): FastifyInstance {
   app.register(rotasDescarte)
   app.register(rotasConfiguracaoAlerta)
   app.register(rotasAlerta)
+  app.register(rotasPush)
 
   // Liveness. O frontend consulta este endpoint antes de habilitar a tela de
   // leitura de QR (docs/arquitetura.md seção 6).

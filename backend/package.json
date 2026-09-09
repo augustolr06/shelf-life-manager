@@ -17,12 +17,14 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
     "alertas:varrer": "tsx src/modules/alerta/varredura.cli.ts",
+    "push:chaves": "tsx src/modules/push/chaves.cli.ts",
     "test:saida": "vitest run tests/saida",
     "test:evento-log": "vitest run tests/evento-log",
     "test:excecao": "vitest run tests/excecao-vencido",
     "test:descarte": "vitest run tests/descarte",
     "test:etiquetas": "vitest run tests/etiquetas",
-    "test:alerta": "vitest run tests/alerta"
+    "test:alerta": "vitest run tests/alerta",
+    "test:push": "vitest run tests/push"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
@@ -32,11 +34,13 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.2",
     "fastify": "^5.6.0",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.18.1",
     "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
     "prisma": "^6.16.1",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",

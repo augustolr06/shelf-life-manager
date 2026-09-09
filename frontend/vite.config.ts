@@ -10,6 +10,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       workbox: {
+        // T19b — os handlers de `push` e `notificationclick` entram por
+        // importação, e não trocando o `generateSW` por um `injectManifest`:
+        // assim as três regras de offline decididas em T10 (logo abaixo)
+        // continuam sendo geradas pelo plugin, e não viram código nosso sem
+        // teste por trás. O arquivo vive em `public/sw-push.js` e é copiado
+        // para a raiz do build.
+        importScripts: ['sw-push.js'],
         // Duas razões, ambas de T10. (a) O app instalado precisa abrir sem
         // rede para mostrar o bloqueio explícito da tela de leitura, em vez do
         // erro de rede do navegador, que não explica nada. (b) Cada tela tem

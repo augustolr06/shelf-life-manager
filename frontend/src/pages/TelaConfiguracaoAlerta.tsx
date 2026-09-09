@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { NotificacoesDoAparelho } from '../components/NotificacoesDoAparelho'
 import { ErroApi } from '../services/api'
 import {
   CANAIS,
@@ -142,17 +143,18 @@ export function TelaConfiguracaoAlerta() {
         produto — 30 dias dá tempo de decidir uma promoção; 7 dias é última chamada.
       </p>
 
-      {/* Terceira versão deste aviso: T17 dizia que não havia varredura, T18
-          que não havia entrega, e T19 entregou — no aplicativo. O que resta
-          por dizer é o canal `PUSH`, que continua aceitável na configuração e
-          ainda não sai do aparelho. Enquanto for assim, o texto precisa dizê-lo:
-          a alternativa seria uma janela configurada como push cujo aviso não
-          chega a lugar nenhum. */}
+      {/* Quarta versão deste aviso: T17 dizia que não havia varredura, T18 que
+          não havia entrega, T19 entregou no aplicativo e disse que push não
+          existia — e T19b implantou o push. O que o texto precisa dizer agora é
+          a única parte que continua fora do alcance do servidor: a notificação
+          depende de cada aparelho ter sido autorizado, logo abaixo. */}
       <p className="nota-informativa" role="note">
         A verificação periódica roda automaticamente e os alertas aparecem na aba{' '}
-        <strong>Alertas</strong>. A notificação push ainda não está implantada: janelas com
-        canal push ou ambos também são avisadas no aplicativo, por enquanto.
+        <strong>Alertas</strong>. Janelas com canal push ou ambos também enviam notificação —
+        para os aparelhos que tiverem autorizado o recebimento.
       </p>
+
+      <NotificacoesDoAparelho />
 
       <form className="formulario-configuracao-alerta" onSubmit={cadastrar}>
         <h3>Nova janela de antecedência</h3>
