@@ -847,3 +847,76 @@ janela não produz alerta nenhum. O aviso é uma linha de texto e sai quando o j
 ele, a ausência de alerta se lê como defeito. Ele usa classe própria (`.nota-informativa`) e
 não `.aviso`, que é vermelho como o `.erro` — o mesmo achado que T13 registrou ao criar
 `.nota-sucesso`: informação neutra e falha não podem ter a mesma cor.
+
+## 2026-09-09 — Varredura periódica de alertas proativos (T18)
+
+**O job é um `setInterval` no processo do backend, não `cron` do sistema nem rota HTTP.**
+Das três formas possíveis, a rota foi recusada primeiro: "rodar o job" exposto como endpoint
+é uma porta autenticada que dispara escrita em massa — ou fica aberta ao GESTOR, e um clique
+repetido passa a ser problema da idempotência sozinha, ou fica sem autenticação, que é pior.
+Entre o agendador interno e o `cron` do sistema, o interno venceu porque o alvo é uma
+perfumaria de pequeno porte: exigir configuração de cron no servidor da loja para que um
+requisito funcional aconteça é transferir ao usuário uma responsabilidade que o software pode
+assumir. O script `npm run alertas:varrer` existe como saída — chama exatamente a mesma
+função, então as duas formas não podem divergir — e serve à demonstração. A contrapartida
+está declarada em `docs/notas-para-artigo.md`: **backend fora do ar, varredura não roda**.
+
+**Um `Alerta` por par (unidade, configuração), para sempre, com índice único no banco.** O
+alerta é a notícia de que a unidade **entrou** na janela daquela configuração, não um
+lembrete diário — a janela de 7 dias emite o dela depois porque é outra configuração, não
+porque a primeira se repete. Esta é a decisão que sustenta todo o resto do desenho: por ser
+idempotente, a varredura pode ser agendada por intervalo tosco, sem guardar "última execução"
+(estado que se perderia no primeiro reinício) e sem acertar horário fixo.
+
+A garantia vai para o banco (`@@unique([unidadeId, configuracaoId])`), **ao contrário** da
+unicidade de `ConfiguracaoAlerta.diasAntecedencia` decidida em T17, que ficou na aplicação.
+A diferença que justifica: lá quem escreve é uma gestora mexendo em configuração de vez em
+quando; aqui quem escreve é um job automático, repetidamente, sem ninguém olhando, e a
+contagem de alertas emitidos é dado da pesquisa (RF13). Além disso este índice é total, e não
+parcial — cabe no Prisma sem SQL cru, que era a razão prática de T17 não o ter feito.
+Consequência aceita: unidade cuja validade for corrigida (T11) para uma data distante e
+depois voltar à janela **não alerta de novo**. Silêncio é preferível a ruído aqui.
+
+**O evento da varredura é assinado por uma conta de sistema.** `EventoLog.usuarioId` é FK
+obrigatória (PRD seção 5), e a varredura não tem usuário: ninguém pediu, ninguém clicou. As
+alternativas eram tornar a coluna nullable — enfraquecendo a garantia dos nove tipos de
+evento por causa de um — ou não gravar o `ALERTA_PROATIVO_EMITIDO`, o que tiraria do
+`EventoLog` um tipo que o PRD declara e quebraria a propriedade que faz dele instrumento de
+pesquisa: ler a linha do tempo inteira de uma unidade em **uma** tabela ("alertada no dia X,
+vendida no dia X+4"), sem `JOIN` entre formatos diferentes. Escolhida a conta
+`sistema@estoque.local`, papel `ATENDENTE` (menor privilégio disponível) e `senhaHash` que
+nenhuma senha casa, criada tanto pelo seed quanto pela própria varredura. A análise precisa
+saber excluí-la ao contar ações humanas — registrado em `docs/notas-para-artigo.md`.
+
+**A unidade já vencida não gera alerta; a janela é `[hoje, hoje + N]`, fechada dos dois
+lados.** A borda inferior é a mesma do pool prioritário do FIFO, pela razão de sempre: se as
+cláusulas divergirem, aparece uma faixa de unidades invisível dos dois lados. O que venceu já
+está na fila de descarte de T13, e o alerta proativo existe para o tempo em que ainda cabe
+decisão comercial. A borda superior é fechada porque "avise 30 dias antes" inclui o
+trigésimo dia.
+
+**Um evento por alerta, não um por varredura.** `EventoLog.unidadeId` é singular, e é essa
+granularidade que permite responder o indicador que interessa — a unidade alertada foi
+vendida antes de vencer? (RF12). Um evento agregado ("emiti 43 alertas") não responde. O
+custo é volume numa primeira varredura de estoque real, e ele é pago uma vez por unidade e
+por janela.
+
+**Intervalo de 24h por padrão, configurável, com uma passagem ao subir.** A janela é medida
+em dias, então varrer mais de uma vez por dia não muda nada — a segunda passagem é no-op por
+construção. Varrer na inicialização evita que reiniciar o servidor adie o alerta em um dia
+inteiro. `ALERTA_INTERVALO_HORAS` (padrão 24) fica em `shared/env.ts` para que a demonstração
+use um valor curto sem alterar código. O agendador ignora o tique se a passagem anterior
+ainda não terminou (duas passagens simultâneas competiriam pelas mesmas unidades, e o índice
+único recusaria a segunda com um erro que descreveria uma situação que não é falha), e
+engole a exceção de uma varredura que falhe: o balcão precisa continuar vendendo se o job
+quebrar.
+
+**A suíte do agendador fica solta em `tests/`, não em `tests/alerta/`.** Ela injeta a
+varredura e usa timers falsos — não precisa de banco, e a regra de T14b é justamente essa: a
+pasta separa quem exige PostgreSQL de quem roda em qualquer máquina. `test:sem-banco` foi
+reexecutado com `.env.test` removido para confirmar (96 verdes).
+
+**A tela de T17 troca o aviso em vez de perdê-lo.** T17 registrou que ele sairia quando o job
+entrasse; removê-lo por completo deixaria a tela sugerindo que configurar uma janela produz
+um aviso visível, o que só passa a ser verdade em T19. O texto novo diz as duas coisas: a
+varredura roda, a entrega ainda não existe.

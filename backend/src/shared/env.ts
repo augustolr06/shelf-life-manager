@@ -16,6 +16,12 @@ export const env = {
   // servidor não deve subir com um valor padrão adivinhável.
   JWT_SECRET: obrigatoria('JWT_SECRET'),
   PORT: Number(process.env.PORT ?? 3333),
+  // De quanto em quanto tempo a varredura de alertas roda (T18). Padrão 24h:
+  // a janela da RF08 é medida em dias, então varrer com mais frequência não
+  // muda o resultado — a segunda passagem do dia é no-op por construção. A
+  // variável existe para que a demonstração possa usar um valor curto sem
+  // alterar código.
+  ALERTA_INTERVALO_HORAS: Number(process.env.ALERTA_INTERVALO_HORAS ?? 24),
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
   NODE_ENV: process.env.NODE_ENV ?? 'development',
 } as const

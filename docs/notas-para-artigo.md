@@ -818,3 +818,67 @@ produz a série ambígua.
 **Data:** 2026-09-08
 
 ---
+
+## O primeiro ato que o sistema pratica sozinho — e o que ele exige que o processo manual nunca precisou ter
+
+**Contexto do problema:** tudo o que este sistema fazia até aqui era reativo, e nisso ele
+ainda se parecia com o processo manual que veio substituir. O FIFO decide quando uma
+atendente lê um QR; a fila de descarte mostra o que já virou perda. Na loja, é o mesmo
+desenho: alguém olha a prateleira e repara — ou não repara. A perda por vencimento não
+acontece por falta de regra, acontece porque **ninguém estava olhando naquele intervalo**, e
+a janela em que ainda cabia uma decisão comercial (promoção, destaque na vitrine) passou sem
+ser vista. A jornada J3 do PRD pede exatamente o contrário: verificação periódica, alerta,
+decisão antes da perda.
+
+**Alternativas consideradas:** para o disparo, `cron` do sistema operacional, uma rota HTTP
+"rodar agora" e um agendador dentro do processo do backend. Para a repetição do alerta, um
+lembrete recorrente enquanto a unidade continuasse parada, ou uma notícia única de entrada na
+janela.
+
+**Solução adotada:** uma varredura idempotente, agendada por intervalo dentro do próprio
+processo do servidor. Para cada janela de antecedência ativa, ela materializa um `Alerta` por
+unidade que entrou naquela janela — uma vez, garantido por índice único no banco — e um
+evento `ALERTA_PROATIVO_EMITIDO` por alerta. O que já venceu fica de fora: é da fila de
+descarte, e a decisão comercial já não cabe mais.
+
+**Por que resolve o problema / trade-offs:** o achado que vale ao artigo é o que a
+automação **exigiu** e que o processo manual nunca precisou ter. Três coisas apareceram, e
+nenhuma delas estava no PRD:
+
+1. **Um ator não-humano.** Todo registro do sistema até aqui tinha autor: quem leu o QR, quem
+   cadastrou o lote, quem autorizou a venda vencida. O log é instrumento de coleta do TCC, e
+   sua chave de usuário é obrigatória justamente porque a pesquisa quer saber quem fez o quê.
+   A varredura não tem quem: ninguém pediu, ninguém clicou. Foi preciso criar uma conta de
+   sistema para assinar o evento — e, com ela, a obrigação de a análise **excluí-la ao contar
+   ações humanas**, sob pena de o piloto reportar uma atendente fictícia como a mais ativa da
+   loja. É um custo metodológico que só aparece quando o software deixa de ser mero registro
+   do que as pessoas fazem e passa a agir.
+2. **Idempotência como requisito, não como refinamento.** No processo manual, "avisar de
+   novo" é decisão de quem avisa. Automatizado, o mesmo estoque é reexaminado indefinidamente,
+   e a pergunta "já avisei sobre este frasco?" precisou de resposta persistida antes de o
+   primeiro alerta existir. A escolha — o alerta é a notícia da *entrada* na janela, não um
+   lembrete — é o que permitiu o agendamento ser simples (intervalo tosco, sem estado de
+   última execução, sobrevivendo a reinício). O trade-off é assumido: uma unidade que
+   continua parada não volta a incomodar ninguém pela mesma janela. Uma janela mais estreita
+   configurada em paralelo (7 dias, "última chamada") é a forma prevista de insistir, e ela
+   insiste com informação nova, não repetindo a antiga.
+3. **Uma dependência operacional que não existia.** O agendador vive no processo do backend.
+   **Se o servidor estiver fora do ar na hora, aquela passagem não acontece** — e, como o
+   alerta é a notícia de uma entrada e não um estado recalculado, uma passagem perdida não é
+   recuperada com atraso, é diluída na seguinte (que ainda alerta, porque a unidade continua
+   na janela; o que se perde são horas, não o alerta). A janela ter dias de folga é o que
+   torna isso tolerável nesta escala. Num sistema maior a resposta seria outra — agendador
+   externo, com registro de execuções —, e essa é a fronteira honesta a declarar: **a
+   automação proativa transfere para a disponibilidade do software uma vigilância que antes
+   dependia da presença de uma pessoa**. Quando ninguém está olhando, o sistema é o único que
+   está; se ele também não estiver, ninguém está.
+
+Há ainda uma limitação de escopo a declarar sem rodeios: esta tarefa **emite** o alerta e não
+o entrega a ninguém. Entre ela e a entrega (in-app e push), o alerta existe no banco e não
+muda o comportamento de ninguém na loja — é registro, não aviso. O valor medido pelo piloto
+só começa a existir quando a notificação chega.
+
+**Tarefa relacionada:** T18 (a varredura), T17 (a janela que ela lê), T19 (a entrega), T13
+(a fila do que já venceu, que é a fronteira inferior da janela), RF08, RF12/RF13
+
+**Data:** 2026-09-09

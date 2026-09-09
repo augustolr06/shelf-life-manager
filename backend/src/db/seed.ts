@@ -5,10 +5,14 @@
 // que só existem a partir de T04/T05. Desde T17 popula também a janela de
 // antecedência padrão dos alertas (RF08).
 //
+// Desde T18 popula também a conta de sistema que assina os eventos da
+// varredura automática de alertas.
+//
 // Idempotente: rodar duas vezes não duplica nem sobrescreve senha alterada.
 import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { Papel, PrismaClient } from '@prisma/client'
+import { DADOS_DO_USUARIO_DO_SISTEMA } from '../modules/alerta/usuarioDoSistema.js'
 
 const prisma = new PrismaClient()
 
@@ -41,6 +45,18 @@ async function main() {
   }
 
   console.log(`senha de ambos: ${SENHA_PADRAO} — apenas para desenvolvimento`)
+
+  // A conta que assina os eventos emitidos por varredura (T18). Ela não
+  // autentica: o hash gravado não é hash de senha nenhuma. A varredura a cria
+  // sozinha se faltar, mas tê-la desde o seed evita que ela apareça no banco
+  // de demonstração só depois do primeiro alerta.
+  const sistema = await prisma.usuario.upsert({
+    where: { email: DADOS_DO_USUARIO_DO_SISTEMA.email },
+    update: {},
+    create: { ...DADOS_DO_USUARIO_DO_SISTEMA },
+  })
+
+  console.log(`conta de sistema disponível: ${sistema.email} (não autentica)`)
 
   // Idempotência sem chave natural: a tabela não tem `unique`, então o critério
   // é "já existe alguma configuração?". Rodar o seed de novo não deve

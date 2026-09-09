@@ -119,6 +119,14 @@ model Alerta {
   configuracao   ConfiguracaoAlerta @relation(fields: [configuracaoId], references: [id])
   geradoEm       DateTime           @default(now())
   lidoEm         DateTime?
+
+  // T18: o alerta é a notícia de que a unidade entrou na janela daquela
+  // configuração, e essa notícia acontece uma vez só. A varredura roda
+  // repetidamente sobre o mesmo estoque, então a unicidade é o que a torna
+  // idempotente — e ela fica no banco, e não só na aplicação como em
+  // ConfiguracaoAlerta, porque aqui quem escreve é um job automático e a
+  // contagem de alertas emitidos é dado da pesquisa (RF13).
+  @@unique([unidadeId, configuracaoId])
 }
 
 model EventoLog {

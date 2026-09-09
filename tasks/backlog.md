@@ -48,7 +48,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T17 | CRUD de ConfiguracaoAlerta (RF08) | concluída | T02 | `tasks/T17-configuracao-alerta.md` |
-| T18 | Job de verificação periódica + geração de Alerta | pendente | T17, T05 | — |
+| T18 | Job de verificação periódica + geração de Alerta | concluída | T17, T05 | `tasks/T18-job-verificacao-alertas.md` |
 | T19 | Notificação in-app / push | pendente | T18 | — |
 
 ## Incremento 6 — Dashboard e relatórios

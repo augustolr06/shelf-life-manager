@@ -57,7 +57,9 @@ npm run dev               # http://localhost:3333
 
 O seed é idempotente: rodar de novo não duplica usuários. Ele cria
 `gestor@estoque.local` e `atendente@estoque.local`, ambos com a senha
-`estoque123` — credenciais de desenvolvimento, não usar fora dele.
+`estoque123` — credenciais de desenvolvimento, não usar fora dele. Cria também
+`sistema@estoque.local`, a conta que assina os eventos da varredura automática
+de alertas (T18): ela não autentica, e nenhuma senha entra nela.
 
 Verificação rápida:
 
@@ -93,11 +95,12 @@ npm run dev               # http://localhost:5173
 | `npm test` | Roda todos os testes (Vitest) — inclui os que exigem PostgreSQL |
 | `npm run test:sem-banco` | Só as suítes que não usam banco, sem precisar de container |
 | `npm run test:fifo` | Só a suíte da validação FIFO (exige PostgreSQL) |
-| `npm run test:saida` · `test:evento-log` · `test:excecao` · `test:descarte` · `test:etiquetas` | Uma suíte de banco por vez (todas exigem PostgreSQL) |
+| `npm run test:saida` · `test:evento-log` · `test:excecao` · `test:descarte` · `test:etiquetas` · `test:alerta` | Uma suíte de banco por vez (todas exigem PostgreSQL) |
 | `npm run typecheck` | Checagem de tipos sem emitir, `src/` e `tests/` |
 | `npm run prisma:generate` | Gera o Prisma Client |
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
-| `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento |
+| `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento, a janela de alerta padrão e a conta de sistema |
+| `npm run alertas:varrer` | Roda uma varredura de alertas proativos agora e sai (T18). O caminho normal é o agendador dentro do servidor |
 | `npm run prisma:studio` | Abre o Prisma Studio |
 
 #### Testes que exigem PostgreSQL

@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-08 (seções 2, 3 e 5 revisadas em T17, que acrescentou as rotas de configuração de alerta; seção 5.2, sobre a etiqueta física, acrescentada em T15)
+Última atualização: 2026-09-09 (seções 2 e 3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`; seção 5.3, sobre a varredura, acrescentada em T18)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -31,7 +31,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /saida          <- contém validarSaidaFifo.ts (RNF03: função única)
       /excecao-vencido <- os três caminhos da unidade vencida (PRD 6.1)
       /descarte       <- a fila do que venceu e ainda está em estoque (RF11)
-      /alerta         <- a janela de antecedência configurável (RF08)
+      /alerta         <- a janela de antecedência (RF08), a varredura periódica e seu agendador
       /evento-log
     /db
       schema.prisma
@@ -149,6 +149,11 @@ model Alerta {
   configuracao   ConfiguracaoAlerta  @relation(fields: [configuracaoId], references: [id])
   geradoEm       DateTime            @default(now())
   lidoEm         DateTime?
+
+  // T18: o alerta acontece uma vez por par, e é isso que torna a varredura
+  // idempotente. Aqui a garantia é do banco, ao contrário da unicidade de
+  // ConfiguracaoAlerta.diasAntecedencia — ver seção 5.3.
+  @@unique([unidadeId, configuracaoId])
 }
 
 model EventoLog {
@@ -402,6 +407,45 @@ folha vive em `frontend/src/pages/TelaEtiquetas.tsx` (rota `/etiquetas`, `GESTOR
   produto e pede, porque abrir sozinha o estoque inteiro do SKU faria reimprimir etiqueta de
   frasco já etiquetado.
 - **Imprime-se a página carregada**, no mesmo esquema de paginação da rota.
+
+### 5.3 A varredura periódica de alertas (T18)
+
+O único trabalho do sistema que **não** começa por uma requisição: não tem rota, não tem
+usuário e não aparece na tabela acima. Vive em
+`backend/src/modules/alerta/varreduraAlertas.ts`, roda por `agendador.ts` dentro do processo
+do servidor (iniciado em `server.ts`, nunca em `buildApp()`) e pode ser disparada à mão com
+`npm run alertas:varrer`.
+
+Para cada `ConfiguracaoAlerta` **ativa**, a janela é `hoje <= dataValidade <= hoje + diasAntecedencia`,
+com o mesmo `hojeComoData()` do FIFO e da fila de descarte. A borda inferior é a do pool
+prioritário do passo 4 da seção 4: **o que já venceu não alerta**, porque é assunto da fila
+de T13 — alertar sobre perda consumada seria a terceira apresentação do mesmo fato. Só
+`status = EM_ESTOQUE`; unidade de produto inativo entra, como na fila.
+
+Cada unidade nova na janela vira uma linha de `Alerta` mais um `ALERTA_PROATIVO_EMITIDO` no
+`EventoLog`, na mesma transação (uma por janela, na forma de array, como o lote de T05). O
+evento é **um por alerta**, com `unidadeId` e `produtoId`, e payload
+`{ configuracaoId, diasAntecedencia, canal, dataValidade, diasParaVencer }` — é essa
+granularidade que permite cruzar o alerta com a saída posterior da mesma unidade e responder
+"a unidade alertada foi vendida antes de vencer?" (RF12).
+
+**A varredura é idempotente**, e é isso que permite agendá-la por intervalo simples em vez
+de guardar "última execução": o índice único `@@unique([unidadeId, configuracaoId])` fixa que
+o alerta é a notícia da **entrada** da unidade na janela, e acontece uma vez. Duas janelas
+ativas (30 e 7 dias) geram dois alertas para a mesma unidade, um por janela, em momentos
+diferentes — que é o uso previsto em T17. Rodar dez vezes no mesmo dia deixa o banco como
+uma. A garantia é do banco, e não da aplicação como em `ConfiguracaoAlerta`, porque aqui quem
+escreve é um job automático sem ninguém olhando, e a contagem de alertas emitidos é dado da
+pesquisa (RF13).
+
+O evento é assinado pela **conta de sistema** `sistema@estoque.local` (papel `ATENDENTE`,
+hash que nenhuma senha casa): `EventoLog.usuarioId` é FK obrigatória e a varredura não tem
+usuário. A análise do piloto precisa saber excluí-la ao contar ações humanas.
+
+O agendador roda uma vez ao subir e a cada `ALERTA_INTERVALO_HORAS` (padrão 24); ignora o
+tique se a passagem anterior ainda não terminou, e uma falha de varredura é logada sem
+derrubar o servidor — o balcão continua vendendo. Nada disso entrega o aviso a ninguém: a
+lista in-app, o push e o `lidoEm` são T19.
 
 ## 6. Comportamento offline (RNF07)
 

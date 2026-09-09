@@ -16,6 +16,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
+    "alertas:varrer": "tsx src/modules/alerta/varredura.cli.ts",
     "test:saida": "vitest run tests/saida",
     "test:evento-log": "vitest run tests/evento-log",
     "test:excecao": "vitest run tests/excecao-vencido",

@@ -142,12 +142,14 @@ export function TelaConfiguracaoAlerta() {
         produto — 30 dias dá tempo de decidir uma promoção; 7 dias é última chamada.
       </p>
 
-      {/* Enquanto T18 não existir, configurar aqui não produz aviso nenhum.
-          Dizer isso na cara é uma linha de texto e evita que a ausência de
-          alerta seja lida como defeito. Sai quando o job entrar. */}
+      {/* T18 pôs a varredura de pé, mas a entrega do aviso é T19: entre uma e
+          outra, o alerta existe no banco e não chega a ninguém. Trocar o texto
+          em vez de removê-lo evita que a tela sugira que configurar aqui
+          produz um aviso visível. Sai quando a entrega entrar. */}
       <p className="nota-informativa" role="note">
-        A verificação periódica do estoque ainda não está implantada. As janelas configuradas
-        aqui ficam guardadas, mas nenhum alerta é emitido por enquanto.
+        A verificação periódica do estoque já roda automaticamente e registra os alertas das
+        janelas abaixo. A entrega do aviso — no aplicativo e por push — ainda não está
+        implantada, então nada aparece na tela por enquanto.
       </p>
 
       <form className="formulario-configuracao-alerta" onSubmit={cadastrar}>

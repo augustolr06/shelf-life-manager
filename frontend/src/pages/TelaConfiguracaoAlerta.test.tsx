@@ -78,16 +78,18 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
     )
   })
 
-  it('avisa que a verificação periódica ainda não existe', async () => {
+  it('avisa que a varredura já roda, mas o aviso ainda não é entregue', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
     render(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
-    // Sem este aviso, a ausência de alerta entre T17 e T18 se lê como defeito.
+    // Desde T18 a varredura existe; o que ainda não existe é a entrega (T19).
+    // Sem este aviso, a ausência de alerta na tela se lê como defeito.
     expect(
-      screen.getByText(/verificação periódica do estoque ainda não está implantada/i),
+      screen.getByText(/verificação periódica do estoque já roda automaticamente/i),
     ).toBeInTheDocument()
+    expect(screen.getByText(/entrega do aviso .* ainda não está implantada/i)).toBeInTheDocument()
   })
 
   it('lista vazia tem estado próprio, não erro', async () => {
