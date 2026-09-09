@@ -91,6 +91,41 @@ describe('App — guardião de sessão', () => {
     expect(screen.getByRole('heading', { name: /catálogo de produtos/i })).toBeInTheDocument()
   })
 
+  it('separa a lista de alertas da configuração na navegação, com o contador de não lidos', async () => {
+    // T19: "Alertas" passou a ser a lista; o formulário de T17 virou
+    // "Configurar alertas". O contador vem do `naoLidos` da própria listagem,
+    // buscado uma vez ao autenticar — sem polling.
+    rotear({
+      'GET /auth/me': SESSAO_ATIVA,
+      'GET /produtos': CATALOGO_VAZIO,
+      'GET /alertas?tamanhoPagina=1': () =>
+        respostaFalsa(200, { alertas: [], total: 4, naoLidos: 3, pagina: 1, tamanhoPagina: 1 }),
+    })
+
+    montar()
+
+    expect(await screen.findByRole('link', { name: /^alertas/i })).toHaveAttribute(
+      'href',
+      '/alertas',
+    )
+    expect(screen.getByRole('link', { name: /configurar alertas/i })).toHaveAttribute(
+      'href',
+      '/alertas/configuracao',
+    )
+    expect(await screen.findByLabelText('3 alerta(s) não lido(s)')).toHaveTextContent('3')
+  })
+
+  it('não mostra alertas nem contador para a atendente', async () => {
+    // O distintivo não pode nem ser pedido: `GET /alertas` é GESTOR-only, e o
+    // dublê recusa rota não simulada.
+    rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+    montar('/leitura')
+    await screen.findByRole('button', { name: /sair/i })
+
+    expect(screen.queryByRole('link', { name: /alertas/i })).not.toBeInTheDocument()
+  })
+
   it('envia o cookie de sessão em toda requisição', async () => {
     rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
 

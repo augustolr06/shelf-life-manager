@@ -49,7 +49,8 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 |---|---|---|---|---|
 | T17 | CRUD de ConfiguracaoAlerta (RF08) | concluída | T02 | `tasks/T17-configuracao-alerta.md` |
 | T18 | Job de verificação periódica + geração de Alerta | concluída | T17, T05 | `tasks/T18-job-verificacao-alertas.md` |
-| T19 | Notificação in-app / push | pendente | T18 | — |
+| T19 | Entrega do alerta in-app (lista, contador, marcar como lido) | concluída | T18 | `tasks/T19-entrega-do-alerta.md` |
+| T19b | Notificação push (VAPID, inscrição por dispositivo, service worker) | pendente | T19 | — |
 
 ## Incremento 6 — Dashboard e relatórios
 

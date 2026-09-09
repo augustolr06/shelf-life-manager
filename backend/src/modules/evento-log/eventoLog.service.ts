@@ -35,6 +35,18 @@ export type TipoEvento =
   | 'VALIDADE_CORRIGIDA'
   | 'DESCARTE_REGISTRADO'
   | 'ALERTA_PROATIVO_EMITIDO'
+  /**
+   * **Décimo tipo, acrescentado em T19** — o único fora da lista da seção 5 do
+   * PRD. A gestora reconhece o alerta proativo na tela de alertas, e o par
+   * `ALERTA_PROATIVO_EMITIDO` → `ALERTA_LIDO` da mesma unidade passa a dizer
+   * quanto tempo a loja levou para reagir a um aviso.
+   *
+   * Foi decisão consciente do orientando, com data em `docs/decisoes.md`
+   * (2026-09-09), e tomada **antes** do piloto — que é o momento em que
+   * acrescentar um tipo ainda não quebra a comparabilidade dos dados
+   * coletados (PRD seção 9).
+   */
+  | 'ALERTA_LIDO'
 
 /** O cliente de dentro de um `prisma.$transaction` — nunca o client global. */
 export type ClienteDeTransacao = Prisma.TransactionClient

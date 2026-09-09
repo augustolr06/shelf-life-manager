@@ -142,14 +142,16 @@ export function TelaConfiguracaoAlerta() {
         produto — 30 dias dá tempo de decidir uma promoção; 7 dias é última chamada.
       </p>
 
-      {/* T18 pôs a varredura de pé, mas a entrega do aviso é T19: entre uma e
-          outra, o alerta existe no banco e não chega a ninguém. Trocar o texto
-          em vez de removê-lo evita que a tela sugira que configurar aqui
-          produz um aviso visível. Sai quando a entrega entrar. */}
+      {/* Terceira versão deste aviso: T17 dizia que não havia varredura, T18
+          que não havia entrega, e T19 entregou — no aplicativo. O que resta
+          por dizer é o canal `PUSH`, que continua aceitável na configuração e
+          ainda não sai do aparelho. Enquanto for assim, o texto precisa dizê-lo:
+          a alternativa seria uma janela configurada como push cujo aviso não
+          chega a lugar nenhum. */}
       <p className="nota-informativa" role="note">
-        A verificação periódica do estoque já roda automaticamente e registra os alertas das
-        janelas abaixo. A entrega do aviso — no aplicativo e por push — ainda não está
-        implantada, então nada aparece na tela por enquanto.
+        A verificação periódica roda automaticamente e os alertas aparecem na aba{' '}
+        <strong>Alertas</strong>. A notificação push ainda não está implantada: janelas com
+        canal push ou ambos também são avisadas no aplicativo, por enquanto.
       </p>
 
       <form className="formulario-configuracao-alerta" onSubmit={cadastrar}>

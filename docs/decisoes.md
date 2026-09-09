@@ -920,3 +920,76 @@ reexecutado com `.env.test` removido para confirmar (96 verdes).
 entrasse; removê-lo por completo deixaria a tela sugerindo que configurar uma janela produz
 um aviso visível, o que só passa a ser verdade em T19. O texto novo diz as duas coisas: a
 varredura roda, a entrega ainda não existe.
+
+## 2026-09-09 — Entrega do alerta proativo ao gestor (T19)
+
+**Só GESTOR recebe o alerta.** A jornada J3 do PRD termina em decisão comercial — promoção,
+destaque na vitrine —, que não é ato de balcão. As duas rotas novas (`GET /alertas` e
+`POST /alertas/:id/lido`) têm a mesma restrição da configuração de T17 e da fila de T13.
+Alerta para a atendente seria informação sobre a qual ela não pode agir, no meio do
+atendimento. A consequência é de processo e não de código, e está registrada em
+`docs/notas-para-artigo.md`: **numa loja onde a gestora não abre o sistema, o alerta não
+chega a ninguém**.
+
+**Push fica fora de T19; a entrega in-app entra completa.** Decisão do orientando. Web Push
+custa dependência nova, chaves VAPID, uma tabela de inscrições por dispositivo com migração,
+troca do service worker gerado pelo `vite-plugin-pwa` por um `injectManifest` com handler de
+`push`, e fluxo de permissão do navegador — nada disso verificável sem HTTPS e aparelho real,
+que é justamente o teste de campo ainda pendente. Vira **T19b** no backlog. Enquanto isso,
+alerta de janela com canal `PUSH` ou `AMBOS` **aparece na lista in-app assim mesmo**, e a
+tela de configuração diz isso em uma linha: a alternativa seria uma janela configurada como
+push cujo aviso não chega a lugar nenhum.
+
+**A unidade vendida ou descartada some da lista; a que venceu continua, marcada.** Decisão do
+orientando, contra a proposta inicial de omitir também as vencidas. O critério é **ainda
+haver o que fazer com o frasco**: vendido ou descartado, não há; vencido, há — e o que há é
+encarar que o aviso não funcionou. Assume-se de propósito a duplicidade que T18 recusou para
+a *emissão*: a mesma unidade aparece na tela de alertas e na fila de descarte de T13 ao mesmo
+tempo, porque os dois lugares dizem coisas diferentes — a fila diz "resolva este frasco", o
+alerta vencido diz "você foi avisado e ele venceu assim mesmo". Omiti-lo apagaria da tela
+justamente o caso que mede se a RF08 funciona.
+
+O que separa os dois casos é o campo **`situacao` (`NA_JANELA` | `VENCIDA`), decidido no
+servidor** — e não o sinal de `diasParaVencer` interpretado pela tela. É a mesma regra de
+sempre: o frontend não compara validade em lugar nenhum (RNF01, RNF04). A linha de `Alerta`
+continua no banco nos três casos: ela é o registro do que foi emitido, e é dela e do
+`EventoLog` que a RF13 vai contar.
+
+**A janela inativada depois não esconde o alerta já emitido.** Inativar (T17) diz "não emita
+mais", não "desfaça o que foi emitido".
+
+**`ALERTA_LIDO` é o décimo tipo de evento** — o único fora da lista da seção 5 do PRD.
+Decisão do orientando, contra a proposta inicial de não gravar nada. O comentário de
+`eventoLog.service.ts` desde T09 diz que acrescentar um tipo depois do piloto começado quebra
+a comparabilidade dos dados; por isso este acréscimo é ato consciente e acontece **antes** do
+piloto, que é quando ainda é barato. O que ele compra: o intervalo entre
+`ALERTA_PROATIVO_EMITIDO` e `ALERTA_LIDO` da mesma unidade, na mesma trilha, sem `JOIN` entre
+formatos diferentes — quanto tempo a loja leva para reagir a um aviso. O evento é assinado
+pelo **gestor que leu** (a conta de sistema de T18 assina só o que não tem autor humano) e
+gravado **uma vez**: a idempotência do `lidoEm` vale também para o log, senão dois cliques
+viram dois reconhecimentos no dado da pesquisa.
+
+**"Lido" é da loja, não de cada gestor, e não tem desfazer.** `Alerta.lidoEm` é uma coluna só
+(schema de T02, PRD seção 5): não há leitura por usuário. Com dois gestores, o que um marcar
+sai do contador do outro. Leitura por usuário exigiria tabela nova e migração, e para uma
+perfumaria com um ou dois gestores é complexidade sem cliente. Também não há "marcar como não
+lido": a marcação é reconhecimento, e a lista sem filtro continua mostrando o alerta lido —
+que é o desfazer suficiente, porque ele não some de vista.
+
+**A corrida entre dois cliques é resolvida por `updateMany` condicionado a `lidoEm: null`,
+não por lock.** A RNF02 protege a baixa da unidade, que aqui não acontece: marcar como lido
+não muda estoque e não disputa nada. O `updateMany` é atômico — só um dos dois encontra a
+linha por marcar, e só ele grava o evento.
+
+**O contador da navegação vem da própria listagem, sem endpoint de contagem e sem polling.**
+`naoLidos` já viaja na resposta de `GET /alertas` (e **ignora** o filtro `apenasNaoLidos`, que
+é o que o torna um número estável independente de onde a gestora está olhando). O `App` o
+busca uma vez ao autenticar, com `tamanhoPagina=1`, e a tela de alertas o atualiza depois.
+Sem `setInterval`: o alerta é diário, e um contador alguns minutos atrasado não muda decisão
+nenhuma, enquanto um polling constante custaria bateria de celular no balcão para nada. Falha
+nessa busca é silenciosa de propósito — o distintivo é conveniência, e o erro de verdade
+aparece quando a gestora abre a lista.
+
+**A aba "Alertas" passou a ser a lista; o formulário de T17 virou "Configurar alertas".** O
+rótulo antigo levava ao formulário, e mantê-lo assim mandaria a gestora configurar quando ela
+quer ver o aviso.

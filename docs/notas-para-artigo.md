@@ -882,3 +882,68 @@ só começa a existir quando a notificação chega.
 (a fila do que já venceu, que é a fronteira inferior da janela), RF08, RF12/RF13
 
 **Data:** 2026-09-09
+
+---
+
+## O aviso que ninguém leu: quando a automação da vigilância termina em um ato humano
+
+**Contexto do problema:** o processo manual da perfumaria não tinha um "alerta" — tinha uma
+pessoa olhando a prateleira. Nesse desenho, avisar e reconhecer o aviso são o mesmo ato: quem
+vê o frasco perto de vencer já está diante dele, com a decisão na mão. Automatizar a
+vigilância (T18) separou as duas coisas pela primeira vez, e a separação criou um estado que
+antes não existia: o **aviso emitido e não reconhecido**. É o que esta tarefa entrega, e o
+que ela revela sobre o problema vale mais que a tela em si.
+
+**Três coisas apareceram ao implementar a entrega:**
+
+1. **A cadeia da RF08 tem um elo humano que o software não alcança.** O sistema configura a
+   janela, varre o estoque, emite o alerta e o exibe — e para. A ação que o alerta pede
+   (promoção, destaque na vitrine, ligar para um cliente) acontece **fora** do sistema, e por
+   isso o software não pode medir se ela aconteceu: só sabe se a unidade foi vendida ou se
+   venceu. O `ALERTA_LIDO` é o mais longe que a instrumentação chega — ele registra que
+   alguém *viu*, não que alguém *agiu*. A distância entre ver e agir é exatamente o que o
+   piloto vai ter de observar por entrevista, e não por log. Numa loja onde a gestora não
+   abre o sistema, a cadeia inteira produz zero efeito: **a automação da vigilância não
+   automatiza a resposta**, e o gargalo apenas se desloca do "reparar" para o "abrir a tela".
+2. **Um aviso que falhou precisa continuar visível, e isso contraria a regra que o resto do
+   sistema segue.** Todo o desenho até aqui evita mostrar o mesmo fato em dois lugares — a
+   fila de descarte de T13 é a negação exata do pool do FIFO justamente por isso, e T18
+   recusou emitir alerta sobre unidade já vencida pelo mesmo motivo. Aqui a decisão foi a
+   oposta, deliberadamente: o alerta cuja unidade **venceu depois de emitido** continua na
+   lista, marcado, e a mesma unidade aparece também na fila de descarte. A razão é que os
+   dois lugares dizem coisas diferentes — a fila diz "resolva este frasco"; o alerta vencido
+   diz "você foi avisado e ele venceu assim mesmo". Omiti-lo deixaria a tela mais limpa e
+   apagaria justamente o caso que mede se a RF08 funciona. **O indicador de fracasso de um
+   alerta é o próprio alerta que sobrou**, e um sistema que arruma a tela apagando os avisos
+   que não deram certo reporta apenas os seus acertos.
+3. **Reconhecer o aviso custou o décimo tipo de evento — o primeiro fora da lista do PRD.** A
+   lista dos nove tipos era fechada desde o início, com uma razão explícita: acrescentar um
+   depois do piloto começado quebra a comparabilidade entre o antes e o depois. `ALERTA_LIDO`
+   foi acrescentado **antes** do piloto, conscientemente, porque o par
+   `ALERTA_PROATIVO_EMITIDO` → `ALERTA_LIDO` da mesma unidade responde uma pergunta que
+   nenhuma outra fonte responde: **quanto tempo a loja leva para reagir a um aviso**. É um
+   indicador de processo, não de estoque, e não existe no controle manual — lá, o intervalo
+   entre notar e decidir não deixa rastro nenhum.
+
+**Limitações a declarar sem rodeios:**
+
+- **A notificação push não está implantada.** A RF08 fala em "in-app e/ou push"; o que existe
+  é o in-app. Push exige inscrição por dispositivo, chaves VAPID, service worker próprio e
+  HTTPS em aparelho real — e, mais importante para o artigo, muda a natureza do aviso: o
+  in-app só alcança quem já abriu o sistema, e o push alcança quem não abriu. **A metade da
+  RF08 que falta é justamente a que atacaria o gargalo do item 1.** Enquanto isso, uma janela
+  configurada como push é entregue no aplicativo, e a tela diz isso — promessa parcial
+  declarada é preferível a aviso que não chega a lugar nenhum.
+- **"Lido" é da loja, não de cada pessoa.** `Alerta.lidoEm` é uma coluna só: com dois
+  gestores, o que um marcar sai da vista do outro. Numa loja pequena isso é adequado (é
+  literalmente o mesmo balcão); em qualquer escala maior, leitura por usuário seria
+  requisito, e é trabalho futuro.
+- **O alerta não é reemitido.** Vale a decisão de T18: ele é a notícia da entrada na janela, e
+  uma unidade que continua parada não volta a incomodar ninguém pela mesma janela. A forma
+  prevista de insistir é configurar uma janela mais estreita em paralelo (7 dias, "última
+  chamada"), que insiste com informação nova.
+
+**Tarefa relacionada:** T19 (a entrega), T18 (a emissão), T17 (a janela), T13 (a fila, que
+divide a tela com o alerta vencido), RF08, RF12/RF13
+
+**Data:** 2026-09-09

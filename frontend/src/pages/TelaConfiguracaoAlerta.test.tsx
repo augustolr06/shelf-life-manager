@@ -78,18 +78,19 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
     )
   })
 
-  it('avisa que a varredura já roda, mas o aviso ainda não é entregue', async () => {
+  it('aponta para a aba de alertas e declara que push ainda não sai do aparelho', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
     render(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
-    // Desde T18 a varredura existe; o que ainda não existe é a entrega (T19).
-    // Sem este aviso, a ausência de alerta na tela se lê como defeito.
+    // Desde T19 o aviso é entregue no aplicativo; o que ainda não existe é o
+    // push. Sem esta linha, uma janela configurada como push pareceria
+    // notificar o celular — e não notifica.
+    expect(screen.getByText(/verificação periódica roda automaticamente/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/verificação periódica do estoque já roda automaticamente/i),
+      screen.getByText(/notificação push ainda não está implantada/i),
     ).toBeInTheDocument()
-    expect(screen.getByText(/entrega do aviso .* ainda não está implantada/i)).toBeInTheDocument()
   })
 
   it('lista vazia tem estado próprio, não erro', async () => {

@@ -850,3 +850,108 @@ textarea {
   align-items: flex-end;
   gap: 0.75rem;
 }
+
+/* Alertas proativos entregues ao gestor (RF08, T19). Mesma anatomia de cartão
+   da fila de descarte: é a mesma leitura em pé, com o frasco na mão. */
+.tela-alertas h2 {
+  margin: 0 0 0.25rem;
+}
+
+.tela-alertas > .subtitulo {
+  margin: 0 0 1rem;
+}
+
+.filtro-alertas {
+  margin: 0 0 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.filtro-alertas label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Alvo de toque: o alternador é caixa de seleção pequena, e o rótulo
+     inteiro precisa valer como área de clique. */
+  min-height: 2.75rem;
+}
+
+.resumo-alertas {
+  margin: 0 0 0.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.lista-alertas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.alerta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  /* Âmbar: ainda dá tempo. É a cor do "decida agora", distinta do roxo do
+     vencido, que é perda consumada. */
+  border-left: 4px solid #d97706;
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: #fff;
+}
+
+/* Reconhecido: continua na lista, mas para de disputar atenção. */
+.alerta.lido {
+  border-left-color: var(--cor-borda);
+  background: var(--cor-fundo);
+}
+
+/* O aviso que não funcionou — a unidade venceu depois de emitido. Mesma cor
+   da fila de descarte (T13) e do resultado vencido do balcão: é a mesma
+   unidade, vista de mais um lugar. */
+.alerta.vencido {
+  border-left-color: #7c3aed;
+}
+
+.alerta h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.alerta > .dados-alerta > .subtitulo {
+  margin: 0.125rem 0 0.5rem;
+}
+
+.nota-vencida {
+  margin: 0.5rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.acoes-alerta > button {
+  min-height: 2.75rem;
+}
+
+.marca-lido {
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+/* Contador de não lidos na navegação. Pequeno e ao lado do rótulo: é sinal de
+   que há algo a ver, não um segundo rótulo. */
+.distintivo {
+  margin-left: 0.375rem;
+  padding: 0 0.375rem;
+  min-width: 1.25rem;
+  border-radius: 999px;
+  background: #d97706;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  text-align: center;
+}

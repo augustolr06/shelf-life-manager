@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-09 (seções 2 e 3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`; seção 5.3, sobre a varredura, acrescentada em T18)
+Última atualização: 2026-09-09 (seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -31,7 +31,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /saida          <- contém validarSaidaFifo.ts (RNF03: função única)
       /excecao-vencido <- os três caminhos da unidade vencida (PRD 6.1)
       /descarte       <- a fila do que venceu e ainda está em estoque (RF11)
-      /alerta         <- a janela de antecedência (RF08), a varredura periódica e seu agendador
+      /alerta         <- a janela de antecedência (RF08), a varredura periódica, seu agendador e a entrega
       /evento-log
     /db
       schema.prisma
@@ -248,6 +248,8 @@ manual produziria.
 | GET | `/descartes/pendentes` | GESTOR | Fila de descarte pendente (RF11) |
 | GET/POST | `/configuracao-alerta` | GESTOR | Lista e cria janelas de antecedência (RF08) |
 | PATCH/DELETE | `/configuracao-alerta/:id` | GESTOR | Altera e **inativa** a janela (RF08) |
+| GET | `/alertas` | GESTOR | Lista os alertas proativos emitidos pela varredura (RF08) |
+| POST | `/alertas/:id/lido` | GESTOR | Reconhece o alerta: grava `lidoEm` e `ALERTA_LIDO` (RF08) |
 | GET | `/dashboard` | GESTOR | RF13 |
 
 **Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
@@ -329,6 +331,48 @@ grava `EventoLog` — nenhum dos nove tipos do PRD descreve mudança de configur
 consequência (alterar a janela no meio do piloto não deixa rastro) está declarada em
 `docs/notas-para-artigo.md`. Nenhuma delas lê ou escreve `Alerta`: a varredura periódica é
 T18.
+
+**As duas rotas de `/alertas`** (T19) são a entrega do que a varredura da seção 5.3 emitiu —
+a metade in-app da RF08. Ambas `GESTOR`, pela mesma razão de T17 e T13: a jornada J3 termina
+em decisão comercial, que não é ato de balcão. `GET /alertas` é paginado no formato de
+`/descartes/pendentes` (`pagina`, `tamanhoPagina`, padrão 20, máximo 100), aceita
+`apenasNaoLidos` e ordena por urgência (`dataValidade` crescente, desempate por `codigoQr`):
+
+```json
+{
+  "alertas": [{
+    "id": "...", "geradoEm": "2026-09-09T03:42:42.383Z", "lidoEm": null,
+    "diasParaVencer": 15, "situacao": "NA_JANELA",
+    "janela": { "configuracaoId": "...", "diasAntecedencia": 30, "canal": "IN_APP" },
+    "unidade": { "...UnidadeNaResposta": "..." }
+  }],
+  "total": 2, "naoLidos": 2, "pagina": 1, "tamanhoPagina": 20
+}
+```
+
+A lista traz os alertas cuja unidade **ainda está `EM_ESTOQUE`**: vendida ou descartada, não
+há mais o que decidir sobre o frasco. A unidade que **venceu depois do aviso continua**, com
+`situacao: 'VENCIDA'` e `diasParaVencer` negativo — é o caso que mede se a RF08 funcionou, e
+some-lo esconderia da tela justamente o aviso que falhou. Assume-se com isso que a mesma
+unidade apareça aqui e na fila de T13: os dois lugares dizem coisas diferentes
+(`docs/decisoes.md`, 2026-09-09). `situacao` é decidido no servidor porque o frontend não
+compara validade em lugar nenhum (RNF01, RNF04), e `naoLidos` **ignora** o filtro
+`apenasNaoLidos`, por ser o contador da navegação. Janela inativada depois não esconde o
+alerta já emitido: inativar diz "não emita mais", não "desfaça". `GET` não grava evento.
+
+`POST /alertas/:id/lido` grava `lidoEm` — a primeira escrita nessa coluna desde T02 — e o
+evento **`ALERTA_LIDO`**, décimo tipo do log e único fora da lista da seção 5 do PRD,
+acrescentado conscientemente antes do piloto (`docs/decisoes.md`, 2026-09-09). O evento é
+assinado pelo gestor que leu, na mesma transação, com payload
+`{ alertaId, configuracaoId, diasAntecedencia, dataValidade, diasParaVencer, geradoEm }`; é o
+par dele com o `ALERTA_PROATIVO_EMITIDO` da mesma unidade que diz quanto tempo a loja levou
+para reagir. A rota é **idempotente**: o segundo `POST` devolve o `lidoEm` original e não
+grava um segundo evento — a corrida entre dois cliques é resolvida por um `updateMany`
+condicionado a `lidoEm: null`, sem lock (a RNF02 é sobre a baixa da unidade, que aqui não
+acontece). Id inexistente é 404 `ALERTA_NAO_ENCONTRADO`. "Lido" é da loja e não de cada
+gestor, porque `lidoEm` é uma coluna só. **Push continua sem implementação** (T19b): alerta
+de janela com canal `PUSH` ou `AMBOS` é entregue in-app, e a tela de configuração declara
+isso.
 
 **`GET /descartes/pendentes`** (T13) devolve a fila da RF11: as unidades `EM_ESTOQUE`
 cuja `dataValidade` já passou, ordenadas da mais vencida para a menos (desempate por
@@ -444,8 +488,8 @@ usuário. A análise do piloto precisa saber excluí-la ao contar ações humana
 
 O agendador roda uma vez ao subir e a cada `ALERTA_INTERVALO_HORAS` (padrão 24); ignora o
 tique se a passagem anterior ainda não terminou, e uma falha de varredura é logada sem
-derrubar o servidor — o balcão continua vendendo. Nada disso entrega o aviso a ninguém: a
-lista in-app, o push e o `lidoEm` são T19.
+derrubar o servidor — o balcão continua vendendo. A entrega do que ela emite é das duas rotas
+de `/alertas` (T19), descritas na seção 5; o push continua fora (T19b).
 
 ## 6. Comportamento offline (RNF07)
 

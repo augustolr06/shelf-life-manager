@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
@@ -7,6 +8,7 @@ import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
 import { TelaRecebimento } from './pages/TelaRecebimento'
+import { contarAlertasNaoLidos } from './services/alertas'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
 
 /**
@@ -27,11 +29,21 @@ type EstadoSessao =
  * *rota* em vez de ramo de render. Esconder rota por papel é conveniência de
  * interface — quem recusa de fato é o 403 do backend (RNF04).
  */
+/**
+ * O que o `App` empresta a uma tela além do usuário. Hoje é só o contador de
+ * alertas não lidos, que a tela de alertas recalcula e a navegação exibe (T19).
+ */
+type RecursosDaTela = {
+  aoAtualizarNaoLidos: (naoLidos: number) => void
+}
+
 type Tela = {
   caminho: string
   rotulo: string
   papeis: readonly Papel[]
-  elemento: (usuario: Usuario) => ReactElement
+  /** Distintivo numérico ao lado do rótulo, quando houver o que mostrar. */
+  distintivo?: 'alertasNaoLidos'
+  elemento: (usuario: Usuario, recursos: RecursosDaTela) => ReactElement
 }
 
 const TELAS: readonly Tela[] = [
@@ -64,8 +76,23 @@ const TELAS: readonly Tela[] = [
     elemento: () => <TelaRecebimento />,
   },
   {
-    caminho: '/alertas/configuracao',
+    caminho: '/alertas',
     rotulo: 'Alertas',
+    // Mesma lista de `GET /alertas`: a jornada J3 do PRD termina em decisão
+    // comercial, que não é ato de balcão (RF08, T19).
+    papeis: ['GESTOR'],
+    distintivo: 'alertasNaoLidos',
+    // Sem `usuario`: a tela é GESTOR-only inteira. O que ela recebe é o canal
+    // de volta para o contador da navegação.
+    elemento: (_usuario, recursos) => (
+      <TelaAlertas aoAtualizarNaoLidos={recursos.aoAtualizarNaoLidos} />
+    ),
+  },
+  {
+    caminho: '/alertas/configuracao',
+    // "Alertas" agora é a lista. O rótulo daqui diz o que esta tela faz: o
+    // parâmetro, não o aviso.
+    rotulo: 'Configurar alertas',
     // Mesma lista das quatro rotas de `/configuracao-alerta`: a janela de
     // antecedência é parâmetro de gestão, e mexer nela muda o que o sistema
     // avisa a todo mundo (RF08).
@@ -97,6 +124,15 @@ function rotaInicial(usuario: Usuario): string {
 export function App() {
   const [sessao, setSessao] = useState<EstadoSessao>({ situacao: 'verificando' })
   const [aviso, setAviso] = useState<string | null>(null)
+  /**
+   * Quantos alertas proativos ainda não foram reconhecidos (T19).
+   *
+   * Buscado uma vez ao autenticar e atualizado pela própria tela de alertas —
+   * sem `setInterval` batendo no servidor: o alerta é diário, e um contador
+   * alguns minutos atrasado não muda decisão nenhuma, enquanto um polling
+   * constante custaria bateria de celular no balcão para nada.
+   */
+  const [alertasNaoLidos, setAlertasNaoLidos] = useState(0)
   const navegar = useNavigate()
 
   useEffect(() => {
@@ -119,6 +155,31 @@ export function App() {
       ativo = false
     }
   }, [])
+
+  const gestorAutenticado = sessao.situacao === 'autenticado' && sessao.usuario.papel === 'GESTOR'
+
+  useEffect(() => {
+    if (!gestorAutenticado) {
+      setAlertasNaoLidos(0)
+      return
+    }
+
+    let ativo = true
+
+    // Falha aqui é silenciosa de propósito: o distintivo é conveniência, e um
+    // alerta a mais ou a menos no número não justifica um aviso vermelho sobre
+    // a tela que a gestora está usando. O erro de verdade aparece quando ela
+    // abre a lista.
+    contarAlertasNaoLidos()
+      .then((naoLidos) => {
+        if (ativo) setAlertasNaoLidos(naoLidos)
+      })
+      .catch(() => {})
+
+    return () => {
+      ativo = false
+    }
+  }, [gestorAutenticado])
 
   async function sair() {
     try {
@@ -198,9 +259,17 @@ export function App() {
           <NavLink
             key={tela.caminho}
             to={tela.caminho}
+            // `end` para que `/alertas` não fique marcada como ativa enquanto
+            // a tela aberta é `/alertas/configuracao`.
+            end
             className={({ isActive }) => (isActive ? 'aba ativa' : 'aba')}
           >
             {tela.rotulo}
+            {tela.distintivo === 'alertasNaoLidos' && alertasNaoLidos > 0 && (
+              <span className="distintivo" aria-label={`${alertasNaoLidos} alerta(s) não lido(s)`}>
+                {alertasNaoLidos}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -208,7 +277,11 @@ export function App() {
       <main>
         <Routes>
           {visiveis.map((tela) => (
-            <Route key={tela.caminho} path={tela.caminho} element={tela.elemento(usuario)} />
+            <Route
+              key={tela.caminho}
+              path={tela.caminho}
+              element={tela.elemento(usuario, { aoAtualizarNaoLidos: setAlertasNaoLidos })}
+            />
           ))}
           {/* Rota de tela que o papel não alcança, `/login` já autenticado e
               URL desconhecida caem todas no mesmo lugar: a tela inicial do
