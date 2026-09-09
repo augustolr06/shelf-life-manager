@@ -59,6 +59,53 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | T20 | Endpoints agregados de dashboard (RF13) | concluída | T09, T13 | `tasks/T20-endpoints-dashboard.md` |
 | T21 | Frontend do dashboard | concluída | T20 | `tasks/T21-frontend-dashboard.md` |
 
+## Incremento 7 — Preparação para produção
+
+Levantado em 2026-09-09, ao avaliar se o sistema está pronto para uma V1 rodando de verdade
+na loja. As tarefas anteriores fecham todos os RFs; estas duas fecham o que falta para o
+sistema **sair da máquina de desenvolvimento** — e não estavam no PRD porque o PRD descreve
+o produto, não a operação dele.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T22 | Cadastro e gestão de usuários pelo GESTOR (RF01) | pendente | T03b, T04 | `tasks/T22-gestao-de-usuarios.md` |
+| T23 | Endurecimento e preparação de deploy | pendente | T22 | `tasks/T23-preparacao-deploy.md` |
+
+**T22 — escopo.** Hoje as únicas contas do sistema nascem de `src/db/seed.ts`, com senha
+padrão compartilhada e e-mails `@estoque.local`; não existe rota de usuário nem troca de
+senha. Isso é suficiente para desenvolver e insuficiente para a loja operar: a gestora não
+consegue criar a conta de uma atendente nova nem trocar a própria senha sem alguém rodar SQL
+no banco. A tarefa entrega o CRUD de `Usuario` restrito a `GESTOR` (o modelo já existe desde
+T02) mais troca de senha pelo próprio usuário, seguindo o padrão de tela de gestão de T04.
+Cuidados que a tarefa herda: o hash continua sendo `bcrypt` com o mesmo custo de
+`auth.service.ts`, a senha nunca volta em resposta alguma, e o GESTOR não pode excluir a si
+mesmo nem a conta de sistema da varredura (`modules/alerta/usuarioDoSistema.ts`).
+
+**T23 — escopo.** Três frentes, todas verificadas no código em 2026-09-09:
+
+1. **Segurança de borda**, hoje ausente: `/auth/login` está sem limite de tentativas e o
+   Fastify sobe sem `@fastify/helmet`. Exposto na internet, isso é força bruta livre.
+2. **Alvo de hospedagem** — decisão em aberto, e ela muda o resto da tarefa. Em servidor
+   com processo persistente (Render/Fly/Railway), o `setInterval` de
+   `modules/alerta/agendador.ts` continua valendo como está. Em serverless (Vercel), não
+   existe processo entre requisições: a RF08 exige trocar o agendador por uma rota interna
+   protegida por segredo, chamada por cron externo, e a varredura de inicialização precisa
+   deixar de rodar a cada cold start. **Registrar a escolha em `docs/decisoes.md`** — ela
+   contradiz ou confirma o trade-off já documentado em `docs/notas-para-artigo.md`
+   ("backend fora do ar, varredura não roda").
+3. **Configuração de produção**: `sameSite` do cookie de sessão (`modules/auth/cookie.ts`
+   já prevê o caso — `'lax'` só funciona se frontend e backend forem same-site; domínios
+   distintos exigem `'none' + secure`), `DATABASE_URL` com pooling e `directUrl` para
+   `migrate deploy`, `JWT_SECRET` e chaves VAPID novas, `FRONTEND_ORIGIN` real no CORS, e
+   um `docs/deploy.md` com o roteiro de subida e de restauração de backup — o `EventoLog` é
+   append-only e é a base do indicador do TCC (RF12), então perdê-lo é perder o dado do
+   artigo.
+
+Ordem sugerida: T22 antes de T23, porque não faz sentido publicar na internet um sistema
+cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a demonstração da
+defesa — um deploy só para demonstração pode acontecer antes, e inclusive **destrava** as
+verificações manuais de câmera, push e PWA offline listadas abaixo, que precisam de HTTPS.
+
 ---
 
 ## Verificações manuais a cargo do orientando

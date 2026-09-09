@@ -1186,3 +1186,53 @@ uma vez com os campos em branco.
 **Tarefa relacionada:** T21, T20, RNF01, RNF04
 
 **Data:** 2026-09-09
+
+---
+
+## O sistema pronto e o sistema instalável são coisas diferentes — e o segundo carrega um requisito funcional em arquivo de configuração
+
+**Contexto do problema:** com T21 os treze RFs estão implementados e a suíte inteira passa.
+É o momento em que um projeto de implementação de referência parece terminado — e a
+avaliação de o que faltaria para a perfumaria **operar** o sistema encontrou duas coisas que
+nenhuma tarefa cobria, porque nenhuma delas é um requisito funcional. A primeira é que o
+único caminho para existir uma conta neste sistema é o seed de desenvolvimento: a gestora
+não consegue criar a conta de uma atendente nova nem trocar a própria senha sem que alguém
+execute SQL no banco. A RF01 foi lida, e implementada, como "autenticar"; a operação real
+exige também "administrar quem autentica", que o processo manual resolvia sem sistema nenhum
+— quem trabalha na loja é quem a dona conhece.
+
+**Alternativas consideradas:** tratar o cadastro de usuário como configuração de instalação
+(um script rodado uma vez pelo implantador) seria defensável para uma loja de sete pessoas e
+custaria quase nada. Foi descartado porque a rotatividade de balcão é justamente o cenário em
+que o dono do sistema não pode depender do desenvolvedor — e porque a senha compartilhada que
+essa escolha implica destrói a atribuição de responsabilidade que o `EventoLog` existe para
+registrar: um evento assinado por uma credencial que três pessoas conhecem não identifica
+ninguém.
+
+**Solução adotada:** T22 e T23, registradas no backlog como um incremento próprio,
+explicitamente **posterior** ao fechamento dos RFs. A separação é intencional: o artigo
+descreve um sistema cujos requisitos estão completos e cuja instalação ainda tem pré-condições.
+
+**Por que resolve o problema / trade-offs:** a descoberta que interessa ao texto está na
+segunda frente de T23. A decisão de T18 — colocar o relógio da RF08 **dentro do processo do
+backend**, como `setInterval`, em vez de `cron` do sistema — foi tomada para que um requisito
+funcional não dependesse de configuração no servidor da loja. Ela é correta, e depende de uma
+premissa que nunca foi escrita em lugar nenhum: **existe um processo de longa duração**. Em
+qualquer hospedagem serverless, que é o padrão gratuito ou barato hoje e a primeira coisa que
+um projeto acadêmico tende a escolher, essa premissa é falsa: não há processo entre
+requisições, o `setInterval` nunca dispara, e a RF08 sai do código para virar uma linha de
+agendamento em arquivo de configuração da plataforma — exatamente o que T18 recusou. A
+limitação honesta para o artigo não é "o sistema não roda em serverless", é mais desconfortável
+que isso: **uma decisão de projeto sobre onde uma regra deve morar pode ser revertida pela
+escolha de hospedagem, sem que ninguém a reveja, e o sintoma é um alerta que simplesmente não
+chega.** A varredura é idempotente e silenciosa por construção (T18), então a falha não emite
+erro — é o mesmo padrão de degradação sem sinal já registrado a propósito da suíte sem banco,
+aqui aplicado a um requisito, não a um teste. Vale ao texto porque generaliza: soluções para
+lojas de pequeno porte são publicadas junto com a promessa de baixo custo de operação, e o
+tipo de hospedagem que torna esse custo baixo é o que reintroduz a dependência de
+configuração externa que o projeto tinha eliminado de propósito.
+
+**Tarefa relacionada:** T22, T23 (as tarefas criadas), T18 (a decisão do relógio no processo),
+T03 (a RF01 como foi implementada), RF01, RF08
+
+**Data:** 2026-09-09
