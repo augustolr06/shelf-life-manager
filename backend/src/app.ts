@@ -6,6 +6,7 @@ import rateLimit from '@fastify/rate-limit'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { NOME_COOKIE_SESSAO } from './modules/auth/cookie.js'
 import { rotasAlerta } from './modules/alerta/alerta.routes.js'
+import { rotasVarreduraAlertas } from './modules/alerta/varredura.routes.js'
 import { rotasConfiguracaoAlerta } from './modules/alerta/configuracaoAlerta.routes.js'
 import { rotasAuth } from './modules/auth/auth.routes.js'
 import { rotasDashboard } from './modules/dashboard/dashboard.routes.js'
@@ -23,7 +24,7 @@ import { tratarErro, tratarRotaNaoEncontrada } from './shared/errosDaApi.js'
  * possam usar `app.inject()` sem abrir porta.
  */
 export function buildApp(): FastifyInstance {
-  const app = Fastify({ logger: true })
+  const app = Fastify({ logger: { level: env.LOG_LEVEL } })
 
   // O cookie de sessão vem de outra origem (frontend em 5173, backend em
   // 3333), então o navegador só o envia se o CORS permitir credenciais.
@@ -89,6 +90,7 @@ export function buildApp(): FastifyInstance {
   app.register(rotasDescarte)
   app.register(rotasConfiguracaoAlerta)
   app.register(rotasAlerta)
+  app.register(rotasVarreduraAlertas)
   app.register(rotasPush)
   app.register(rotasDashboard)
 

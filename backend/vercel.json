@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [{ "path": "/interno/varredura-alertas", "schedule": "0 9 * * *" }]
+}

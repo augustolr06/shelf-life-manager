@@ -18,6 +18,7 @@ O PRD completo está em `docs/PRD-original.md`. Não precisa reler o PRD inteiro
 | Detalhes de implementação de UMA tarefa específica                     | `tasks/TNN-slug.md`         |
 | Requisitos originais completos (referência, não reler por padrão)      | `docs/PRD-original.md`      |
 | Pontos de decisão e descobertas relevantes para o artigo do TCC        | `docs/notas-para-artigo.md` |
+| Como subir em produção, variáveis de ambiente, backup e operação        | `docs/deploy.md`            |
 
 ## Como trabalhar neste projeto
 

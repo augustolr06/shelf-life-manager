@@ -1287,3 +1287,48 @@ restritiva junto de um JSON não protege nada e vira ruído na depuração.
 API não é — deixá-lo ligado seria a mesma classe de falha silenciosa do cookie `SameSite`,
 recusa no navegador sem erro no servidor. Ficam ligados o `nosniff`, o `X-Frame-Options`, o
 `Referrer-Policy` e o HSTS, que são os que fazem sentido para uma API JSON.
+
+---
+
+## 2026-09-09 — O relógio da RF08 nas duas hospedagens, e o roteiro de operação (T23, fatias 2 e 4)
+
+**Decisão do orientando: suportar as duas hospedagens, em vez de escolher uma.** A alternativa
+era assumir serverless e trocar o `setInterval` de T18 por rota de cron, ou assumir processo
+persistente e não mexer em nada. As duas amarravam o projeto a um alvo, e uma delas reverteria
+uma decisão de T18 que continua correta onde ela vale. O que ficou: o agendador interno
+continua existindo e é ligado/desligado por `ALERTA_AGENDADOR_INTERNO`, e a rota para
+agendador externo existe nos dois modos. **As duas formas chamam
+`varrerEstoqueParaAlertas`** — exatamente como o CLI de T18 já fazia. A regra de o que é
+alerta continua num lugar só; o que virou configuração foi o **gatilho**, não a regra.
+
+**A rota é autorizada por segredo compartilhado, não por sessão.** `GET
+/interno/varredura-alertas` com `Bearer $CRON_SECRET`, comparado em tempo constante sobre os
+digests SHA-256 — comparar os textos exigiria buffers do mesmo tamanho e o modo de falhar
+revelaria o tamanho do segredo certo. Nenhum papel do sistema alcança a rota, nem o GESTOR: é
+uma porta de máquina. Sem `CRON_SECRET` configurado ela responde 503, mesma postura das rotas
+de push sem chaves VAPID (T19b) — uma instalação que não usa cron externo não ganha porta
+aberta por engano. T18 tinha recusado "uma rota de rodar agora" por ser escrita em massa
+exposta; o que muda o veredito é a soma das três: não é alcançável por sessão, não existe sem
+segredo, e a varredura é idempotente por construção.
+
+**`ALERTA_AGENDADOR_INTERNO` tem padrão ligado e regra assimétrica.** Só `false` e `0`
+desligam; qualquer outro valor liga. O modo de falhar é o motivo: um valor digitado errado no
+painel da hospedagem não derruba nada e não aparece em log de erro — simplesmente nenhum
+alerta é emitido, e a queixa chega dias depois como "o sistema parou de avisar". Errar para o
+lado de manter o relógio ligado é inofensivo onde há processo, e é o único dos dois erros que
+se percebe. O `server.ts` também registra em log qual modo está valendo, porque é ali que essa
+investigação começa.
+
+**`logger: true` virou `logger: { level: env.LOG_LEVEL }`, padrão `info`.** Aqui houve uma
+correção de premissa: a fatia 4 foi escrita supondo que o logger registrava corpo de
+requisição, o que colocaria a senha de `POST /auth/login` no log. **Não registra** — o
+serializer padrão do Fastify grava método, URL, host e IP, e nada mais. A variável continua
+justificada, mas pelo motivo certo: controlar volume de log num plano com retenção curta, não
+evitar vazamento que nunca existiu.
+
+**`docs/deploy.md` fecha com o que o deploy não tem.** Nove seções de roteiro, e a última
+lista as limitações: sem cadastro de usuário pela interface, sem recuperação de senha, contador
+de tentativas por instância, backup manual, sem monitoramento, sem homologação. Está no fim do
+roteiro, e não em documento separado, porque a hora de descobrir isso é antes de subir — não no
+meio do piloto. A rotina de `pg_dump` vem com a razão colada: o `EventoLog` é o dado do artigo,
+e é a única coisa ali que não se recupera refazendo o deploy.

@@ -39,17 +39,21 @@ de verdade.
       bem-sucedidas, **não** alcança `/saidas/ler` nem `/health` em rajada de trinta, e os
       cabeçalhos do helmet saem com `nosniff` e sem CSP nem CORP
 
-### Fatia 2 — Relógio da RF08 fora do processo (pendente, e só se o alvo for serverless)
+### Fatia 2 — Relógio da RF08 fora do processo (concluída em 2026-09-09)
 
-- [ ] **Decidir o alvo de hospedagem e registrar em `docs/decisoes.md`.** Em servidor com
-      processo persistente, `modules/alerta/agendador.ts` continua valendo como está e esta
-      fatia inteira é descartada. Em serverless não existe processo entre requisições: o
-      `setInterval` nunca dispara e a RF08 para de funcionar sem emitir erro
-- [ ] Se serverless: rota interna protegida por segredo compartilhado, chamada por cron da
-      plataforma, mais a supressão da varredura de inicialização (que rodaria a cada cold
-      start). A função varrida tem de continuar sendo a mesma (RNF03 aplicado ao job)
-- [ ] Contorno já disponível enquanto isso não existe: `npm run alertas:varrer` apontando
-      `DATABASE_URL` para o banco de produção. O CLI existe desde T18 exatamente para isso
+- [x] **Decisão do orientando:** suportar as duas hospedagens, em vez de escolher uma. O
+      `setInterval` de T18 continua existindo e passa a ser ligado/desligado por
+      `ALERTA_AGENDADOR_INTERNO`; a rota externa existe nos dois modos. O projeto deixa de
+      ficar amarrado ao alvo, e a decisão de T18 é preservada onde ela vale
+- [x] `GET /interno/varredura-alertas`, autorizada por `Bearer $CRON_SECRET` com comparação em
+      tempo constante. Sem `CRON_SECRET` responde 503, como as rotas de push sem VAPID (T19b)
+- [x] `backend/vercel.json` declarando o cron diário (`0 9 * * *`, UTC)
+- [x] `ALERTA_AGENDADOR_INTERNO` com padrão **ligado** e regra assimétrica: só `false` e `0`
+      desligam. Valor digitado errado deixa ligado, em vez de desligar um requisito em silêncio
+- [x] O `server.ts` registra em log qual dos dois modos está valendo — "o alerta não chegou" é
+      uma queixa que começa exatamente aí
+- [x] `tests/varreduraPorRota.test.ts` (9) e `tests/envDoAgendador.test.ts` (9)
+- [x] Continua valendo a saída de emergência: `npm run alertas:varrer`, de T18
 
 ### Fatia 3 — Configuração de produção (concluída em 2026-09-09)
 
@@ -75,12 +79,19 @@ de verdade.
       senha nova, recusa a senha do seed por tamanho, recusa a conta de sistema, recusa
       e-mail inexistente
 
-### Fatia 4 — Operação (pendente)
+### Fatia 4 — Operação (concluída em 2026-09-09)
 
-- [ ] `docs/deploy.md`: roteiro de subida, variáveis de ambiente, e **restauração de backup**
-- [ ] Rotina de `pg_dump`. O `EventoLog` é append-only e é a base do indicador do TCC (RF12):
-      perdê-lo é perder o material do artigo, não só o estado da aplicação
-- [ ] Decidir o que fazer com `logger: true` (hoje registra corpo de toda requisição)
+- [x] `docs/deploy.md`: nove seções — o que sobe onde, banco, usuários, variáveis, o relógio da
+      RF08 nas duas hospedagens, frontend, verificação pós-deploy em sete passos, backup e
+      operação do dia a dia. Fecha com **o que este deploy não tem**, para que a limitação não
+      seja descoberta no meio do piloto
+- [x] Rotina de `pg_dump`/`pg_restore` documentada, com a razão junto: o `EventoLog` é o dado do
+      artigo, e não se recupera refazendo o deploy
+- [x] `logger: true` virou `logger: { level: env.LOG_LEVEL }`, padrão `info`. **A premissa de
+      que ele registrava corpo de requisição estava errada** — o serializer padrão do Fastify
+      grava método, URL, host e IP, nunca corpo, e é por isso que a senha do login nunca chegou
+      ao log. O que a variável resolve é volume, não vazamento
+- [x] `README.md` e `CLAUDE.md` apontam para o roteiro novo
 
 ## Notas técnicas
 

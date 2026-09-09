@@ -1317,3 +1317,44 @@ dos dois governou a escolha.
 RF05, RF06
 
 **Data:** 2026-09-09
+
+---
+
+## Revisão: o requisito não mudou de lugar, o gatilho mudou — e isso é o que dá para prometer
+
+**Contexto do problema:** entrada anterior deste arquivo (*"O sistema pronto e o sistema
+instalável são coisas diferentes"*) registrou que a decisão de T18 — colocar o relógio da RF08
+**dentro** do processo, para que um requisito funcional não dependesse de configuração no
+servidor da loja — apoia-se numa premissa nunca escrita: existir um processo de longa duração.
+Em hospedagem serverless a premissa é falsa, e a conclusão era desconfortável: a escolha de
+infraestrutura reverteria uma decisão de projeto sem que ninguém a revisse.
+
+**Alternativas consideradas:** escolher serverless e mover a RF08 para configuração da
+plataforma (reverteria T18); escolher processo persistente e não mexer em nada (preservaria
+T18, mas ao custo de amarrar o trabalho a um tipo de hospedagem e de deixar a premissa
+implícita de novo, agora só documentada).
+
+**Solução adotada:** as duas formas coexistem. O agendador interno é ligado por variável de
+ambiente, e existe uma rota autorizada por segredo para um agendador externo chamar. As duas
+chamam a mesma função de varredura, que é a mesma que o comando de linha já chamava desde
+T18 — três gatilhos, uma regra.
+
+**Por que resolve o problema / trade-offs:** a revisão mostrou que a decisão de T18 estava
+formulada de forma mais forte do que precisava. O que ela protegia de verdade não era "o job
+roda dentro do processo", e sim **"a regra de o que é um alerta não vira configuração de
+infraestrutura"** — e essa parte continua intacta em qualquer hospedagem, porque nenhum dos
+três gatilhos sabe o que é um alerta. O que virou configuração foi o **gatilho**, que é
+exatamente o tipo de coisa que muda de ambiente para ambiente e que não deveria estar
+travada em código.
+
+Para o artigo isso vale como refinamento honesto de uma afirmação anterior: uma implementação
+de referência para loja de pequeno porte **não consegue** prometer independência de
+infraestrutura para o *disparo* de um requisito periódico — em algum ponto alguém precisa ter
+um relógio. O que ela consegue prometer, e o que se deve dizer, é que a **decisão** de negócio
+não migra para lá junto. A diferença entre as duas promessas é o que separa um sistema
+portável de um sistema cuja regra está espalhada pelo painel da hospedagem.
+
+**Tarefa relacionada:** T23 (fatia 2), T18 (a decisão revista), e a entrada anterior sobre o
+sistema instalável. RF08
+
+**Data:** 2026-09-09

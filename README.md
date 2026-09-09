@@ -14,6 +14,7 @@ Trabalho de Conclusão de Curso — Sistemas de Informação, UNIFEI.
 | Histórico de decisões de design | `docs/decisoes.md` |
 | Pontos de decisão e descobertas para o artigo do TCC | `docs/notas-para-artigo.md` |
 | Backlog de tarefas com status | `tasks/backlog.md` |
+| Como subir e operar em produção | `docs/deploy.md` |
 | Requisitos originais completos | `docs/PRD-original.md` |
 
 ## Estrutura

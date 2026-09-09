@@ -69,7 +69,7 @@ o produto, não a operação dele.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T22 | Cadastro e gestão de usuários pelo GESTOR (RF01) | pendente | T03b, T04 | `tasks/T22-gestao-de-usuarios.md` |
-| T23 | Endurecimento e preparação de deploy | em-andamento | T22 | `tasks/T23-preparacao-deploy.md` |
+| T23 | Endurecimento e preparação de deploy | concluída | T22 | `tasks/T23-preparacao-deploy.md` |
 
 **T22 — escopo.** Hoje as únicas contas do sistema nascem de `src/db/seed.ts`, com senha
 padrão compartilhada e e-mails `@estoque.local`; não existe rota de usuário nem troca de
@@ -101,13 +101,15 @@ mesmo nem a conta de sistema da varredura (`modules/alerta/usuarioDoSistema.ts`)
    append-only e é a base do indicador do TCC (RF12), então perdê-lo é perder o dado do
    artigo.
 
-**Estado de T23 (2026-09-09):** duas das quatro fatias estão concluídas. A de configuração de
-produção (cookie cross-site, rewrite de SPA, `directUrl`, `postinstall` do Prisma, troca de
-senha por script) e a de segurança de borda (limite de tentativas no login e `helmet`) foram
-antecipadas, porque juntas são o que permite um deploy de piloto com dois usuários sem
-depender de T22. Seguem pendentes a decisão de hospedagem com o ajuste do relógio da RF08 e o
-`docs/deploy.md` com a rotina de backup. Detalhes por fatia em
-`tasks/T23-preparacao-deploy.md`.
+**Estado de T23 (2026-09-09):** concluída, e **fora da ordem** — as quatro fatias foram feitas
+antes de T22, porque juntas são o que permite um deploy de piloto com dois usuários sem
+depender da gestão de usuários pela interface. O que T22 ainda resolve, e o script de senha de
+T23 não resolve: criar uma terceira conta, e trocar senha sem acesso ao banco. A dependência
+declarada acima continua correta para uso **em regime**, não para o piloto.
+
+O alvo de hospedagem foi decidido em 2026-09-09: suportar as duas formas, com o agendador
+interno de T18 ligado ou desligado por variável e uma rota para agendador externo que existe
+nos dois modos. Registrado em `docs/decisoes.md`; roteiro de subida em `docs/deploy.md`.
 
 Ordem sugerida: T22 antes de T23, porque não faz sentido publicar na internet um sistema
 cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a demonstração da
