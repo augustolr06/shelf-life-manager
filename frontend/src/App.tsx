@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
+import { TelaDashboard } from './pages/TelaDashboard'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
 import { TelaLeituraQr } from './pages/TelaLeituraQr'
@@ -99,6 +100,15 @@ const TELAS: readonly Tela[] = [
     papeis: ['GESTOR'],
     // Sem `usuario`: a tela é GESTOR-only inteira, não tem ramo por papel.
     elemento: () => <TelaConfiguracaoAlerta />,
+  },
+  {
+    caminho: '/dashboard',
+    rotulo: 'Dashboard',
+    // Mesma lista das duas rotas de `/dashboard`: são decisão comercial e dado
+    // de pesquisa, não ato de balcão (RF13).
+    papeis: ['GESTOR'],
+    // Sem `usuario`: a tela é GESTOR-only inteira e não tem ramo por papel.
+    elemento: () => <TelaDashboard />,
   },
   {
     caminho: '/etiquetas',

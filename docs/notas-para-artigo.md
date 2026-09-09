@@ -1101,3 +1101,88 @@ impossível, porque o erro não deixa registro. O que a loja sabe hoje é o resu
 override), RF13
 
 **Data:** 2026-09-09
+
+---
+
+## O painel precisa dizer que tempo cada número descreve — e a tela é onde isso se prova
+
+**Contexto do problema:** no controle manual, "quanto tem em estoque" e "quanto se perdeu no
+mês" são perguntas feitas em momentos e cadernos diferentes, e ninguém as confunde. Num painel
+elas aparecem lado a lado, na mesma tela, com a mesma tipografia — e passam a parecer o mesmo
+tipo de fato. T20 já havia separado as duas naturezas na forma da resposta (`estoque` é o
+agora; saídas, FIFO, descartes e overrides são do período). A pergunta que sobrou para T21 é
+se essa separação sobreviveria à tela.
+
+**Solução adotada:** dois blocos visualmente distintos, cada um com seu rótulo — "Estoque
+agora: fotografia do momento, não muda com o período selecionado" e "No período — 11/08/2026 a
+09/09/2026", com o intervalo escrito no próprio título. O período ecoado pelo servidor é o que
+aparece ali: a tela não redige esse texto a partir do que o usuário digitou, e sim a partir do
+que o servidor confirmou ter usado.
+
+**Por que resolve o problema / trade-offs:** o leitor do painel não precisa saber que existem
+dois recortes — precisa não ser enganado por eles. Escrever o intervalo no título do bloco é o
+que impede a leitura "4 descartes" ser entendida como "4 descartes desde sempre". O custo é
+uma tela mais verbosa do que o painel bonito de dashboards comerciais, que costumam apostar em
+número grande sem legenda.
+
+**Tarefa relacionada:** T21, T20, RF13
+
+**Data:** 2026-09-09
+
+---
+
+## A limitação de um indicador tem que morar ao lado do indicador
+
+**Contexto do problema:** a taxa de acerto na primeira leitura é o número que o TCC persegue —
+é ele que responde "com que frequência a atendente pega o frasco certo de primeira". T20
+descobriu, na conferência com dados reais, que a venda autorizada de unidade vencida (PRD 6.1)
+entra nesse cálculo como acerto de primeira: ela grava zero tentativas porque de fato não
+passou pelo laço do FIFO. O banco de desenvolvimento mostrou 100% de acerto em duas saídas,
+sendo uma delas um override.
+
+**Alternativas consideradas:** (1) corrigir a taxa excluindo os overrides do denominador —
+recusada, porque mudaria o significado de um indicador já contratado e transformaria uma
+limitação conhecida num número silenciosamente diferente; (2) manter o número limpo e deixar a
+ressalva na documentação; (3) exibir a ressalva na tela, ao lado do número.
+
+**Solução adotada:** a terceira. Sob a taxa, a tela escreve "inclui N venda(s) autorizada(s) de
+unidade vencida, que não passaram pela validação de FIFO", usando o `overrides.total` que já
+vem na mesma resposta. A taxa exibida continua sendo exatamente a que o servidor calculou.
+
+**Por que resolve o problema / trade-offs:** a segunda alternativa faz a honestidade do
+indicador depender de quem leu a documentação — e quem lê o painel raramente é quem lê a
+documentação. Colar a ressalva ao número é o mais barato dos três e o único que alcança o
+leitor no momento em que ele forma a conclusão. O trade-off é um painel menos limpo, com uma
+nota de rodapé sob o indicador principal; e a nota não substitui a análise, que ainda precisa
+descontar os overrides explicitamente se quiser a taxa "pura". É um exemplo pequeno de uma
+prática que vale generalizar no artigo: **um instrumento de pesquisa deve carregar suas
+próprias ressalvas na mesma superfície em que apresenta seus resultados.**
+
+**Tarefa relacionada:** T21, T20, RF13, PRD 6.1
+
+**Data:** 2026-09-09
+
+---
+
+## A tela que não sabe somar dias
+
+**Contexto do problema:** o painel tem um recorte padrão — os últimos 30 dias. É a coisa mais
+trivial de calcular no navegador (`hoje menos 29`), e é exatamente o tipo de cálculo que se
+duplica sem pensar, porque parece pequeno demais para merecer uma requisição.
+
+**Solução adotada:** a primeira carga vai **sem** `de`/`ate` na URL, e a tela descobre qual foi
+o recorte lendo o `periodo` que o servidor devolve ecoado. Os campos do formulário começam
+vazios e só são preenchidos com esse intervalo depois da primeira resposta.
+
+**Por que resolve o problema / trade-offs:** o mesmo princípio da RNF03 e da RNF04, aplicado
+onde ele parece exagero. Se a tela soubesse calcular o padrão, existiriam dois donos da mesma
+regra, e no dia em que um mudasse (de 30 para 60 dias, digamos) o outro passaria a mentir sem
+erro visível — o painel mostraria um intervalo no título e teria consultado outro. A mesma
+disciplina governa o fuso: a tela não decide onde começa o dia, o que evita a distorção que
+a RNF01 existe para prevenir na validade e que T20 encontrou entrando pela porta do recorte.
+O custo é não ter os campos preenchidos no primeiro instante de render — o painel carrega
+uma vez com os campos em branco.
+
+**Tarefa relacionada:** T21, T20, RNF01, RNF04
+
+**Data:** 2026-09-09

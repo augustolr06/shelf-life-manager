@@ -1140,3 +1140,52 @@ em troca de nada.
 autorizados" da RF13, que sem ele seria um número sem como olhar quais vendas o compõem. Filtro
 por produto, por atendente ou por `sessaoVendaId` não foi implementado: são material de T21 ou
 de análise, e cada um deles é uma decisão sobre o que o painel deve destacar.
+
+## 2026-09-09 — Frontend do dashboard (T21)
+
+**Gráfico de faixas em CSS, sem biblioteca de gráficos.** São cinco barras horizontais, e uma
+dependência de gráficos traria eixos e tooltips prontos ao custo de centenas de kilobytes num
+PWA que precisa carregar em celular de loja (RNF07). Confirmado pelo orientando antes da
+implementação. A barra é `aria-hidden`: o rótulo e o número ao lado é que são a informação, e
+é isso que sobrevive num leitor de tela e numa impressão. Consequência aceita: nada de eixo,
+escala nem interação — se a defesa exigir gráfico mais elaborado, a troca é local, num
+componente só.
+
+**A barra mais longa é a maior faixa, não o estoque inteiro.** Com 700 unidades em "acima de
+90 dias", normalizar pelo total transformaria as faixas urgentes em traços invisíveis —
+justamente as que a gestora precisa ver. E faixa zerada não desenha barra alguma: o traço
+mínimo que mantém visível a faixa de uma unidade mentiria sobre a de zero.
+
+**Um seletor de período para a tela inteira.** As duas rotas aceitam `de`/`ate`
+independentes, mas a tela aplica o mesmo recorte às duas. Dois seletores produziriam um painel
+em que o agregado fala de agosto e a lista de setembro sem que ninguém percebesse. Perde-se
+"ver o total do mês com o histórico da semana", que não é pergunta que o TCC faça.
+
+**A primeira carga vai sem `de`/`ate`, e o período exibido é o que voltou ecoado.** A tela não
+sabe calcular "hoje menos 29 dias" — deliberadamente. Se ela soubesse, existiriam dois donos
+do recorte padrão, e o dia em que um mudasse o outro passaria a mentir. Os campos do
+formulário só são preenchidos depois da primeira resposta, com o intervalo que o servidor
+usou.
+
+**O histórico de saídas é bloco do dashboard, não tela própria.** O número ("1 override") e a
+lista ("qual foi") são a mesma pergunta em duas resoluções, e separá-los obrigaria a repetir o
+seletor de período. Confirmado pelo orientando. Se a lista incomodar no piloto, virar tela
+própria é barato — o serviço já está separado.
+
+**A rota inicial do GESTOR continua `/produtos`.** Um painel é candidato natural a tela de
+entrada, mas trocar isso é decisão de produto, não consequência técnica desta tarefa. Fica
+como está, com o dashboard alcançável pela navegação.
+
+**A limitação da taxa de acerto aparece na própria tela.** T20 registrou que o override grava
+`tentativasAteAcerto = 0` sem ter passado pelo laço do FIFO, e por isso conta como acerto de
+primeira. A tela exibe, colada ao percentual, quantas vendas autorizadas de unidade vencida o
+período contém — usando o `overrides.total` que já vem na mesma resposta, **sem recalcular a
+taxa**, que continua sendo a do servidor (RNF04). Confirmado pelo orientando. A alternativa
+(número limpo, ressalva só na documentação) faria a limitação depender de quem leu
+`docs/notas-para-artigo.md`, que não é quem lê o painel.
+
+**`formatarInstante` entrou em `services/datas.ts`, ao lado de `formatarData`.** São formatos
+diferentes de propósito: `dataValidade` é `DATE` e é fatiada como texto para não passar por
+fuso (RNF01), enquanto `Saida.dataHora` é um instante e **deve** ser convertida para a hora
+local de quem lê o relatório. Ter as duas no mesmo arquivo é o que deixa a diferença visível
+para quem for escrever a próxima tela.

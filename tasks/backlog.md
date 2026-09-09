@@ -57,7 +57,7 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T20 | Endpoints agregados de dashboard (RF13) | concluída | T09, T13 | `tasks/T20-endpoints-dashboard.md` |
-| T21 | Frontend do dashboard | pendente | T20 | — |
+| T21 | Frontend do dashboard | concluída | T20 | `tasks/T21-frontend-dashboard.md` |
 
 ---
 

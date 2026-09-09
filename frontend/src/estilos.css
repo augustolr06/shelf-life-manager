@@ -975,3 +975,210 @@ textarea {
   /* Alvo de toque no celular, como os botões da tela de alertas. */
   min-height: 2.75rem;
 }
+
+/* Dashboard (RF13, T21). O painel é leitura, não operação: nenhum controle
+   aqui muda o estoque, e por isso ele é o lugar mais sóbrio do sistema — sem
+   cor de urgência além da que já distingue vencida do resto. */
+.tela-dashboard h2 {
+  margin-top: 0;
+}
+
+/* O período vale para os dois blocos de uma vez, e por isso fica acima deles,
+   e não dentro de nenhum. */
+.seletor-periodo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.seletor-periodo .campo {
+  margin: 0;
+}
+
+.bloco-painel {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: 0.5rem;
+}
+
+.bloco-painel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.bloco-painel > .subtitulo {
+  margin-top: 0;
+}
+
+.indicador-destaque {
+  font-size: 1rem;
+}
+
+.indicador-destaque strong {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+/* Uma barra por faixa. A grade fixa o rótulo e o número nas pontas, para que
+   as cinco linhas fiquem alinhadas mesmo com nomes de comprimentos diferentes. */
+.grafico-faixas {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.faixa {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.rotulo-faixa {
+  color: var(--cor-texto-suave);
+}
+
+.barra-faixa {
+  display: block;
+  height: 1.25rem;
+  border-radius: 0.25rem;
+  background: var(--cor-primaria);
+}
+
+/* A única faixa com cor própria: é a que representa prejuízo já consumado. */
+.faixa-vencida .barra-faixa {
+  background: var(--cor-erro);
+}
+
+.valor-faixa {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 3ch;
+  text-align: right;
+}
+
+.nota-vencidas {
+  margin-bottom: 0;
+  color: var(--cor-texto-suave);
+}
+
+.indicadores {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.indicador {
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+}
+
+.valor-indicador {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.rotulo-indicador {
+  color: var(--cor-texto-suave);
+}
+
+/* A ressalva do indicador fica colada nele, e não num rodapé: quem lê a taxa
+   precisa ler a limitação junto (T20, `docs/notas-para-artigo.md`). */
+.nota-indicador {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--cor-texto-suave);
+}
+
+/* O "vs." da RF13, lado a lado: são dois números de tabelas diferentes, e a
+   comparação entre eles é a informação. */
+.confronto-fifo {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.lado-confronto {
+  display: flex;
+  flex-direction: column;
+}
+
+.versus {
+  color: var(--cor-texto-suave);
+}
+
+.filtro-historico {
+  margin: 0.5rem 0 1rem;
+}
+
+/* Mesmo alvo de toque do filtro da tela de alertas: a caixa de seleção é
+   pequena, e o rótulo inteiro precisa valer como área de clique. */
+.filtro-historico label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+}
+
+.filtro-historico input {
+  width: 1rem;
+  height: 1rem;
+  min-height: auto;
+}
+
+.resumo-historico {
+  color: var(--cor-texto-suave);
+}
+
+.lista-saidas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.saida {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.saida h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.marca-fifo {
+  color: var(--cor-texto-suave);
+}
+
+/* A venda autorizada de unidade vencida é a exceção do sistema (PRD 6.1) e
+   aparece marcada no histórico — é o que dá corpo ao item "overrides
+   autorizados" da RF13. */
+.marca-override {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  border-radius: 0.25rem;
+}
+
+.marca-override p {
+  margin: 0.25rem 0;
+}
+
+.marca-override .justificativa {
+  font-style: italic;
+}
+
+.marca-override .autorizador {
+  color: var(--cor-texto-suave);
+}

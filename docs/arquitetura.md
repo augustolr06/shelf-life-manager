@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-09 (seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-09-09 (seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -493,6 +493,15 @@ um número sem como olhar quais vendas o compõem. Cada linha traz o `UnidadeNaR
 sempre, `dataHora` (instante, não data de calendário), `tentativasAteAcerto`,
 `alertaFifoDisparado`, `vendaDeUnidadeVencida`, `justificativaOverride`, `sessaoVendaId`,
 `usuario` e `autorizadoPor` (`null` em toda saída comum).
+
+**Quem consome as duas rotas é `frontend/src/pages/TelaDashboard.tsx`** (rota `/dashboard`,
+`GESTOR`, T21). A tela pede o painel **sem** `de`/`ate` na primeira carga e adota o intervalo
+que voltou ecoado — é assim que existe um único dono do recorte padrão, e é por isso que ela
+nunca precisa saber somar dias. O período escolhido vale para as duas rotas de uma vez: dois
+seletores independentes na mesma tela produziriam um painel em que o agregado fala de agosto e
+a lista de setembro. A `taxaAcertoPrimeiraLeitura: null` vira "sem saídas no período" e nunca
+"0%", e ao lado dela a tela exibe a ressalva do `overrides.total` — a limitação registrada em
+T20 dita onde o indicador é lido, e não só num documento.
 
 **O recorte do período é do dia local, não da meia-noite UTC.** `dataValidade` é `DATE`
 (RNF01), mas `Saida.dataHora`, `Descarte.dataHora` e `EventoLog.ocorridoEm` são instantes.
