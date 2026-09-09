@@ -24,7 +24,8 @@
     "test:descarte": "vitest run tests/descarte",
     "test:etiquetas": "vitest run tests/etiquetas",
     "test:alerta": "vitest run tests/alerta",
-    "test:push": "vitest run tests/push"
+    "test:push": "vitest run tests/push",
+    "test:dashboard": "vitest run tests/dashboard"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

@@ -1064,3 +1064,79 @@ perdido — aceitável porque a lista in-app continua sendo a fonte de verdade.
 
 **O `ResumoDaVarredura` ganhou `notificacoesEnviadas`,** e as asserções de resumo da suíte de
 T18 foram atualizadas para o campo novo. É a única edição em teste existente nesta tarefa.
+
+## 2026-09-09 — Endpoints agregados de dashboard (T20)
+
+**Duas rotas, não uma.** `docs/arquitetura.md` fixou só `GET /dashboard`, mas cinco dos seis
+itens da RF13 são números e o sexto — histórico de saídas — é lista longa e paginada. Enfiá-la
+no agregado faria toda abertura do painel carregar linhas que a tela mostra num canto, e
+paginar dentro de um objeto de indicadores é contrato torto. Entrou `GET /dashboard/saidas`, no
+mesmo módulo e mesmo papel. A alternativa recusada foi `GET /saidas`, que partiria o prefixo
+entre dois módulos: quem fosse procurar acharia `saida.routes.ts`, onde ela não estaria.
+
+**O módulo `dashboard` só conta; nunca produz fato.** Nenhuma das duas rotas grava `EventoLog`
+— e menos ainda nesta tabela, que é de onde o painel lê. É essa separação que mantém o painel
+incapaz de mentir sobre a operação: ele não participa dela.
+
+**As faixas de vencimento são fixas no código, não derivadas de `ConfiguracaoAlerta`.** Seria
+elegante reaproveitar as janelas que a gestora configurou em T17 (30 e 7 dias), e foi recusado
+por dois motivos. O painel é instrumento de pesquisa, e um gráfico cujas faixas mudam quando
+alguém edita uma configuração deixa de ser comparável entre dois momentos do piloto (PRD seção
+9). E as duas respondem perguntas diferentes: a janela diz "sobre o que me avisam?", a faixa
+diz "como está distribuído o estoque?" — só por acaso usam a mesma unidade de medida. Fixas:
+vencida, até 7, 8–30, 31–90, acima de 90.
+
+**As faixas são declaradas como cadeia de tetos, não como pares de bordas.** O piso de cada
+uma é o teto da anterior mais um dia, calculado e não digitado. Faixas escritas à mão abririam
+a chance de um vão de um dia em que a unidade não apareceria em faixa nenhuma — o mesmo tipo de
+buraco que a fila de T13 existe para não ter. A consequência é que a soma das cinco é
+`unidadesEmEstoque` por construção, e não por coincidência.
+
+**O painel mistura dois tempos, e isso vai explícito na forma da resposta.** `estoque` é
+fotografia do agora; `saidas`, `fifo`, `perdas.descartes` e `overrides` são do período. Não há
+como uniformizar — "unidades em estoque no período" não significa nada, e "perdas agora" seria
+o total histórico. Ficam em objetos distintos, com o período ecoado, para que a T21 rotule cada
+bloco. `perdas.unidadesVencidasEmEstoque` é o único número repetido de propósito (é a faixa
+`VENCIDA`), porque ali ele é lido como prejuízo iminente e não como distribuição.
+
+**O corte do período é o dia local, não a meia-noite UTC.** Decisão de arquitetura, e a única
+desta tarefa que muda `shared/data.ts`. `dataValidade` é `DATE` (RNF01), mas `Saida.dataHora`,
+`Descarte.dataHora` e `EventoLog.ocorridoEm` são instantes: converter `de`/`ate` com
+`dataDeString()` ancoraria o corte em UTC e, em BRT, jogaria a venda das 22h no relatório do dia
+seguinte. É a mesma classe de erro que a RNF01 evita na validade, entrando pela porta do
+recorte. Entraram `inicioDoDia` e `inicioDoDiaSeguinte`, montando os instantes a partir dos
+componentes **locais**, coerentes com o `hojeComoData()` que já decide que dia é hoje na loja. O
+intervalo é fechado no começo e aberto no fim: um "fim do dia" às 23:59:59.999 deixaria de fora
+o que o Postgres grava nos microssegundos seguintes.
+
+**`taxaAcertoPrimeiraLeitura` é `null`, nunca `0`, em período sem saída.** "0% de acerto" e
+"nenhuma venda ainda" são fatos opostos, e um painel que mostra 0% num dia parado sugere um
+sistema que não funciona. `null` obriga a tela a dizer "sem dados no período", que é a verdade.
+
+**O denominador da taxa é a saída, não a leitura de QR.** As duas leituras do indicador são
+defensáveis — por venda ("das vendas concluídas, quantas foram de primeira") e por leitura
+("das leituras de QR, quantas confirmaram"). Ficou a primeira: ela responde "com que frequência
+a atendente pega o frasco certo de primeira" sem contaminar o número com código inexistente,
+unidade já baixada ou tentativa de venda de unidade vencida, que não são erro de FIFO. O dado
+bruto para a segunda continua no `EventoLog`, intacto, e pode virar indicador adicional na
+análise.
+
+**A distorção conhecida da taxa: o override entra no denominador como acerto de primeira.** A
+venda autorizada de unidade vencida cria `Saida` com `tentativasAteAcerto = 0` sem ter passado
+pelo laço do FIFO, e por isso conta como acerto. É raro por construção (a fricção da
+justificativa existe para isso) e `overrides.total` está na mesma resposta para a análise
+descontá-lo — mas o número não se autocorrige, e a conferência no banco de desenvolvimento
+mostrou exatamente esse caso: 2 saídas, taxa 1,0, sendo uma delas override. Registrado como
+limitação em `docs/notas-para-artigo.md`; corrigir mudaria o significado de um indicador já
+contratado, e é decisão do orientando.
+
+**Nenhum índice novo.** A contagem por faixa varre `UnidadeProduto` por `status` e
+`dataValidade`, e o índice existente (`[produtoId, status, dataValidade]`) não a atende. Na
+escala do piloto é irrelevante — a conferência mediu 7–15 ms com o banco de desenvolvimento,
+folgado dentro da RNF06 —, e uma migração só para o painel encareceria toda escrita de unidade
+em troca de nada.
+
+**`apenasOverrides` no histórico, e nenhum outro filtro.** É o que dá corpo ao item "overrides
+autorizados" da RF13, que sem ele seria um número sem como olhar quais vendas o compõem. Filtro
+por produto, por atendente ou por `sessaoVendaId` não foi implementado: são material de T21 ou
+de análise, e cada um deles é uma decisão sobre o que o painel deve destacar.

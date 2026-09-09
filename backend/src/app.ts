@@ -6,6 +6,7 @@ import { NOME_COOKIE_SESSAO } from './modules/auth/cookie.js'
 import { rotasAlerta } from './modules/alerta/alerta.routes.js'
 import { rotasConfiguracaoAlerta } from './modules/alerta/configuracaoAlerta.routes.js'
 import { rotasAuth } from './modules/auth/auth.routes.js'
+import { rotasDashboard } from './modules/dashboard/dashboard.routes.js'
 import { rotasDescarte } from './modules/descarte/descarte.routes.js'
 import { rotasExcecaoVencido } from './modules/excecao-vencido/excecaoVencido.routes.js'
 import { rotasProduto } from './modules/produto/produto.routes.js'
@@ -59,6 +60,7 @@ export function buildApp(): FastifyInstance {
   app.register(rotasConfiguracaoAlerta)
   app.register(rotasAlerta)
   app.register(rotasPush)
+  app.register(rotasDashboard)
 
   // Liveness. O frontend consulta este endpoint antes de habilitar a tela de
   // leitura de QR (docs/arquitetura.md seção 6).

@@ -1023,3 +1023,81 @@ varredura, único momento em que há o que notificar), T17 (o canal), T10 (o ser
 RNF07, que a solução preservou), RF08
 
 **Data:** 2026-09-09
+
+---
+
+## O número que fecha o ciclo: o log deixa de ser arquivo e vira resposta
+
+**Contexto do problema:** a RF12 construiu o `EventoLog` com duplo propósito declarado —
+auditoria e **instrumento de coleta de dados quantitativos**. Durante cinco incrementos, só o
+primeiro propósito esteve exercido: o log crescia, e ninguém o lia. A RF13 é o momento em que o
+instrumento é lido, e ela revela uma coisa que não é sobre software — **o processo manual da
+perfumaria não tem nenhum equivalente disso**. Na planilha e no caderno, a pergunta "quantas
+vezes a atendente pegou o frasco errado no mês passado?" não é difícil de responder: ela é
+impossível, porque o erro não deixa registro. O que a loja sabe hoje é o resultado final
+(quantos frascos venceram), nunca o comportamento que levou até ele.
+
+**O que apareceu na implementação:**
+
+1. **O indicador central do trabalho depende de um dado que só existe porque o sistema bloqueia
+   em vez de corrigir.** A "taxa de acerto na primeira leitura" só é calculável porque o FIFO
+   bloqueia a saída errada, registra `ALERTA_FIFO_DISPARADO` e **espera** a leitura certa. Um
+   sistema que simplesmente baixasse a unidade correta em silêncio — que seria mais rápido no
+   balcão — teria a mesma saída física e **nenhum dado**. O bloqueio é, ao mesmo tempo, o
+   mecanismo de controle e o instrumento de medida. Vale dizer isso explicitamente no artigo:
+   a escolha de projeto que mais incomoda a operação é a que torna o experimento possível.
+
+2. **"Alertas disparados vs. substituições efetivas" são duas tabelas, e a diferença entre elas
+   é o abandono.** O bloqueio vem do `EventoLog`; a substituição, da `Saida`. Se os dois
+   números viessem da mesma fonte, seriam iguais por construção e o "vs." da RF13 não teria
+   conteúdo. A distância entre eles mede algo que nenhum dos dois mede sozinho: quantas vezes o
+   sistema bloqueou e a venda **não** aconteceu — cliente que desistiu, atendente que parou.
+   Na conferência contra o banco de desenvolvimento esse número apareceu grande (5 bloqueios,
+   0 substituições), e ali era artefato de teste manual; num piloto real, é o indicador de
+   fricção que decide se o controle é sustentável no balcão.
+
+3. **O painel precisou declarar que fala de dois tempos ao mesmo tempo.** Estoque é fotografia
+   do agora; perda, saída e override são de um período escolhido. É tentador espremer tudo num
+   recorte só, e é assim que relatórios passam a mentir sem que ninguém perceba — "unidades em
+   estoque no período" não significa nada, e um leitor que suponha que significa vai tirar
+   conclusão errada. A resposta separa os dois em blocos distintos e ecoa o período. É uma
+   observação metodológica que vale além deste sistema: **um painel que consolida estado e
+   fluxo tem que dizer qual é qual, ou o número certo vira interpretação errada**.
+
+4. **Uma decisão do FIFO reapareceu, três incrementos depois, como borda de gráfico.** A
+   unidade que vence *hoje* continua vendável (é a borda `>= hoje` do passo 4 do FIFO), não
+   entra na fila de descarte (T13), não gera alerta de vencida (T18) — e agora abre a faixa
+   "até 7 dias" em vez da faixa "vencida". A mesma decisão de uma linha atravessou quatro
+   requisitos diferentes. É um argumento concreto a favor da RNF03: a regra vive num lugar só
+   **e** as consultas que a espelham derivam da mesma função de calendário, senão o sistema
+   passa a discordar de si mesmo por um dia.
+
+**Limitações a declarar sem rodeios:**
+
+- **A taxa de acerto conta o override como acerto de primeira.** A venda autorizada de unidade
+  vencida (PRD 6.1) grava `Saida` com zero tentativas, porque de fato não passou pelo laço do
+  FIFO — e entra no denominador como se tivesse acertado de primeira. É raro por construção, e
+  `overrides.total` está na mesma resposta para descontá-lo, mas **o número exibido não se
+  autocorrige**. Quem ler o painel sem ler esta nota superestima o acerto na exata proporção
+  dos overrides do período.
+- **O painel não distingue a origem de um descarte.** `perdas.descartes` soma o frasco
+  encontrado na varredura da fila (T13) e o descoberto no balcão durante uma venda — que são
+  duas histórias operacionais diferentes, e uma delas (a do balcão) significa que o cliente
+  presenciou a falha. A distinção existe no log, pela presença ou ausência de `LEITURA_QR_SAIDA`
+  antes do `DESCARTE_REGISTRADO`, mas não sobe ao painel.
+- **Não há série temporal, e a pergunta do TCC é sobre evolução.** O painel responde "como
+  estão os números deste período", e a hipótese do trabalho é "a perda por vencimento diminuiu
+  **depois** da adoção". Comparar dois períodos é possível chamando a rota duas vezes, mas a
+  comparação em si acontece fora do sistema, na análise. É trabalho futuro honesto — e é
+  também a razão de o recorte de período ser parâmetro desde o primeiro dia, e não uma janela
+  fixa.
+- **A perda é contada em unidades, nunca em dinheiro.** `Produto` não tem preço, e a
+  perfumaria mede prejuízo em reais. O artigo pode apresentar a redução em unidades com
+  honestidade, mas precisa dizer que a conversão para valor depende de um dado que o sistema
+  deliberadamente não guarda.
+
+**Tarefa relacionada:** T20 (os agregados), T12/RF12 (o log que eles leem), T09 (a `Saida` com
+`tentativasAteAcerto`), T13 (a fila, cuja definição de "vencido" o painel reusa), T11 (o
+override), RF13
+
+**Data:** 2026-09-09

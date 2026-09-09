@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-09 (seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-09-09 (seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -34,6 +34,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /descarte       <- a fila do que venceu e ainda está em estoque (RF11)
       /alerta         <- a janela de antecedência (RF08), a varredura periódica, seu agendador e a entrega
       /evento-log
+      /dashboard      <- só conta o que os outros gravaram (RF13)
     /db
       schema.prisma
     /shared
@@ -269,7 +270,8 @@ manual produziria.
 | GET | `/push/chave-publica` | GESTOR | Chave pública VAPID, exigida pelo navegador para inscrever o aparelho (RF08) |
 | POST | `/push/inscricoes` | GESTOR | Inscreve **este aparelho** na notificação push (RF08) |
 | DELETE | `/push/inscricoes` | GESTOR | Remove a inscrição do aparelho, pelo `endpoint` no corpo (RF08) |
-| GET | `/dashboard` | GESTOR | RF13 |
+| GET | `/dashboard` | GESTOR | Os agregados da RF13, no recorte de período pedido |
+| GET | `/dashboard/saidas` | GESTOR | Histórico de saídas, paginado — o único item da RF13 que é lista |
 
 **Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
 endpoint separado de confirmação para o RF07, o que contradizia a seção 4 acima — o ramo 5
@@ -433,6 +435,73 @@ grava evento: consultar não é ato operacional.
 O corpo de `/saidas/ler` aceita, além do `codigoQr`, um `sessaoVendaId` opcional — UUID
 gerado no cliente que agrupa as saídas de um mesmo atendimento para fins de relatório.
 Não cria estado nem semântica transacional (PRD seção 6.2).
+
+**As duas rotas de `/dashboard`** (T20) são a consolidação da RF13 — a leitura do
+instrumento que a RF12 construiu. Ambas `GESTOR`, pela mesma razão de T13, T17 e T19: são
+decisão comercial e dado de pesquisa, não ato de balcão. Nenhuma das duas grava `EventoLog`,
+e um evento aqui sujaria justamente a tabela de onde o painel lê.
+
+Ambas recortam o tempo por `de` e `ate` (`AAAA-MM-DD`, opcionais; padrão: os **últimos 30
+dias**, hoje inclusive), devolvem o período **ecoado** e recusam intervalo invertido com 400
+`PERIODO_INVALIDO`. Data que não existe no calendário (31/02) é recusada pelo `format: 'date'`
+do schema, como `CORPO_INVALIDO`.
+
+```json
+{
+  "periodo": { "de": "2026-08-11", "ate": "2026-09-09" },
+  "estoque": {
+    "unidadesEmEstoque": 13,
+    "porFaixaDeVencimento": [
+      { "faixa": "VENCIDA", "unidades": 1 }, { "faixa": "ATE_7_DIAS", "unidades": 0 },
+      { "faixa": "DE_8_A_30_DIAS", "unidades": 2 }, { "faixa": "DE_31_A_90_DIAS", "unidades": 3 },
+      { "faixa": "ACIMA_DE_90_DIAS", "unidades": 7 }
+    ]
+  },
+  "saidas": { "total": 2, "naPrimeiraLeitura": 2, "taxaAcertoPrimeiraLeitura": 1 },
+  "fifo": { "alertasDisparados": 5, "substituicoesEfetivas": 0 },
+  "perdas": { "descartes": 4, "unidadesVencidasEmEstoque": 1 },
+  "overrides": { "total": 1 }
+}
+```
+
+**A resposta mistura dois tempos, e diz isso na própria forma.** `estoque` e
+`perdas.unidadesVencidasEmEstoque` são fotografia do **agora** e ignoram `de`/`ate`; `saidas`,
+`fifo`, `perdas.descartes` e `overrides` são do **período**. Não há como uniformizar: "unidades
+em estoque no período" não significa nada (o estoque de qual dia?), e "perdas agora" seria o
+total histórico. Separá-los em objetos distintos é o que permite à tela rotular cada bloco
+(`docs/decisoes.md`, 2026-09-09).
+
+As **cinco faixas de vencimento são fixas no código** e saem sempre, inclusive zeradas —
+faixa ausente vira buraco no gráfico e sugere dado não apurado. Elas são contíguas por
+construção (cada piso é o teto da anterior mais um dia), e por isso a soma delas é
+`unidadesEmEstoque`. A borda de `VENCIDA` é a mesma cláusula da fila de T13 e a negação exata
+do pool prioritário do passo 4 da seção 4: o que vence **hoje** abre `ATE_7_DIAS`, não a faixa
+de vencidas. `perdas.unidadesVencidasEmEstoque` é esse mesmo número, repetido no bloco onde
+ele é lido como prejuízo iminente e não como distribuição de estoque.
+
+`fifo.alertasDisparados` conta `ALERTA_FIFO_DISPARADO` no `EventoLog`; `substituicoesEfetivas`
+conta `Saida` com `alertaFifoDisparado`. As duas tabelas são diferentes de propósito — um
+bloqueio pode não terminar em venda —, e é essa diferença que o "vs." da RF13 pede para ver.
+`taxaAcertoPrimeiraLeitura` é `null`, nunca `0`, quando não houve saída no período: 0% de
+acerto e "nenhuma venda" são fatos opostos.
+
+**`GET /dashboard/saidas`** é o único item da RF13 que é lista, e por isso rota própria em vez
+de um campo do agregado. Paginada no formato de `/descartes/pendentes` (padrão 20, máximo
+100), ordenada por `dataHora` **decrescente** com desempate por `id`, e com o filtro
+`apenasOverrides` — que é o que dá corpo ao item "overrides autorizados", sem o qual ele seria
+um número sem como olhar quais vendas o compõem. Cada linha traz o `UnidadeNaResposta` de
+sempre, `dataHora` (instante, não data de calendário), `tentativasAteAcerto`,
+`alertaFifoDisparado`, `vendaDeUnidadeVencida`, `justificativaOverride`, `sessaoVendaId`,
+`usuario` e `autorizadoPor` (`null` em toda saída comum).
+
+**O recorte do período é do dia local, não da meia-noite UTC.** `dataValidade` é `DATE`
+(RNF01), mas `Saida.dataHora`, `Descarte.dataHora` e `EventoLog.ocorridoEm` são instantes.
+Converter `de`/`ate` com o `dataDeString()` da seção 4 ancoraria o corte em UTC, e em BRT
+(UTC-3) uma venda das 22h de segunda apareceria no relatório de terça — a mesma classe de erro
+que a RNF01 evita na validade, entrando pela porta do recorte. Por isso `shared/data.ts` ganhou
+o par `inicioDoDia`/`inicioDoDiaSeguinte`, que monta os instantes a partir dos componentes
+**locais**, coerente com o `hojeComoData()` que já decide que dia é hoje na loja. O intervalo é
+fechado no começo e aberto no fim.
 
 ### 5.1 Formato de erro da API
 

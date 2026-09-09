@@ -54,10 +54,10 @@ Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
 
 ## Incremento 6 — Dashboard e relatórios
 
-| ID | Tarefa | Status | Depende de |
-|---|---|---|---|
-| T20 | Endpoints agregados de dashboard (RF13) | pendente | T09, T13 |
-| T21 | Frontend do dashboard | pendente | T20 |
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T20 | Endpoints agregados de dashboard (RF13) | concluída | T09, T13 | `tasks/T20-endpoints-dashboard.md` |
+| T21 | Frontend do dashboard | pendente | T20 | — |
 
 ---
 
