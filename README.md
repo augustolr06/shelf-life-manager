@@ -12,6 +12,7 @@ Trabalho de Conclusão de Curso — Sistemas de Informação, UNIFEI.
 | Contexto do projeto e regras de trabalho | `CLAUDE.md` |
 | Stack, modelo de dados, contratos de API, função FIFO | `docs/arquitetura.md` |
 | Histórico de decisões de design | `docs/decisoes.md` |
+| Pontos de decisão e descobertas para o artigo do TCC | `docs/notas-para-artigo.md` |
 | Backlog de tarefas com status | `tasks/backlog.md` |
 | Requisitos originais completos | `docs/PRD-original.md` |
 
@@ -71,6 +72,7 @@ curl http://localhost:3333/health   # {"status":"ok","uptime":...}
 
 ```bash
 cd frontend
+cp .env.example .env      # opcional: só se o backend não estiver em localhost:3333
 npm install
 npm run dev               # http://localhost:5173
 ```
@@ -80,8 +82,21 @@ npm run dev               # http://localhost:5173
 | Variável | Descrição | Padrão |
 |---|---|---|
 | `DATABASE_URL` | String de conexão do PostgreSQL | — (obrigatória) |
+| `JWT_SECRET` | Segredo de assinatura do JWT de sessão (T03). Gere o seu: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | — (obrigatória) |
 | `PORT` | Porta do servidor Fastify | `3333` |
 | `FRONTEND_ORIGIN` | Origem permitida do frontend (usada a partir de T03) | `http://localhost:5173` |
+| `ALERTA_INTERVALO_HORAS` | Intervalo da varredura de alertas proativos, em horas (T18) | `24` |
+| `VAPID_PUBLIC_KEY` · `VAPID_PRIVATE_KEY` | Par de chaves do Web Push (T19b). **Opcionais**: sem elas o servidor sobe inteiro e só a notificação push fica desligada — as rotas de inscrição respondem 503. Gere o par com `npm run push:chaves`; trocá-lo depois invalida todas as inscrições existentes | — (vazias) |
+| `VAPID_SUBJECT` | Contato exigido pela RFC 8292 (`mailto:` ou `https:`) | `mailto:estoque@exemplo.local` |
+
+`backend/.env.example` traz todas elas comentadas — é a referência que acompanha o
+código; esta tabela existe para ser lida antes de copiar o arquivo.
+
+### Frontend (`frontend/.env`)
+
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `VITE_API_URL` | URL do backend Fastify. O frontend roda em 5173 e o backend em 3333, então as chamadas são cross-origin (CORS com credenciais, T03) | `http://localhost:3333` |
 
 ## Comandos
 
@@ -95,12 +110,13 @@ npm run dev               # http://localhost:5173
 | `npm test` | Roda todos os testes (Vitest) — inclui os que exigem PostgreSQL |
 | `npm run test:sem-banco` | Só as suítes que não usam banco, sem precisar de container |
 | `npm run test:fifo` | Só a suíte da validação FIFO (exige PostgreSQL) |
-| `npm run test:saida` · `test:evento-log` · `test:excecao` · `test:descarte` · `test:etiquetas` · `test:alerta` | Uma suíte de banco por vez (todas exigem PostgreSQL) |
+| `npm run test:saida` · `test:evento-log` · `test:excecao` · `test:descarte` · `test:etiquetas` · `test:alerta` · `test:push` · `test:dashboard` | Uma suíte de banco por vez (todas exigem PostgreSQL) |
 | `npm run typecheck` | Checagem de tipos sem emitir, `src/` e `tests/` |
 | `npm run prisma:generate` | Gera o Prisma Client |
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
 | `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento, a janela de alerta padrão e a conta de sistema |
 | `npm run alertas:varrer` | Roda uma varredura de alertas proativos agora e sai (T18). O caminho normal é o agendador dentro do servidor |
+| `npm run push:chaves` | Gera um par de chaves VAPID para o Web Push e imprime as linhas prontas para o `.env` (T19b). Não escreve em arquivo nenhum |
 | `npm run prisma:studio` | Abre o Prisma Studio |
 
 #### Testes que exigem PostgreSQL
@@ -117,11 +133,14 @@ criados sozinhos na primeira execução. Sem container, use
 
 **Convenção de organização das suítes.** Suíte que exige PostgreSQL mora em uma
 **subpasta** de `tests/` (`tests/fifo/`, `tests/saida/`, `tests/evento-log/`,
-`tests/excecao-vencido/`, `tests/descarte/`, `tests/etiquetas/`); suíte que roda
-sem banco é **arquivo solto** em `tests/`. Não é só arrumação: é o critério que
-`npm run test:sem-banco` usa (`--exclude "tests/*/**"`). Uma suíte nova de banco
-criada em subpasta já nasce excluída do script, sem editar `package.json` — e uma
-suíte **sem** banco precisa ficar solta em `tests/`, ou será pulada em silêncio.
+`tests/excecao-vencido/`, `tests/descarte/`, `tests/etiquetas/`, `tests/alerta/`,
+`tests/push/`, `tests/dashboard/`); suíte que roda sem banco é **arquivo solto**
+em `tests/`. Não é só arrumação: é o critério que `npm run test:sem-banco` usa
+(`--exclude "tests/*/**"`). Uma suíte nova de banco criada em subpasta já nasce
+excluída do script, sem editar `package.json` — e uma suíte **sem** banco precisa
+ficar solta em `tests/`, ou será pulada em silêncio.
+A exceção é `tests/apoio/`, que não tem suíte nenhuma: são os utilitários que as
+outras importam, e por isso a regra por pasta a ignora sem prejuízo.
 
 **Estado atual:** os 46 casos de `tests/fifo/validarSaidaFifo.test.ts` passam.
 A suíte foi escrita antes da implementação, como exige a seção 8 do PRD, e
