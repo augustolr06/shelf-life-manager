@@ -1479,3 +1479,42 @@ sistema instalável, o gatilho que virou configuração, e o requisito proativo 
 reativo
 
 **Data:** 2026-09-15
+
+---
+
+## Uma decisão de produto escondida dentro de um valor padrão de biblioteca
+
+**Contexto do problema:** quando a rede ou o servidor demoram, o processo manual não tem
+estado intermediário — a vendedora olha o frasco, decide e pronto. O sistema tem: entre "leu o
+QR" e "sabe o veredito" existe uma transação de banco que pode demorar ou falhar, e alguém
+precisa decidir quanto tempo ela pode levar antes de virar erro. Ninguém decide isso
+conscientemente, porque a biblioteca já traz um número.
+
+**Solução adotada:** os prazos passaram de 2s/5s (padrão do Prisma) para 10s/15s, com o
+argumento escrito ao lado do valor.
+
+**Por que resolve o problema / trade-offs:** os padrões de uma biblioteca de acesso a banco
+são calibrados para servidor quente falando com banco quente. A hospedagem viável para uma
+loja pequena — função que dorme, banco que suspende por inatividade — viola essa premissa
+justamente na **primeira leitura do dia**, que é quando a atendente tem um cliente na frente e
+nenhuma paciência disponível. Nessa situação o número padrão decide, sozinho, que a resposta
+certa é abortar.
+
+E abortar é a pior das duas saídas. Uma leitura que demora cinco segundos atrasa o
+atendimento; uma que falha devolve a decisão para a atendente — que volta a escolher o frasco
+por conta própria, que é precisamente o comportamento que o sistema existe para substituir.
+**O modo de falhar do software, aqui, reintroduz o problema que ele resolve.** Por isso o
+prazo generoso não é tolerância a lentidão, é preservação da regra: enquanto a transação
+estiver viva, o veredito ainda vai vir do servidor (RNF04).
+
+O que vale ao artigo é o formato: essa foi uma decisão de produto — "espera longa é melhor que
+erro rápido neste balcão" — tomada por omissão dentro de um valor padrão, em um arquivo que
+ninguém abre. Trabalhos que apresentam implementações de referência descrevem suas regras de
+negócio e raramente seus prazos, e ainda assim os dois governam o que o usuário vive. A
+limitação honesta que fica é que o prazo generoso não elimina a espera: ele escolhe quem
+espera, e a escolha foi a atendente, não a regra.
+
+**Tarefa relacionada:** T23 (a hospedagem que criou a situação), T07 (a transação com lock da
+RNF02, que é a que mais importa aqui), RNF02, RNF04
+
+**Data:** 2026-09-15

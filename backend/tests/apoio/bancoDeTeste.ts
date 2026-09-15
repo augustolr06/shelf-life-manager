@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import dotenv from 'dotenv'
 import { PrismaClient } from '@prisma/client'
+import { OPCOES_DE_TRANSACAO } from '../../src/db/opcoesDeTransacao.js'
 
 const executar = promisify(execFile)
 
@@ -135,8 +136,17 @@ export function prepararBancoDeTeste(): Promise<void> {
   return preparacao
 }
 
+/**
+ * As mesmas opções de transação do client de produção. Sem isto a suíte
+ * rodaria com os prazos padrão do Prisma e a configuração de produção não
+ * teria teste nenhum atrás dela — além de as suítes exercitarem um
+ * comportamento de transação diferente do que roda na loja.
+ */
 export function criarClienteDeTeste(): PrismaClient {
-  return new PrismaClient({ datasources: { db: { url: URL_BANCO_DE_TESTE } } })
+  return new PrismaClient({
+    datasources: { db: { url: URL_BANCO_DE_TESTE } },
+    transactionOptions: OPCOES_DE_TRANSACAO,
+  })
 }
 
 /**

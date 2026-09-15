@@ -1466,3 +1466,40 @@ isso não é detalhe.
 `SameSite=None` + `Secure`, porque dois projetos em `.vercel.app` são cross-site — `.vercel.app`
 está na Public Suffix List. E `ALERTA_AGENDADOR_INTERNO` passa a `false`, que é o valor que
 T23 previu para esta hospedagem.
+
+---
+
+## 2026-09-15 — Prazos das transações, e por que espera longa é melhor que erro rápido no balcão
+
+Decorrência direta da hospedagem escolhida hoje, e a única mudança de código que ela exigiu.
+
+**O problema.** O Prisma usa `maxWait` de 2s (tempo para obter conexão) e `timeout` de 5s
+(duração da transação). Os dois pressupõem servidor quente falando com banco quente — que é o
+que a pilha escolhida **não** garante: a função parte fria depois de um período sem uso, e o
+Neon suspende a computação após ~5 minutos ociosa. Numa perfumaria isso não é caso raro, é a
+**primeira leitura de QR do dia**, e a segunda depois do almoço.
+
+**A escolha:** `maxWait` de 10s e `timeout` de 15s, em `db/opcoesDeTransacao.ts`. O argumento
+não é técnico, é de balcão: uma leitura que demora cinco segundos atrasa o atendimento; uma
+que falha manda a atendente decidir sozinha qual frasco vender, que é exatamente o que o
+sistema existe para evitar. **Espera longa é melhor que erro rápido aqui** — e essa frase é
+uma decisão de produto que estava escondida dentro de um valor padrão de biblioteca.
+
+**Aplicadas no construtor do client, não em cada `$transaction`.** São seis chamadas
+interativas hoje, e a sétima é a que alguém escreve sem lembrar de repetir as opções. O módulo
+não constrói client nenhum de propósito: é importado tanto por `db/prisma.ts` quanto por
+`tests/apoio/bancoDeTeste.ts`, e importar um client ali abriria conexão com o banco de
+desenvolvimento durante os testes. O client das suítes recebe as **mesmas** opções — do
+contrário a suíte exercitaria um comportamento de transação diferente do que roda na loja, e a
+configuração de produção não teria teste nenhum atrás dela.
+
+**O teste custa ~6s à suíte, e é deliberado.** O Prisma não expõe as opções efetivas do client
+para leitura, então a única forma de provar que a configuração chegou lá é exercer um prazo
+que o padrão recusaria: uma transação de 6s, que com `timeout` de 5s aborta com
+`Transaction already closed` — conferido. A alternativa seria uma configuração que pode parar
+de valer sem que nada acuse, cujo sintoma aparece na primeira leitura de um dia frio, com
+cliente na frente.
+
+**O que isto não conserta.** A latência continua existindo; o que muda é o desfecho dela.
+`docs/deploy.md` mantém o passo 9 da verificação — medir o pior caso — porque conhecer o
+número continua sendo necessário.

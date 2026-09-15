@@ -246,7 +246,9 @@ Honestamente, para não descobrir no meio do piloto:
   instância; com mais de uma instância ativa, o teto efetivo é instâncias × 10. Continua sendo
   freio contra varredura automatizada, deixa de ser teto exato.
 - **Latência previsível na primeira requisição.** Função fria somada ao autosuspend do Neon:
-  o passo 9 existe para você medir isso, não para consertar.
+  o passo 9 existe para você medir isso, não para consertar. O que já está feito é o desfecho:
+  os prazos de transação (`db/opcoesDeTransacao.ts`) são generosos o bastante para que a
+  primeira leitura do dia **demore** em vez de **falhar**.
 - **Recuperação de senha por e-mail.** Quem esquece depende da gestora redefinir pela tela;
   não há link de "esqueci minha senha", porque não há serviço de envio configurado.
 - **Segundo fator, expiração de senha, histórico de senhas usadas.** Nada disso está no PRD.
