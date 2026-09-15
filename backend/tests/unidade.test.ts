@@ -34,6 +34,7 @@ const GESTOR = {
   email: 'gestor@estoque.local',
   senhaHash: SENHA_HASH,
   papel: Papel.GESTOR,
+  ativo: true,
 }
 
 const ATENDENTE = {
@@ -42,6 +43,7 @@ const ATENDENTE = {
   email: 'atendente@estoque.local',
   senhaHash: SENHA_HASH,
   papel: Papel.ATENDENTE,
+  ativo: true,
 }
 
 const ID_PRODUTO = '33333333-3333-3333-3333-333333333333'

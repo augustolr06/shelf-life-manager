@@ -22,6 +22,7 @@ const GESTOR = {
   email: 'gestor@estoque.local',
   senhaHash: bcrypt.hashSync(SENHA, 10),
   papel: Papel.GESTOR,
+  ativo: true,
 }
 
 /** O limite declarado em `auth.routes.ts`. */

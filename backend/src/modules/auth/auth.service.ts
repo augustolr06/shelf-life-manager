@@ -13,6 +13,12 @@ const HASH_INEXISTENTE = bcrypt.hashSync('usuario-inexistente', CUSTO_BCRYPT)
  * Confere e-mail e senha. Retorna `null` para credencial inválida sem
  * distinguir "e-mail não existe" de "senha errada" — quem chama não deve
  * vazar essa diferença na resposta.
+ *
+ * Desde T22, **conta inativa também não autentica**, e entra na mesma recusa
+ * indistinta: é o que dá efeito ao desligamento feito pela gestora. A
+ * comparação de senha acontece antes da checagem de `ativo`, e não depois,
+ * para que o tempo de resposta não separe "inativa" de "senha errada" — a
+ * mesma razão do `HASH_INEXISTENTE` acima.
  */
 export async function autenticarCredenciais(
   email: string,
@@ -21,7 +27,7 @@ export async function autenticarCredenciais(
   const usuario = await prisma.usuario.findUnique({ where: { email } })
   const senhaConfere = await bcrypt.compare(senha, usuario?.senhaHash ?? HASH_INEXISTENTE)
 
-  if (!usuario || !senhaConfere) return null
+  if (!usuario || !senhaConfere || !usuario.ativo) return null
 
   return {
     id: usuario.id,

@@ -51,8 +51,10 @@ A senha é lida do stdin (mínimo de 12 caracteres). Com pipe ela não aparece n
 printf '%s' 'a-senha-escolhida' | DATABASE_URL="<url-direta>" npm run usuario:senha -- gestor@estoque.local
 ```
 
-Não existe recuperação de senha: esquecida, o caminho é rodar este script de novo. Gestão de
-usuário pela interface é T22.
+A partir daqui a loja se vira sozinha: a gestora cria as demais contas, desativa quem sai e
+redefine a senha de quem esquecer, tudo em **Contas de acesso** (T22). O script continua
+sendo a saída de emergência para o caso que a interface não alcança — gestor único que
+esqueceu a **própria** senha, e por isso não consegue entrar para redefini-la.
 
 ## 3. Backend — variáveis de ambiente
 
@@ -130,6 +132,8 @@ Nesta ordem — cada passo depende do anterior:
 6. Ative as notificações no aparelho e dispare `npm run alertas:varrer` com uma unidade dentro
    da janela — fecha a verificação manual de T19b.
 7. Erre a senha onze vezes seguidas: a décima primeira tem de responder "Muitas tentativas".
+8. Em **Contas de acesso**, crie a conta da atendente com a senha que ela vai usar, e confira
+   que ela entra. Desative uma conta de teste e confirme que ela deixa de entrar.
 
 ## 7. Backup — o passo que não é opcional
 
@@ -156,7 +160,10 @@ Teste a restauração **uma vez**, num banco descartável, antes de precisar del
 | Preciso de... | Comando |
 |---|---|
 | Rodar a varredura de alertas agora | `npm run alertas:varrer` |
-| Trocar a senha de alguém | `npm run usuario:senha -- <email>` |
+| Criar conta, desativar alguém, trocar papel | tela **Contas de acesso**, como GESTOR |
+| Trocar a própria senha | tela **Minha senha**, qualquer papel |
+| Destravar quem esqueceu a senha | **Contas de acesso** → Redefinir senha |
+| Destravar o **gestor único** que esqueceu a própria senha | `npm run usuario:senha -- <email>` |
 | Ver o que aconteceu no balcão | log da hospedagem, com `LOG_LEVEL=info` |
 | Aplicar uma migração nova | `DATABASE_URL="<url-direta>" npx prisma migrate deploy` |
 
@@ -167,9 +174,9 @@ gravam dados.
 
 Honestamente, para não descobrir no meio do piloto:
 
-- **Cadastro de usuário pela interface** (T22). As contas são as duas do seed, e criar uma
-  terceira exige acesso ao banco.
-- **Recuperação de senha.** Esqueceu, roda o script de novo.
+- **Recuperação de senha por e-mail.** Quem esquece depende da gestora redefinir pela tela;
+  não há link de "esqueci minha senha", porque não há serviço de envio configurado.
+- **Segundo fator, expiração de senha, histórico de senhas usadas.** Nada disso está no PRD.
 - **Contador de tentativas compartilhado entre instâncias.** O limite de login vive na memória
   do processo: em serverless com várias instâncias, o teto efetivo é instâncias × 10.
 - **Backup automático.** O passo 7 é manual, e é você quem lembra.

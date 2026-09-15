@@ -1332,3 +1332,54 @@ de tentativas por instância, backup manual, sem monitoramento, sem homologaçã
 roteiro, e não em documento separado, porque a hora de descobrir isso é antes de subir — não no
 meio do piloto. A rotina de `pg_dump` vem com a razão colada: o `EventoLog` é o dado do artigo,
 e é a única coisa ali que não se recupera refazendo o deploy.
+
+---
+
+## 2026-09-14 — Gestão de contas de acesso (T22)
+
+**`Usuario` ganhou `ativo`, e usuário nunca é excluído.** Mesmo argumento de `Produto`
+(2026-09-07), e mais forte: `EventoLog`, `Saida`, `Descarte` e `UnidadeProduto` apontam para
+`Usuario`, um deles com `onDelete: Restrict` explícito. Excluir quem operou apagaria a autoria
+do dado de pesquisa, e o banco recusaria de qualquer forma. Desligar alguém é `ativo = false`.
+
+**Conta inativa não autentica, e a recusa é indistinta.** Sem isso a coluna seria decoração —
+a atendente desligada continuaria entrando com a senha que já tinha. A checagem de `ativo`
+acontece **depois** da comparação de senha, não antes, para que o tempo de resposta não separe
+"conta inativa" de "senha errada"; é a mesma razão do `HASH_INEXISTENTE` que T03 já usava.
+
+**O gestor não muda o próprio papel nem se desativa.** O último gestor que faz isso tranca a
+loja inteira para fora da gestão, sem caminho de volta pela interface. Rebaixar **outro**
+gestor continua permitido: quem faz isso ainda é gestor e pode desfazer. A tela esconde as
+ações da própria linha, mas é conveniência — quem recusa é o 409 do backend (RNF04).
+
+**A própria senha sempre exige a senha atual, inclusive para o gestor.** Há duas rotas:
+`PATCH /usuarios/:id/senha` (o gestor redefine a de outra pessoa, sem saber a antiga) e
+`PATCH /usuarios/eu/senha` (a própria, exigindo a atual). A primeira **recusa o próprio id**.
+Poderia permitir — o gestor já pode redefinir a de qualquer um, então não é escalação — mas a
+regra "sua senha só muda com sua senha" vale mais por ser simples de enunciar, e quem perdeu a
+própria senha não está logado para chamar rota nenhuma. Para esse caso continua existindo o
+script de T23, que agora tem um papel claro: emergência do gestor único.
+
+**A conta de sistema não aparece na lista e não aceita escrita.** `sistema@estoque.local`
+assina os eventos da varredura (T18) e não é uma pessoa. Listá-la entre as contas da loja
+convidaria alguém a "consertar" o `senhaHash` que existe justamente para ela nunca autenticar.
+
+**Sem novo tipo de `EventoLog` para administração de conta.** Mesmo precedente da Decisão 6 de
+T17, que recusou um décimo tipo para mudança de configuração: o `EventoLog` registra o que
+acontece com o **estoque**, que é o objeto da pesquisa, não a administração do sistema.
+
+**O e-mail é aparado antes da validação, em `preValidation`.** `format: 'email'` recusa
+" nova@loja.com " — o espaço que o teclado do celular acrescenta ao colar — e a recusa sairia
+como `CORPO_INVALIDO` genérico, que é o defeito que T12b existe para evitar. O `toLowerCase`
+continua no serviço: lá é regra de unicidade, aqui é tolerância de digitação.
+
+**O piso de 12 caracteres tem um dono só: o serviço.** Declará-lo também como `minLength` no
+schema faria a recusa sair genérica em vez de dizer quantos caracteres faltam. É o mesmo
+princípio de T12b aplicado a uma regra que não é de formato, e sim de negócio.
+
+**Correção em `tests/apoio/bancoDeTeste.ts`, de um defeito introduzido em T23.** O helper
+sobrescrevia só `DATABASE_URL` ao rodar `prisma migrate deploy`, mas o `prisma migrate` usa o
+`directUrl` que T23 acrescentou ao datasource — então o `DIRECT_URL` do `.env` vazava do
+`process.env` e **a suíte migrava o banco de desenvolvimento**. Passou despercebido em T23
+porque aquela tarefa não criou migração nenhuma; apareceu na primeira migração seguinte, como
+"a coluna `ativo` não existe" no banco de teste. Agora as duas variáveis são sobrescritas.

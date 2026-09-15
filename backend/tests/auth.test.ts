@@ -31,6 +31,7 @@ const GESTOR: UsuarioDeTeste = {
   email: 'gestor@estoque.local',
   senhaHash: SENHA_HASH,
   papel: Papel.GESTOR,
+  ativo: true,
 }
 
 const ATENDENTE: UsuarioDeTeste = {
@@ -39,6 +40,7 @@ const ATENDENTE: UsuarioDeTeste = {
   email: 'atendente@estoque.local',
   senhaHash: SENHA_HASH,
   papel: Papel.ATENDENTE,
+  ativo: true,
 }
 
 const buscarUsuario = vi.mocked(prisma.usuario.findUnique)

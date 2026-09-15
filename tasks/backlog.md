@@ -68,7 +68,7 @@ o produto, não a operação dele.
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T22 | Cadastro e gestão de usuários pelo GESTOR (RF01) | pendente | T03b, T04 | `tasks/T22-gestao-de-usuarios.md` |
+| T22 | Cadastro e gestão de usuários pelo GESTOR (RF01) | concluída | T03b, T04 | `tasks/T22-gestao-de-usuarios.md` |
 | T23 | Endurecimento e preparação de deploy | concluída | T22 | `tasks/T23-preparacao-deploy.md` |
 
 **T22 — escopo.** Hoje as únicas contas do sistema nascem de `src/db/seed.ts`, com senha

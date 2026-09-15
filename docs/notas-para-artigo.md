@@ -1358,3 +1358,42 @@ portável de um sistema cuja regra está espalhada pelo painel da hospedagem.
 sistema instalável. RF08
 
 **Data:** 2026-09-09
+
+---
+
+## Desligar alguém não é apagar alguém — e um sistema que é instrumento de pesquisa não pode confundir os dois
+
+**Contexto do problema:** no controle manual, tirar o acesso de quem sai da loja é não contar
+mais nada a essa pessoa: não existe cadastro para remover, e o que ela anotou na planilha
+continua lá, com a letra dela. Ao informatizar, a operação óbvia vira "excluir o usuário" — e
+é ela que o processo manual nunca precisou pensar, porque nunca teve como apagar o passado
+junto.
+
+**Alternativas consideradas:** excluir a linha de `Usuario`, que é o que um CRUD gerado
+automaticamente faria. Além de destruir a autoria, o banco recusaria: quatro tabelas apontam
+para `Usuario`, uma delas com restrição explícita. Manter a conta ativa e só "avisar a equipe"
+que fulano saiu não é controle de acesso nenhum.
+
+**Solução adotada:** a conta é **desativada**, nunca excluída, e conta desativada não
+autentica. O histórico permanece assinado por ela.
+
+**Por que resolve o problema / trade-offs:** a distinção importa porque este sistema é, ao
+mesmo tempo, ferramenta de operação e instrumento de coleta. A pergunta que o `EventoLog`
+existe para responder — quantas leituras acertaram de primeira, quem autorizou a venda de uma
+unidade vencida — só tem resposta se cada evento continuar atribuível depois que a pessoa sai.
+Uma exclusão que "limpa o cadastro" apagaria justamente os dados de quem trabalhou mais tempo
+na loja durante o piloto. É o mesmo princípio já registrado a respeito de produto que não se
+exclui, e aqui ele encontra uma tensão que o produto não tem: **a conta precisa perder o
+poder de agir sem perder o registro do que já agiu** — duas propriedades que a palavra
+"remover", em qualquer interface, promete resolver de uma vez só.
+
+Fica também uma limitação honesta para o texto: desativar preserva o nome e o e-mail da pessoa
+no banco indefinidamente. Numa loja de sete pessoas isso é o que se quer; num sistema com
+rotatividade alta, "manter para sempre a autoria" e "não guardar dado pessoal além do
+necessário" passam a puxar em direções opostas, e resolver essa tensão — anonimizar a conta
+preservando a autoria dos eventos — não é trabalho que este projeto fez.
+
+**Tarefa relacionada:** T22, T18 (a conta de sistema, que é o caso em que a conta **não** é
+uma pessoa), RF01, RF12, RNF05
+
+**Data:** 2026-09-14

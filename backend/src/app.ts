@@ -15,6 +15,7 @@ import { rotasExcecaoVencido } from './modules/excecao-vencido/excecaoVencido.ro
 import { rotasProduto } from './modules/produto/produto.routes.js'
 import { rotasPush } from './modules/push/push.routes.js'
 import { rotasSaida } from './modules/saida/saida.routes.js'
+import { rotasUsuario } from './modules/usuario/usuario.routes.js'
 import { rotasUnidade } from './modules/unidade/unidade.routes.js'
 import { env } from './shared/env.js'
 import { tratarErro, tratarRotaNaoEncontrada } from './shared/errosDaApi.js'
@@ -84,6 +85,7 @@ export function buildApp(): FastifyInstance {
 
   app.register(rotasAuth)
   app.register(rotasProduto)
+  app.register(rotasUsuario)
   app.register(rotasUnidade)
   app.register(rotasSaida)
   app.register(rotasExcecaoVencido)

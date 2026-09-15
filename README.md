@@ -117,7 +117,7 @@ código; esta tabela existe para ser lida antes de copiar o arquivo.
 | `npm run prisma:migrate` | Cria/aplica migração de desenvolvimento |
 | `npm run prisma:seed` | Popula o banco com os usuários de desenvolvimento, a janela de alerta padrão e a conta de sistema |
 | `npm run alertas:varrer` | Roda uma varredura de alertas proativos agora e sai (T18). O caminho normal é o agendador dentro do servidor |
-| `npm run usuario:senha` | Troca a senha de um usuário existente: `npm run usuario:senha -- <email>`, com a senha lida do stdin (T23). Recusa senha com menos de 12 caracteres e a conta de sistema |
+| `npm run usuario:senha` | Saída de emergência para senha esquecida do gestor único — a troca normal é pela tela **Minha senha** e a redefinição pela tela **Contas de acesso** (T22). Troca a senha de um usuário existente: `npm run usuario:senha -- <email>`, com a senha lida do stdin (T23). Recusa senha com menos de 12 caracteres e a conta de sistema |
 | `npm run push:chaves` | Gera um par de chaves VAPID para o Web Push e imprime as linhas prontas para o `.env` (T19b). Não escreve em arquivo nenhum |
 | `npm run prisma:studio` | Abre o Prisma Studio |
 

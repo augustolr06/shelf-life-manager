@@ -109,9 +109,21 @@ async function prepararUmaVez(): Promise<void> {
 
   // `migrate deploy` e não `migrate dev`: aplica as migrações versionadas sem
   // tentar gerar migração nova nem pedir confirmação.
+  //
+  // **As duas variáveis, e não só `DATABASE_URL`.** Desde T23 o datasource tem
+  // `directUrl`, e é ela que o `prisma migrate` usa — com apenas `DATABASE_URL`
+  // sobrescrita aqui, o `DIRECT_URL` do `.env` vazaria do `process.env` e a
+  // suíte migraria o **banco de desenvolvimento**, furando a trava que este
+  // módulo inteiro existe para manter. Descoberto em T22, na primeira migração
+  // criada depois de T23: a suíte falhou com "a coluna `ativo` não existe",
+  // porque a migração tinha ido para o banco errado.
   await executar('npx', ['prisma', 'migrate', 'deploy'], {
     cwd: RAIZ_BACKEND,
-    env: { ...process.env, DATABASE_URL: URL_BANCO_DE_TESTE },
+    env: {
+      ...process.env,
+      DATABASE_URL: URL_BANCO_DE_TESTE,
+      DIRECT_URL: URL_BANCO_DE_TESTE,
+    },
   })
 }
 

@@ -35,6 +35,11 @@ model Usuario {
   email     String @unique
   senhaHash String
   papel     Papel
+  // T22: usuário nunca é excluído — `EventoLog`, `Saida`, `Descarte` e
+  // `UnidadeProduto` apontam para cá, e apagar quem operou apagaria a autoria
+  // do dado de pesquisa. Desligar alguém é `ativo = false`, e inativo não
+  // autentica (ver `auth.service.ts`).
+  ativo     Boolean @default(true)
 
   saidas              Saida[]          @relation("SaidaExecutadaPor")
   saidasAutorizadas   Saida[]          @relation("SaidaAutorizadaPor")

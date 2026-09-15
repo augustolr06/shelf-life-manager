@@ -8,6 +8,8 @@ import { TelaEtiquetas } from './pages/TelaEtiquetas'
 import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
+import { TelaUsuarios } from './pages/TelaUsuarios'
+import { TelaMinhaSenha } from './pages/TelaMinhaSenha'
 import { TelaRecebimento } from './pages/TelaRecebimento'
 import { contarAlertasNaoLidos } from './services/alertas'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
@@ -109,6 +111,25 @@ const TELAS: readonly Tela[] = [
     papeis: ['GESTOR'],
     // Sem `usuario`: a tela é GESTOR-only inteira e não tem ramo por papel.
     elemento: () => <TelaDashboard />,
+  },
+  {
+    caminho: '/usuarios',
+    rotulo: 'Contas de acesso',
+    // Mesma lista das rotas de gestão de `/usuarios`: admitir, desligar e
+    // trocar papel é ato de gestão, não de balcão (RF01, T22).
+    papeis: ['GESTOR'],
+    // Recebe `usuario` para saber qual linha é a de quem está logado — e é
+    // só isso: a recusa de mexer no próprio acesso é do backend (409).
+    elemento: (usuario) => <TelaUsuarios usuario={usuario} />,
+  },
+  {
+    caminho: '/minha-senha',
+    rotulo: 'Minha senha',
+    // A única tela deste módulo que a atendente enxerga: trocar a própria
+    // senha não é gestão de ninguém.
+    papeis: ['ATENDENTE', 'GESTOR'],
+    // Sem `usuario`: quem troca a senha é a sessão, e nenhum id sai da tela.
+    elemento: () => <TelaMinhaSenha />,
   },
   {
     caminho: '/etiquetas',
