@@ -1428,3 +1428,41 @@ qual T23 mudou `modules/auth/cookie.ts`. Se um dia os dois ficarem sob o mesmo d
 **O que a escolha melhora sem alarde:** o Render mantém uma instância só, então o contador de
 tentativas de login (T23, fatia 1) é exato em vez de aproximado — a ressalva de "instâncias ×
 10" registrada naquela entrada não se aplica a esta hospedagem.
+
+---
+
+## 2026-09-15 (revisão, no mesmo dia) — Backend também na Vercel, e não no Render
+
+Revisa a entrada acima, que registrou Render para o backend. A entrada anterior fica como
+está, porque a análise que ela contém é o que motivou a troca.
+
+**O que mudou.** O levantamento dos planos de 2026 mostrou que "processo persistente e
+gratuito" quase não existe mais: Fly e Railway encerraram o tier permanente, e o gratuito do
+Koyeb dorme como o do Render. Sobrava pagar (Fly ~US$ 2/mês, Render Starter US$ 7/mês) ou
+aceitar o spin-down. Diante disso, o orientando escolheu a Vercel para os dois.
+
+**O que a escolha melhora.** No Render gratuito, o relógio da RF08 funcionava por acidente: o
+`setInterval` não sobrevivia ao spin-down, e o que salvava a varredura era a passagem de
+inicialização rodando a cada despertar — isto é, **a vigilância automática dependia de alguém
+abrir o app**. Na Vercel isso deixa de ser acidente e vira configuração explícita: o cron da
+plataforma chama `/interno/varredura-alertas` todo dia, tenha alguém aberto o sistema ou não.
+A RF08 inteira volta a funcionar, push incluído. Trocou-se um mecanismo que funcionava por
+efeito colateral por um que funciona por declaração — e a diferença aparece no dia em que a
+loja não abre o sistema.
+
+**O que a escolha custa, e está assumido.** Sai a decisão de T18 na forma original: o relógio
+não vive mais dentro do processo, e passa a ser uma linha de `backend/vercel.json`. Foi para
+permitir exatamente isso que a fatia 2 de T23 construiu os dois caminhos em vez de escolher
+um — a regra de o que é um alerta continua em `varrerEstoqueParaAlertas`, num lugar só, e o
+que virou configuração foi o gatilho. O outro custo é o contador de tentativas de login, que
+volta a ser aproximado se a plataforma subir mais de uma instância.
+
+**O que some da conta.** Some a armadilha do `--include=dev` (a Vercel instala
+devDependencies no build por padrão), some o build command explícito, e some um fornecedor: o
+projeto passa a ter dois painéis em vez de três. Para um piloto operado por uma pessoa só,
+isso não é detalhe.
+
+**O que não muda.** O banco continua no Neon com as duas strings; o cookie continua
+`SameSite=None` + `Secure`, porque dois projetos em `.vercel.app` são cross-site — `.vercel.app`
+está na Public Suffix List. E `ALERTA_AGENDADOR_INTERNO` passa a `false`, que é o valor que
+T23 previu para esta hospedagem.

@@ -109,8 +109,9 @@ declarada acima continua correta para uso **em regime**, não para o piloto.
 
 O alvo de hospedagem foi decidido em duas etapas: em 2026-09-09, suportar as duas formas (o
 agendador interno de T18 ligado ou desligado por variável, e uma rota para agendador externo
-que existe nos dois modos); em 2026-09-15, **Vercel no frontend, Render no backend e Neon no
-banco**. Registrado em `docs/decisoes.md`; roteiro de subida em `docs/deploy.md`.
+que existe nos dois modos); em 2026-09-15, **Vercel no frontend e no backend, com o banco no
+Neon** (o Render foi considerado e descartado no mesmo dia — o plano gratuito dorme, e com ele
+a varredura da RF08 passaria a depender de alguém abrir o app). Registrado em `docs/decisoes.md`; roteiro de subida em `docs/deploy.md`.
 
 Ordem sugerida: T22 antes de T23, porque não faz sentido publicar na internet um sistema
 cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a demonstração da

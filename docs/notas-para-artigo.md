@@ -1441,3 +1441,41 @@ perdida), RF08, e as duas entradas anteriores sobre o sistema instalável e sobr
 virou configuração
 
 **Data:** 2026-09-15
+
+---
+
+## Revisão: escrever a limitação com precisão foi o que desfez a decisão que a causava
+
+**Contexto do problema:** a entrada anterior deste arquivo descreveu, com a hospedagem já
+escolhida, como a RF08 se degradava no plano gratuito: o serviço dormia, o intervalo de 24 h
+não chegava a disparar, e a varredura acabava acontecendo quando alguém abria o app — que é a
+descrição do processo manual que o sistema veio substituir. A entrada terminava dizendo que
+entre pagar sete dólares por mês e aceitar essa degradação havia uma decisão de produto que o
+custo de infraestrutura estava tomando sozinho.
+
+**Solução adotada:** a decisão foi revista **no mesmo dia**. Backend e frontend passaram para
+a mesma plataforma serverless, onde o gatilho da varredura é um cron declarado em arquivo de
+configuração e roda tenha alguém aberto o sistema ou não.
+
+**Por que resolve o problema / trade-offs:** o que interessa ao artigo aqui é metodológico, e
+contraria uma expectativa comum sobre esse tipo de registro. A seção de limitações de um
+trabalho costuma ser lida — e escrita — como confissão: o lugar onde se admite o que não deu
+para fazer, depois que já não dá para mudar. Neste caso ela funcionou como instrumento. **A
+degradação só ficou comparável com a alternativa depois de ser descrita com precisão** — não
+"o plano gratuito é limitado", mas "o aviso proativo passa a depender de alguém abrir o app,
+e a metade da RF08 que morre é exatamente a que alcança quem não abriu". Enunciada assim, a
+limitação deixou de ser aceitável, e a escolha se desfez.
+
+O trade-off que fica é o que T23 já tinha antecipado: o relógio da RF08 não vive mais dentro
+do processo, contrariando a forma original da decisão de T18. Mas a separação que aquela
+tarefa construiu é o que torna isso defensável em vez de contraditório — **o gatilho virou
+configuração, a regra não**. Quem decide o que é um alerta continua sendo uma função só, no
+servidor, chamada indiferentemente pelo cron da plataforma, pelo agendador interno ou pela
+linha de comando. É a mesma disciplina da RNF03 aplicada a uma dimensão que o PRD não previa:
+não a de onde a regra roda, mas a de quem manda rodá-la.
+
+**Tarefa relacionada:** T23 (fatia 2), T18, T19b, RF08, e as três entradas anteriores sobre o
+sistema instalável, o gatilho que virou configuração, e o requisito proativo que virava
+reativo
+
+**Data:** 2026-09-15

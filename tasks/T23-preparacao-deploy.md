@@ -41,9 +41,12 @@ de verdade.
 
 ### Fatia 2 — Relógio da RF08 fora do processo (concluída em 2026-09-09)
 
-- [x] **Hospedagem escolhida em 2026-09-15:** frontend na Vercel, backend no Render, banco no
-      Neon (`docs/decisoes.md`). Backend em processo persistente preserva a decisão de T18; a
-      ressalva do plano free do Render está na seção 3.3 de `docs/deploy.md`
+- [x] **Hospedagem escolhida em 2026-09-15:** frontend e backend na **Vercel**, em dois
+      projetos, com o banco no **Neon** (`docs/decisoes.md`, entrada e revisão do mesmo dia).
+      Serverless, então `ALERTA_AGENDADOR_INTERNO=false` e o cron da plataforma dispara a
+      varredura — o caminho que esta fatia construiu. A alternativa de processo persistente
+      foi considerada e descartada: em 2026 quase não há plano gratuito que não durma, e
+      hospedagem que dorme é processo persistente no papel e não na prática
 - [x] **Decisão do orientando:** suportar as duas hospedagens, em vez de escolher uma. O
       `setInterval` de T18 continua existindo e passa a ser ligado/desligado por
       `ALERTA_AGENDADOR_INTERNO`; a rota externa existe nos dois modos. O projeto deixa de
