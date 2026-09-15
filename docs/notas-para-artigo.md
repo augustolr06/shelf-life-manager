@@ -1397,3 +1397,47 @@ preservando a autoria dos eventos — não é trabalho que este projeto fez.
 uma pessoa), RF01, RF12, RNF05
 
 **Data:** 2026-09-14
+
+---
+
+## O requisito proativo vira reativo sem ninguém decidir isso — e quem decidiu foi o plano de hospedagem
+
+**Contexto do problema:** a RF08 existe porque o controle manual só enxerga a validade quando
+alguém vai olhar a prateleira. A promessa do sistema é inverter isso: ele olha sozinho, todo
+dia, e avisa. Entradas anteriores deste arquivo já registraram que essa promessa depende de um
+processo de longa duração, e que a escolha de hospedagem pode revogá-la. Com a hospedagem
+finalmente escolhida (Render, no plano gratuito), dá para descrever o efeito com precisão, e
+ele é mais sutil do que "não funciona".
+
+**Solução adotada:** manter o agendador dentro do processo, com a ressalva documentada, e
+oferecer um cron externo gratuito para quem quiser a RF08 inteira.
+
+**Por que resolve o problema / trade-offs:** no plano gratuito o serviço dorme após quinze
+minutos sem requisição. O intervalo de vinte e quatro horas quase nunca chega a disparar,
+porque o processo não vive tanto. O que roda é a varredura de inicialização, a cada vez que o
+serviço acorda — e como ela é idempotente, repetir não faz mal. **O resultado é que a
+varredura acontece quando alguém abre o sistema.** O alerta continua aparecendo, o número na
+tela continua certo, e nada no comportamento denuncia a mudança.
+
+Só que a mudança é exatamente a que o requisito existia para impedir: **a vigilância
+automática virou consequência de alguém ter aberto o app** — que é a descrição do processo
+manual que o sistema veio substituir, só que com uma tela mais bonita. A metade da RF08 que
+sobrevive é a que depende de o usuário chegar; a que morre é o push, cuja razão de ser é
+alcançar quem **não** chegou.
+
+O que interessa ao artigo é o formato do erro, mais que o erro. Não houve decisão errada: T18
+decidiu bem, a implementação está correta, os testes passam, e a hospedagem foi escolhida por
+critérios legítimos (custo zero para um piloto de TCC). A degradação aparece na composição das
+três escolhas, num ponto que nenhuma delas controla — e não há teste que a alcance, porque não
+é comportamento do código, é comportamento do código **mais** a política de spin-down de um
+plano gratuito. Para um trabalho que propõe uma implementação de referência acessível a lojas
+de pequeno porte, essa é a ressalva honesta: **o que torna a solução barata é o mesmo que
+enfraquece o único requisito que ela cumpre sem ninguém pedir.** Entre pagar sete dólares por
+mês e aceitar que o aviso proativo dependa de alguém abrir o sistema, existe uma decisão de
+produto que o custo de infraestrutura tomou sozinho.
+
+**Tarefa relacionada:** T23 (fatia 2), T18 (o agendador), T19b (o push, que é a metade
+perdida), RF08, e as duas entradas anteriores sobre o sistema instalável e sobre o gatilho que
+virou configuração
+
+**Data:** 2026-09-15

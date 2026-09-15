@@ -41,6 +41,9 @@ de verdade.
 
 ### Fatia 2 — Relógio da RF08 fora do processo (concluída em 2026-09-09)
 
+- [x] **Hospedagem escolhida em 2026-09-15:** frontend na Vercel, backend no Render, banco no
+      Neon (`docs/decisoes.md`). Backend em processo persistente preserva a decisão de T18; a
+      ressalva do plano free do Render está na seção 3.3 de `docs/deploy.md`
 - [x] **Decisão do orientando:** suportar as duas hospedagens, em vez de escolher uma. O
       `setInterval` de T18 continua existindo e passa a ser ligado/desligado por
       `ALERTA_AGENDADOR_INTERNO`; a rota externa existe nos dois modos. O projeto deixa de

@@ -1383,3 +1383,48 @@ sobrescrevia só `DATABASE_URL` ao rodar `prisma migrate deploy`, mas o `prisma 
 `process.env` e **a suíte migrava o banco de desenvolvimento**. Passou despercebido em T23
 porque aquela tarefa não criou migração nenhuma; apareceu na primeira migração seguinte, como
 "a coluna `ativo` não existe" no banco de teste. Agora as duas variáveis são sobrescritas.
+
+---
+
+## 2026-09-15 — Hospedagem escolhida: Vercel (frontend), Render (backend), Neon (banco)
+
+Fecha o ponto que T23 deixou explicitamente em aberto na fatia 2. A decisão é do orientando; o
+que se registra aqui é o que ela implica no código e na operação.
+
+**Backend em processo persistente, não em serverless.** É o que preserva a decisão de T18 — o
+relógio da RF08 dentro do processo, para que um requisito funcional não dependa de
+configuração no servidor da loja. `ALERTA_AGENDADOR_INTERNO=true`, e a rota
+`/interno/varredura-alertas` fica sem uso em produção: ela continua existindo porque foi ela
+que tornou a escolha reversível, e porque é o caminho do plano free (abaixo).
+
+**A ressalva do plano free do Render muda o comportamento da RF08, e precisa ser dita.** O
+serviço dorme após 15 minutos sem requisição. O `setInterval` de 24 h praticamente nunca
+chega a disparar — o processo não vive tanto. O que roda é a **varredura de inicialização**, a
+cada vez que o serviço acorda, e como ela é idempotente (índice único de `Alerta`, T18) isso
+não emite alerta duplicado. O efeito líquido: a varredura acontece na primeira requisição do
+dia, e o alerta in-app funciona. **O que se perde é o push** — ele existe justamente para
+alcançar quem não abriu o app, e nada roda enquanto ninguém usa o sistema. Quem quiser a RF08
+inteira no plano free precisa de um cron externo chamando a rota, que de quebra acorda o
+serviço; `docs/deploy.md` seção 3.3 traz as três saídas.
+
+**Neon obriga as duas strings, e é o que justifica o `directUrl` de T23.** A aplicação fala
+pelo endpoint com pooler; o `prisma migrate` fala pelo direto, porque se serializa com um
+advisory lock de sessão que o pooler em modo transaction não sustenta. O autosuspend de ~5
+minutos do Neon soma-se ao spin-down do Render na latência da primeira requisição.
+
+**Uma armadilha do Render que vale estar escrita.** O Render aplica as variáveis do painel
+também durante o build, e `NODE_ENV=production` — que o runtime **precisa**, senão o cookie
+não sai `Secure` — faz o `npm install` pular as devDependencies. Neste projeto isso derruba o
+build duas vezes: `prisma` e `typescript` são devDependencies, então falham o `postinstall`
+(`prisma generate`) e o `npm run build` (`tsc`). O build command tem de ser
+`npm install --include=dev && npm run build`. É a mesma variável servindo a dois propósitos
+opostos em duas fases diferentes, e o sintoma (`tsc: not found`) não sugere a causa.
+
+**O cookie continua `SameSite=None`.** `.vercel.app` e `.onrender.com` são domínios
+registráveis diferentes, então frontend e API são cross-site — exatamente o cenário para o
+qual T23 mudou `modules/auth/cookie.ts`. Se um dia os dois ficarem sob o mesmo domínio,
+`'lax'` volta a bastar e é a opção mais conservadora.
+
+**O que a escolha melhora sem alarde:** o Render mantém uma instância só, então o contador de
+tentativas de login (T23, fatia 1) é exato em vez de aproximado — a ressalva de "instâncias ×
+10" registrada naquela entrada não se aplica a esta hospedagem.
