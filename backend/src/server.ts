@@ -30,9 +30,14 @@ if (env.ALERTA_AGENDADOR_INTERNO) {
   )
 }
 
-try {
-  await app.listen({ port: env.PORT, host: '0.0.0.0' })
-} catch (erro) {
+// Sem `await`, de propósito. Na Vercel, o runtime troca `http.Server.listen`
+// por uma versão que só captura o servidor e nunca chama o callback — então a
+// promise do `listen()` do Fastify nunca resolve ali, e um `await` no topo do
+// módulo impediria o import de terminar: a função ficava 60 s pendurada e caía
+// com INTERNAL_FUNCTION_INVOCATION_FAILED (docs/decisoes.md, 2026-09-21).
+// Em processo comum o comportamento é o mesmo de antes: falha ao escutar
+// registra o erro e encerra com código 1.
+app.listen({ port: env.PORT, host: '0.0.0.0' }).catch((erro: unknown) => {
   app.log.error(erro)
   process.exit(1)
-}
+})

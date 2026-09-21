@@ -113,6 +113,10 @@ instaladas no build por padrão.
 > Os sintomas, para reconhecer: `Invalid export found in module ".../src/app.js"` no log de
 > runtime (escolheu o arquivo errado) e `No entrypoint found which imports fastify` no log de
 > build (nenhum candidato casou).
+>
+> **E o `listen()` não pode ter `await` no topo do módulo.** O runtime captura o servidor
+> trocando o `listen` por um que nunca chama o callback; com `await`, o import do `server.ts`
+> nunca termina e a requisição cai após 60 s com `INTERNAL_FUNCTION_INVOCATION_FAILED`.
 
 ### 3.2 Variáveis de ambiente
 

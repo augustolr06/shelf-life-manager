@@ -1550,3 +1550,23 @@ dá a mensagem do build; sobre o corrigido, devolve `src/server.ts`.
 deploy, porque passa na frente do `server.ts`;
 isso está registrado na seção 3.1 do `deploy.md`. Os arquivos de `tasks/` que citam `app.ts`
 ficaram como estão, por serem registro histórico.
+
+## 2026-09-21 — `listen()` sem `await` no `server.ts`
+
+**O problema, terceiro do primeiro deploy.** Com o entrypoint certo, toda requisição passou a
+ficar 60 s pendurada e cair com `INTERNAL_FUNCTION_INVOCATION_FAILED`. Causa, lida em
+`@vercel/node` 13.0.1 (`compileUserCode`): para capturar o servidor criado no import, o runtime
+troca `http.Server.prototype.listen` por uma função que guarda a instância e devolve `this` —
+**sem chamar o callback**. A promise do `app.listen()` do Fastify resolve nesse callback, então
+nunca resolve ali; e o `server.ts` fazia `await app.listen(...)` no topo do módulo, o que
+impedia o próprio import de terminar.
+
+**Decisão.** `app.listen(...).catch(...)`, sem `await`, que é também a forma do exemplo oficial
+da Vercel. Em processo comum nada muda: falha ao escutar (porta ocupada, por exemplo) ainda
+registra o erro e sai com código 1 — conferido. Reproduzido antes da mudança com uma réplica do
+trecho do runtime (o import não termina) e conferido depois (`/health` → 200).
+
+**O que isto não cobre.** O runtime espera no máximo 1 s, depois do import, pela chamada a
+`listen`; o Fastify só a faz depois de registrar os plugins. Hoje isso leva bem menos de 1 s.
+Um plugin que fizesse I/O lento no registro faria a função falhar com
+`Can't detect handler export shape` — o sintoma a reconhecer.
