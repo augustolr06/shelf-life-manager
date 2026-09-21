@@ -27,3 +27,5 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+docs/rascunho.txt
+drafts/*
