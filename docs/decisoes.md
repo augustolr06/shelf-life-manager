@@ -1525,6 +1525,19 @@ onde vive o gate de `ALERTA_AGENDADOR_INTERNO` e a linha de log que o `deploy.md
 conferir — nunca rodaria na Vercel, e o comportamento de produção passaria a divergir do
 local num ponto que ninguém lê.
 
-**Consequência.** Criar `src/app.ts` ou `src/index.ts` no backend volta a quebrar o deploy;
+**Segunda metade, descoberta no deploy seguinte.** Só o rename não bastou: o build passou a
+falhar com `No entrypoint found which imports fastify. Found possible entrypoint: src/server.ts`.
+Lendo o builder (`@vercel/backends` 8.0.1, `resolveEntrypoint`), a regra completa é: dos
+candidatos da lista, valem só os que contêm `import ... from 'fastify'` no texto (regex); se
+nenhum casar, vale o `"main"` do `package.json`. O `server.ts` não importa `fastify`. Resolvido
+com `"main": "src/server.ts"` no `backend/package.json`, que é o caminho que o próprio builder
+sugere na sua mensagem genérica. Descartado: pôr um `import type ... from 'fastify'` no
+`server.ts` só para casar com o regex — funciona, mas é um import que não existe em runtime
+servindo de sinal para uma ferramenta, e quem o apagasse numa limpeza quebraria o deploy sem
+entender por quê. Conferido rodando a função de detecção extraída do pacote contra o
+`backend/`: sem `main`, reproduz a mensagem do build; com `main`, devolve `src/server.ts`.
+
+**Consequência.** Criar `src/app.ts` ou `src/index.ts` que importe `fastify` volta a quebrar o
+deploy, porque passa na frente do `"main"`;
 isso está registrado na seção 3.1 do `deploy.md`. Os arquivos de `tasks/` que citam `app.ts`
 ficaram como estão, por serem registro histórico.
