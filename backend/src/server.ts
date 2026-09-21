@@ -1,8 +1,13 @@
+import type { FastifyInstance } from 'fastify'
 import { buildApp } from './buildApp.js'
 import { iniciarAgendadorDeAlertas } from './modules/alerta/agendador.js'
 import { env } from './shared/env.js'
 
-const app = buildApp()
+// O import de `fastify` neste arquivo é requisito do deploy, não só do tipo:
+// a Vercel só aceita como entrypoint um arquivo cujo texto contenha
+// `import ... from 'fastify'` (docs/deploy.md seção 3.1). Guardado por
+// tests/entrypointVercel.test.ts.
+const app: FastifyInstance = buildApp()
 
 // Iniciado aqui, e não em `buildApp()`: as suítes montam o app com
 // `app.inject()` e não devem herdar um timer varrendo o banco por trás.

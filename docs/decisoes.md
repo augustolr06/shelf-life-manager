@@ -1527,17 +1527,26 @@ local num ponto que ninguém lê.
 
 **Segunda metade, descoberta no deploy seguinte.** Só o rename não bastou: o build passou a
 falhar com `No entrypoint found which imports fastify. Found possible entrypoint: src/server.ts`.
-Lendo o builder (`@vercel/backends` 8.0.1, `resolveEntrypoint`), a regra completa é: dos
-candidatos da lista, valem só os que contêm `import ... from 'fastify'` no texto (regex); se
-nenhum casar, vale o `"main"` do `package.json`. O `server.ts` não importa `fastify`. Resolvido
-com `"main": "src/server.ts"` no `backend/package.json`, que é o caminho que o próprio builder
-sugere na sua mensagem genérica. Descartado: pôr um `import type ... from 'fastify'` no
-`server.ts` só para casar com o regex — funciona, mas é um import que não existe em runtime
-servindo de sinal para uma ferramenta, e quem o apagasse numa limpeza quebraria o deploy sem
-entender por quê. Conferido rodando a função de detecção extraída do pacote contra o
-`backend/`: sem `main`, reproduz a mensagem do build; com `main`, devolve `src/server.ts`.
+A regra, lida no builder que roda de fato (`@vercel/fastify` → `generateNodeBuilderFunctions`
+de `@vercel/build-utils` 14.10.1): dos candidatos da lista, valem só os que contêm
+`import ... from 'fastify'` no texto (regex). O `server.ts` não importava `fastify`.
+
+Uma primeira tentativa, `"main": "src/server.ts"` no `package.json`, foi ao ar e **não
+resolveu**: ela saiu da leitura de outro pacote (`@vercel/backends`), onde o `main` é aceito
+sem condição; no builder de Fastify, o arquivo do `main` também precisa casar com o regex. O
+`main` foi retirado. Registrado aqui porque o erro de método é o que interessa: a simulação
+reproduzia a mensagem certa com o código errado, e isso pareceu confirmação.
+
+**Decisão final.** O `server.ts` anota a instância, `const app: FastifyInstance = buildApp()`,
+com `import type { FastifyInstance } from 'fastify'`. É uma anotação que o arquivo pode ter por
+mérito próprio, mas o motivo real é o regex, e isso está dito no comentário ao lado. Contra o
+risco de alguém apagá-la numa limpeza, `tests/entrypointVercel.test.ts` aplica o regex do
+builder sobre os candidatos e exige que o único a casar seja `src/server.ts` — cobrindo também
+a volta de um `src/app.ts` ou `src/index.ts` que importe `fastify`. Conferido rodando o
+`entrypointCallback` do próprio `@vercel/build-utils` 14.10.1: sobre o código que estava no ar,
+dá a mensagem do build; sobre o corrigido, devolve `src/server.ts`.
 
 **Consequência.** Criar `src/app.ts` ou `src/index.ts` que importe `fastify` volta a quebrar o
-deploy, porque passa na frente do `"main"`;
+deploy, porque passa na frente do `server.ts`;
 isso está registrado na seção 3.1 do `deploy.md`. Os arquivos de `tasks/` que citam `app.ts`
 ficaram como estão, por serem registro histórico.

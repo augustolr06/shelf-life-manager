@@ -99,19 +99,20 @@ Não há build command a escrever: a Vercel detecta o Fastify pelo entrypoint e 
 numa função só. O `postinstall: prisma generate` roda no install, e as devDependencies são
 instaladas no build por padrão.
 
-> **Como a Vercel escolhe o entrypoint, e por que o `package.json` declara `"main"`.** O builder
-> procura `app`, `index` e `server` (em `src/` e na raiz) e fica **só com os que contêm, no
-> texto, um `import ... from 'fastify'`** — é regex sobre o arquivo, não análise de imports.
-> Se nenhum casar, usa o `"main"` do `package.json`. O entrypoint deste projeto é
-> `src/server.ts`, que chama `listen()` mas não importa `fastify` (quem importa é a fábrica),
-> então ele só é achado pelo `"main": "src/server.ts"`. E a fábrica se chama `src/buildApp.ts`
-> para **não** estar na lista: com o nome antigo, `src/app.ts`, ela casava com o regex e era
-> escolhida, e toda requisição morria com `FUNCTION_INVOCATION_FAILED`.
+> **Como a Vercel escolhe o entrypoint.** O builder de Fastify procura `app`, `index` e
+> `server` (em `src/` e na raiz) e fica **só com os que contêm, no texto, um
+> `import ... from 'fastify'`** — é regex sobre o arquivo, não análise de imports. Vence o
+> primeiro que casar. O `"main"` do `package.json` não é saída: ele só é consultado se nenhum
+> candidato casar, e o arquivo dele também precisa casar com o mesmo regex.
+>
+> Por isso o `src/server.ts` importa o tipo `FastifyInstance` — o import é requisito de deploy,
+> e `tests/entrypointVercel.test.ts` quebra se ele sumir. E a fábrica se chama
+> `src/buildApp.ts` para **não** estar na lista: com o nome antigo, `src/app.ts`, ela casava,
+> passava na frente e era escolhida.
 >
 > Os sintomas, para reconhecer: `Invalid export found in module ".../src/app.js"` no log de
 > runtime (escolheu o arquivo errado) e `No entrypoint found which imports fastify` no log de
-> build (não achou nenhum). Não crie `src/app.ts`, `src/index.ts` nem `server.ts`/`app.ts`/
-> `index.ts` na raiz do backend que importem `fastify` — eles passam na frente do `"main"`.
+> build (nenhum candidato casou).
 
 ### 3.2 Variáveis de ambiente
 
