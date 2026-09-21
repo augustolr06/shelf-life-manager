@@ -10,7 +10,7 @@ vi.mock('../src/db/prisma.js', () => ({
 }))
 
 import { prisma } from '../src/db/prisma.js'
-import { buildApp } from '../src/app.js'
+import { buildApp } from '../src/buildApp.js'
 
 const buscarUsuario = vi.mocked(prisma.usuario.findUnique)
 

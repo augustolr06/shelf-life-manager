@@ -528,7 +528,7 @@ conta própria (RNF04); `mensagem` é o único texto que vai à tela.
 As recusas de negócio são **escritas nas rotas**, com código e texto específicos do caso
 (`UNIDADE_NAO_VENCIDA`, `PAPEL_INSUFICIENTE`, `VALIDADE_INALTERADA`, ...). O que o próprio
 Fastify gera passa pelo `setErrorHandler`/`setNotFoundHandler` registrados em
-`backend/src/app.ts` (T12b), única fonte destes três casos:
+`backend/src/buildApp.ts` (T12b), única fonte destes três casos:
 
 | Situação | Status | `erro` | Observação |
 |---|---|---|---|

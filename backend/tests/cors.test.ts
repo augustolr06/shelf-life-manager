@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildApp } from '../src/app.js'
+import { buildApp } from '../src/buildApp.js'
 
 /**
  * Regressão descoberta na conferência de T04 no navegador: o padrão do

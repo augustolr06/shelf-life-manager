@@ -13,7 +13,7 @@ vi.mock('../src/db/prisma.js', () => ({
 }))
 
 import { prisma } from '../src/db/prisma.js'
-import { buildApp } from '../src/app.js'
+import { buildApp } from '../src/buildApp.js'
 import { NOME_COOKIE_SESSAO } from '../src/modules/auth/cookie.js'
 import { EMAIL_DO_SISTEMA } from '../src/modules/alerta/usuarioDoSistema.js'
 

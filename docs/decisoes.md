@@ -50,7 +50,7 @@ Formato: cada entrada tem data, decisão e justificativa. Nunca editar entradas 
 
 ## 2026-09-07 — Decisões de autenticação (T03)
 
-**JWT implementado com `@fastify/jwt`; CORS com `@fastify/cors`.** `docs/arquitetura.md` seção 1 fixa "JWT em cookie httpOnly + bcrypt" como mecanismo, sem nomear biblioteca. `@fastify/jwt` foi escolhido por ler o token direto do cookie (opção `cookie.cookieName`) e por expor `request.jwtVerify()` como preHandler, dispensando código de extração manual de header/cookie. Justificativa: menos superfície própria para errar num ponto de segurança, e integração nativa com o ciclo de vida do Fastify. Consequência: `@fastify/cookie` precisa ser registrado antes de `@fastify/jwt`, e essa ordem está comentada em `src/app.ts`.
+**JWT implementado com `@fastify/jwt`; CORS com `@fastify/cors`.** `docs/arquitetura.md` seção 1 fixa "JWT em cookie httpOnly + bcrypt" como mecanismo, sem nomear biblioteca. `@fastify/jwt` foi escolhido por ler o token direto do cookie (opção `cookie.cookieName`) e por expor `request.jwtVerify()` como preHandler, dispensando código de extração manual de header/cookie. Justificativa: menos superfície própria para errar num ponto de segurança, e integração nativa com o ciclo de vida do Fastify. Consequência: `@fastify/cookie` precisa ser registrado antes de `@fastify/jwt`, e essa ordem está comentada em `src/buildApp.ts` (era `src/app.ts` até 2026-09-21).
 
 **Cookie de sessão chamado `sessao`, `SameSite=Lax`, validade de 8 horas.** `httpOnly` sempre; `secure` apenas quando `NODE_ENV=production`, para o login continuar funcionando em `http://localhost` no desenvolvimento. Justificativa da duração: 8 horas cobre uma jornada de trabalho, então o atendente não é deslogado no meio do expediente — e o PRD não pede refresh token. Justificativa do `SameSite=Lax`: em desenvolvimento frontend (5173) e backend (3333) são o mesmo site (a porta não entra na definição de site), então `Lax` basta; se em produção os dois forem para domínios distintos, isto vira `None` + `secure` obrigatório. As opções ficam num único lugar (`src/modules/auth/cookie.ts`) e são reusadas no logout, porque o navegador só substitui um cookie por outro de nome, path e domínio idênticos.
 
@@ -1503,3 +1503,28 @@ cliente na frente.
 **O que isto não conserta.** A latência continua existindo; o que muda é o desfecho dela.
 `docs/deploy.md` mantém o passo 9 da verificação — medir o pior caso — porque conhecer o
 número continua sendo necessário.
+
+## 2026-09-21 — A fábrica do Fastify deixa de se chamar `app.ts`
+
+**O problema, descoberto no primeiro deploy.** A detecção de Fastify da Vercel escolhe como
+entrypoint o **primeiro** arquivo que existir numa lista ordenada: `src/app.*`, `src/index.*`,
+`src/server.*`, e os mesmos nomes na raiz. O backend tinha `src/app.ts` (a fábrica
+`buildApp()`, usada pelo `server.ts` e por todas as suítes via `app.inject()`) e `src/server.ts`
+(o processo, com o `listen()` e o gate do relógio da RF08). A Vercel pegava `app.ts`, que não
+tem export default, e a função morria na partida em toda requisição:
+`Invalid export found in module ".../src/app.js". The default export must be a function or server.`
+O `deploy.md` supunha o `server.ts`, e o teste local não pegava o erro, porque localmente quem
+decide o entrypoint é o `npm start`, não a lista da Vercel.
+
+**Decisão.** Renomear a fábrica para `src/buildApp.ts`, o nome da função que ela exporta. O
+`server.ts` passa a ser o único candidato da lista e roda sem alteração.
+
+**Alternativa descartada.** Dar um export default ao `app.ts` (um handler que repassa a
+requisição ao `app.server`). Funcionaria, mas faria da fábrica o processo: o `server.ts` —
+onde vive o gate de `ALERTA_AGENDADOR_INTERNO` e a linha de log que o `deploy.md` manda
+conferir — nunca rodaria na Vercel, e o comportamento de produção passaria a divergir do
+local num ponto que ninguém lê.
+
+**Consequência.** Criar `src/app.ts` ou `src/index.ts` no backend volta a quebrar o deploy;
+isso está registrado na seção 3.1 do `deploy.md`. Os arquivos de `tasks/` que citam `app.ts`
+ficaram como estão, por serem registro histórico.

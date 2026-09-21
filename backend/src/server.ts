@@ -1,4 +1,4 @@
-import { buildApp } from './app.js'
+import { buildApp } from './buildApp.js'
 import { iniciarAgendadorDeAlertas } from './modules/alerta/agendador.js'
 import { env } from './shared/env.js'
 

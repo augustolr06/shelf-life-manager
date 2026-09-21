@@ -95,10 +95,17 @@ saída de emergência para o caso que a interface não alcança — gestor únic
 | Framework Preset | Other (a Vercel detecta Fastify sozinha) |
 | Build / Output | deixe o padrão |
 
-Não há build command a escrever: a Vercel detecta o Fastify pelo entrypoint — `src/server.ts`
-está na lista de caminhos que ela procura — e o transforma numa função só. O
-`postinstall: prisma generate` roda no install, e as devDependencies são instaladas no build
-por padrão.
+Não há build command a escrever: a Vercel detecta o Fastify pelo entrypoint e o transforma
+numa função só. O `postinstall: prisma generate` roda no install, e as devDependencies são
+instaladas no build por padrão.
+
+> **O entrypoint é o primeiro nome da lista que existir, e a ordem importa.** A Vercel procura
+> `src/app.*`, depois `src/index.*`, depois `src/server.*` (e os mesmos nomes na raiz). O
+> entrypoint deste projeto é `src/server.ts`, que chama `listen()`; a fábrica da instância
+> se chama `src/buildApp.ts` **justamente para não se chamar `app.ts`**. Com o nome antigo, a
+> Vercel escolhia a fábrica, que não tem export default, e toda requisição morria com
+> `FUNCTION_INVOCATION_FAILED` — no log: `Invalid export found in module ".../src/app.js"`.
+> Não crie `src/app.ts` nem `src/index.ts` no backend.
 
 ### 3.2 Variáveis de ambiente
 

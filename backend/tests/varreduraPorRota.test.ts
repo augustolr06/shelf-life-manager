@@ -9,7 +9,7 @@ vi.mock('../src/modules/alerta/varreduraAlertas.js', () => ({
 }))
 
 import { varrerEstoqueParaAlertas } from '../src/modules/alerta/varreduraAlertas.js'
-import { buildApp } from '../src/app.js'
+import { buildApp } from '../src/buildApp.js'
 
 const varrer = vi.mocked(varrerEstoqueParaAlertas)
 

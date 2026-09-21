@@ -18,7 +18,7 @@ vi.mock('../../src/db/prisma.js', async () => {
   return { prisma: clienteCompartilhadoDeTeste() }
 })
 
-import { buildApp } from '../../src/app.js'
+import { buildApp } from '../../src/buildApp.js'
 import { EMAIL_DO_SISTEMA } from '../../src/modules/alerta/usuarioDoSistema.js'
 import { varrerEstoqueParaAlertas } from '../../src/modules/alerta/varreduraAlertas.js'
 import { clienteCompartilhadoDeTeste, limparBanco, prepararBancoDeTeste } from '../apoio/bancoDeTeste.js'

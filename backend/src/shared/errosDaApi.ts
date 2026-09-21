@@ -91,7 +91,7 @@ function camposRecusados(validation: NonNullable<FastifyError['validation']>): s
 }
 
 /**
- * Handler único da instância. Registrado em `app.ts` — e não em `server.ts` —
+ * Handler único da instância. Registrado em `buildApp.ts` — e não em `server.ts` —
  * para que os testes com `app.inject()` exercitem o mesmo app que roda em
  * produção.
  */

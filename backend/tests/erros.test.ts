@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildApp } from '../src/app.js'
+import { buildApp } from '../src/buildApp.js'
 import {
   MENSAGEM_CORPO_INVALIDO,
   MENSAGEM_ERRO_INTERNO,
