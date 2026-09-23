@@ -118,6 +118,15 @@ cuja única credencial é a senha padrão do seed. Nenhuma das duas bloqueia a d
 defesa — um deploy só para demonstração pode acontecer antes, e inclusive **destrava** as
 verificações manuais de câmera, push e PWA offline listadas abaixo, que precisam de HTTPS.
 
+## Incremento 8 — Carga do catálogo real
+
+Levantado em 2026-09-22: o gestor da loja tem o catálogo numa planilha, e cadastrar ~700 SKUs
+um a um pelo formulário de T04 inviabiliza a carga inicial.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T24 | Importação do catálogo de produtos por planilha CSV (RF02) | concluída | T04 | `tasks/T24-importacao-produtos-csv.md` |
+
 ---
 
 ## Verificações manuais a cargo do orientando

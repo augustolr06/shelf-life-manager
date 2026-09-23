@@ -15,12 +15,18 @@ const URL_BASE: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3333'
 export class ErroApi extends Error {
   readonly status: number
   readonly codigo: string | null
+  /**
+   * O corpo inteiro da resposta de erro, para a recusa que traz mais que a
+   * mensagem — a lista de linhas de uma planilha recusada (T24), por exemplo.
+   */
+  readonly corpo: unknown
 
-  constructor(status: number, mensagem: string, codigo: string | null) {
+  constructor(status: number, mensagem: string, codigo: string | null, corpo: unknown = null) {
     super(mensagem)
     this.name = 'ErroApi'
     this.status = status
     this.codigo = codigo
+    this.corpo = corpo
   }
 }
 
@@ -58,6 +64,7 @@ export async function requisitarApi<T>(caminho: string, init: RequestInit = {}):
       // só recorre a um texto próprio quando não recebeu nenhum.
       corpo?.mensagem ?? corpo?.message ?? 'Não foi possível concluir a operação.',
       corpo?.erro ?? null,
+      corpo,
     )
   }
 

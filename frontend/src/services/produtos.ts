@@ -62,3 +62,54 @@ export async function reativarProduto(id: string): Promise<Produto> {
   })
   return produto
 }
+
+export type ResultadoImportacao = {
+  criados: number
+  /** Códigos que já estavam cadastrados: pulados, e não alterados (T24). */
+  ignorados: { linha: number; codigoInterno: string }[]
+}
+
+/**
+ * Envia o texto da planilha como está. Quem interpreta o CSV e valida cada
+ * linha é o servidor (T24, Decisão 3): a tela só mostra o que ele respondeu.
+ */
+export async function importarProdutos(conteudo: string): Promise<ResultadoImportacao> {
+  return requisitarApi<ResultadoImportacao>('/produtos/importar', {
+    method: 'POST',
+    body: JSON.stringify({ conteudo }),
+  })
+}
+
+/** A lista de linhas a corrigir que acompanha a recusa `PLANILHA_INVALIDA`. */
+export function errosDaPlanilha(corpo: unknown): string[] {
+  const erros = (corpo as { erros?: unknown } | null)?.erros
+  return Array.isArray(erros) ? erros.filter((erro): erro is string => typeof erro === 'string') : []
+}
+
+/**
+ * O texto de um arquivo CSV salvo pelo Excel, com os acentos certos.
+ *
+ * O Excel em português grava o "CSV (separado por vírgulas)" em Windows-1252,
+ * e só o "CSV UTF-8" em UTF-8. Lido sempre como UTF-8, o primeiro vira
+ * "Perfumaria Cl�ssica" no catálogo. Então tenta UTF-8 em modo estrito e, se
+ * os bytes não forem UTF-8 válido, relê como Windows-1252 — que é o único
+ * outro que um arquivo de planilha em pt-BR costuma ter.
+ */
+export async function lerTextoDaPlanilha(arquivo: Blob): Promise<string> {
+  const bytes = await lerBytes(arquivo)
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes)
+  }
+}
+
+/** `FileReader` em vez de `Blob.arrayBuffer()`, que navegadores mais antigos de celular não têm. */
+function lerBytes(arquivo: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolver, rejeitar) => {
+    const leitor = new FileReader()
+    leitor.onload = () => resolver(leitor.result as ArrayBuffer)
+    leitor.onerror = () => rejeitar(leitor.error)
+    leitor.readAsArrayBuffer(arquivo)
+  })
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
 import { ErroApi } from '../services/api'
 import type { Usuario } from '../services/auth'
 import {
@@ -151,6 +152,8 @@ export function TelaProdutos({ usuario }: Props) {
           </button>
         </form>
       )}
+
+      {podeEditar && <ImportacaoProdutos aoImportar={() => void carregar()} />}
 
       <form className="filtros" onSubmit={buscarProdutos}>
         <div className="campo">

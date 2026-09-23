@@ -1554,3 +1554,36 @@ não aponta para produto nenhum e fica no log.
 T23 (o deploy sem homologação), RNF05, RF12, RF13
 
 **Data:** 2026-09-22
+
+---
+
+## A planilha da loja entra como catálogo, não como estoque
+
+**Contexto do problema:** o gestor da loja já controla os produtos numa planilha, e a primeira
+pergunta ao ver o sistema foi se dava para "subir a planilha". A resposta óbvia seria
+importar tudo o que ela tem, inclusive quantidades e validades, e começar a usar o sistema no
+mesmo dia.
+
+**Solução adotada:** a importação traz só o catálogo: código, nome, marca e categoria. As
+unidades, com suas validades, continuam entrando uma a uma pela tela de recebimento, cada uma
+com a etiqueta colada no frasco no momento do cadastro.
+
+**Por que resolve o problema / trade-offs:** a planilha é o controle manual que o sistema
+existe para substituir. As validades dela são o registro do processo cujas falhas motivaram o
+trabalho: validade anotada por lote quando o lote é misto, entradas atrasadas, saídas não
+baixadas. Importá-las transportaria para o sistema, com aparência de dado confiável, o erro
+que ele deveria eliminar. Há também um motivo físico. No sistema, a unidade só existe junto
+com a etiqueta no frasco: é por ela que a leitura na venda encontra a unidade. Uma unidade
+importada sem etiqueta é uma linha no banco que nenhum frasco da prateleira consegue apontar.
+
+A consequência vale ser dita no artigo: **a adoção tem um custo que não é de software.** A
+carga inicial do estoque é uma contagem física, frasco por frasco, com leitura da validade e
+colagem da etiqueta. É a primeira vez que a loja olha cada frasco com esse cuidado, e é por
+isso mesmo que o estoque do sistema começa confiável. O catálogo, ao contrário, é informação
+estável e já digitada; importá-lo economiza setecentos cadastros sem trazer nenhuma
+incerteza. A fronteira entre o que se importa e o que se conta é a fronteira entre o que a
+planilha sabe e o que só o frasco sabe.
+
+**Tarefa relacionada:** T24, T05 (recebimento), T14 e T15 (a etiqueta por unidade), RF02, RF03
+
+**Data:** 2026-09-22

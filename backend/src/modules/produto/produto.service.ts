@@ -38,7 +38,7 @@ export type ResultadoEscrita =
  * e "PRF-001" seriam dois SKUs distintos para o Postgres, e o catálogo
  * ganharia duplicatas que a restrição de unicidade não pega.
  */
-function normalizar(dados: DadosProduto): DadosProduto {
+export function normalizarDadosProduto(dados: DadosProduto): DadosProduto {
   return {
     codigoInterno: dados.codigoInterno.trim().toUpperCase(),
     nome: dados.nome.trim(),
@@ -49,7 +49,7 @@ function normalizar(dados: DadosProduto): DadosProduto {
 
 export async function criarProduto(dados: DadosProduto): Promise<ResultadoEscrita> {
   try {
-    return { ok: true, produto: await prisma.produto.create({ data: normalizar(dados) }) }
+    return { ok: true, produto: await prisma.produto.create({ data: normalizarDadosProduto(dados) }) }
   } catch (erro) {
     // Colisão detectada pela restrição `@unique` do banco, não por consulta
     // prévia: duas criações simultâneas passariam por um `findUnique`.

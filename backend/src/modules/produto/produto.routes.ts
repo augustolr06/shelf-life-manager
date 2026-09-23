@@ -9,6 +9,7 @@ import {
   listarProdutos,
   type DadosProduto,
 } from './produto.service.js'
+import { importarProdutos } from './importacao.service.js'
 
 const TAMANHO_PAGINA_PADRAO = 20
 const TAMANHO_PAGINA_MAXIMO = 100
@@ -66,6 +67,23 @@ const consultaListagem = {
   },
 } as const
 
+/**
+ * O arquivo chega como texto, do jeito que está no disco: quem interpreta o
+ * CSV é o servidor (T24, Decisão 3). O teto de bytes fica abaixo do limite de
+ * corpo da Vercel (4,5 MB), com folga para 5.000 linhas de catálogo; o padrão
+ * do Fastify, 1 MiB, recusaria uma planilha grande com um 413 sem explicação.
+ */
+const LIMITE_CORPO_IMPORTACAO = 4 * 1024 * 1024
+
+const corpoImportacao = {
+  type: 'object',
+  required: ['conteudo'],
+  additionalProperties: false,
+  properties: {
+    conteudo: { type: 'string', minLength: 1, maxLength: 3_500_000 },
+  },
+} as const
+
 type ConsultaListagem = {
   busca?: string
   incluirInativos: boolean
@@ -97,6 +115,27 @@ export async function rotasProduto(app: FastifyInstance): Promise<void> {
       if (!resultado.ok) return reply.code(409).send(CONFLITO_CODIGO)
 
       return reply.code(201).send({ produto: resultado.produto })
+    },
+  )
+
+  // Importação do catálogo (T24). Código já cadastrado é pulado e devolvido em
+  // `ignorados`; qualquer problema na planilha recusa o arquivo inteiro, sem
+  // gravar nada, com a lista de linhas a corrigir.
+  app.post<{ Body: { conteudo: string } }>(
+    '/produtos/importar',
+    { ...somenteGestor, bodyLimit: LIMITE_CORPO_IMPORTACAO, schema: { body: corpoImportacao } },
+    async (request, reply) => {
+      const resultado = await importarProdutos(request.body.conteudo)
+
+      if (!resultado.ok) {
+        return reply.code(400).send({
+          erro: 'PLANILHA_INVALIDA',
+          mensagem: 'A planilha tem problemas e nada foi importado. Corrija as linhas abaixo e envie de novo.',
+          erros: resultado.erros,
+        })
+      }
+
+      return { criados: resultado.criados, ignorados: resultado.ignorados }
     },
   )
 

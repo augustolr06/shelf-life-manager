@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-09 (seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-09-22 (seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -255,6 +255,7 @@ manual produziria.
 | POST | `/auth/login` | público | Autentica, retorna cookie JWT |
 | POST | `/produtos` | GESTOR | Cria SKU (RF02) |
 | GET | `/produtos` | qualquer autenticado | Lista/busca produtos |
+| POST | `/produtos/importar` | GESTOR | Importa o catálogo de uma planilha CSV (T24) — ver abaixo |
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
@@ -281,6 +282,19 @@ revalidar o FIFO inteiro (aceitar o veredito afirmado pelo cliente violaria a RN
 manter reserva no servidor (proibido pela seção 6.2 do PRD). Removido em T09
 (`docs/decisoes.md`, 2026-09-08): quando `/saidas/ler` responde `CONFIRMAR`, a venda já
 aconteceu.
+
+**`POST /produtos/importar`** (T24) recebe `{ conteudo }`, o texto do arquivo CSV como
+está. O navegador só o lê do disco, tratando o Windows-1252 que o Excel grava. Quem
+interpreta o CSV e valida as linhas é o servidor (`modules/produto/importacao.service.ts`,
+sobre `shared/csv.ts`). As colunas são achadas pelo nome, sem acento, maiúscula nem espaço,
+e colunas extras são ignoradas. Cada linha passa pela mesma normalização e pelo mesmo teto
+de 120 caracteres do `POST /produtos`. Com qualquer problema, responde 400
+`PLANILHA_INVALIDA` com a lista `erros`, uma entrada por linha e no máximo 50, e **nada é
+gravado**. Sem problema, responde 200 `{ criados, ignorados: [{ linha, codigoInterno }] }`:
+código já cadastrado é pulado e devolvido, nunca atualizado. A escrita é um `createMany`
+só, e portanto atômica. A rota tem `bodyLimit` próprio de 4 MiB (o padrão do Fastify é
+1 MiB), abaixo do limite de corpo da Vercel. Só importa produtos. As unidades entram pelo
+`POST /produtos/:id/unidades`, uma etiqueta por frasco.
 
 **Os três endpoints de `/excecao-vencido`** (T11) recebem a unidade pelo `unidadeId` que o
 veredito `EXCECAO_VENCIDO` devolveu, mais o `sessaoVendaId` opcional. Conferem as mesmas
@@ -524,6 +538,10 @@ que deu errado:
 
 `erro` é o código estável, que a interface usa para distinguir casos sem julgar nada por
 conta própria (RNF04); `mensagem` é o único texto que vai à tela.
+
+A única recusa que acrescenta um campo ao corpo é `PLANILHA_INVALIDA` (T24), com `erros`: a
+lista das linhas a corrigir, que a tela exibe abaixo da `mensagem`. Por isso o `ErroApi` do
+frontend guarda o corpo inteiro da resposta em `corpo`.
 
 As recusas de negócio são **escritas nas rotas**, com código e texto específicos do caso
 (`UNIDADE_NAO_VENCIDA`, `PAPEL_INSUFICIENTE`, `VALIDADE_INALTERADA`, ...). O que o próprio

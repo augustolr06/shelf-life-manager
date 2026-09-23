@@ -1,12 +1,8 @@
 /**
- * Leitura da planilha de produtos fictícios (`dados-ficticios/*.csv`).
- *
- * A planilha é CSV, e não `.xlsx`, para não trazer dependência nova só para
- * isto: Excel, LibreOffice e Google Planilhas abrem e salvam CSV. O formato
- * aceita o que esses programas produzem na prática — separador `;` (o padrão
- * do Excel em pt-BR, onde a vírgula é decimal) ou `,`, o BOM do "CSV UTF-8" do
- * Excel, campos entre aspas, e a data que o Excel reescreve como `DD/MM/AAAA`
- * quando alguém digita `AAAA-MM-DD` numa célula.
+ * Leitura da planilha de produtos fictícios (`dados-ficticios/*.csv`). O CSV em
+ * si é lido por `shared/csv.ts`, o mesmo da importação do catálogo (T24). O que
+ * é daqui é a validade, que aceita também a data que o Excel reescreve como
+ * `DD/MM/AAAA` quando alguém digita `AAAA-MM-DD` numa célula.
  *
  * Uma linha é **uma validade de um produto**, como uma linha do recebimento
  * (RF03). O produto que chega com três validades ocupa três linhas: nome,
@@ -16,6 +12,7 @@
  * Nada aqui toca o banco: a função devolve a planilha inteira interpretada ou
  * a lista de erros, e quem chama só escreve se não houver erro nenhum.
  */
+import { lerCsv } from '../../shared/csv.js'
 import { dataDeString, hojeComoData, textoDeData } from '../../shared/data.js'
 import type { DadosProduto } from '../../modules/produto/produto.service.js'
 import type { ItemLote } from '../../modules/unidade/unidade.service.js'
@@ -39,17 +36,10 @@ export type Planilha =
   | { ok: false; erros: string[] }
 
 export function lerPlanilha(texto: string, hoje: Date = hojeComoData()): Planilha {
-  const linhas = texto
-    .replace(/^﻿/, '')
-    .split(/\r?\n/)
-    .map((conteudo, indice) => ({ numero: indice + 1, conteudo }))
-    .filter((linha) => linha.conteudo.trim() !== '')
+  const csv = lerCsv(texto)
+  if (!csv) return { ok: false, erros: ['a planilha está vazia'] }
 
-  const [cabecalho, ...dados] = linhas
-  if (!cabecalho) return { ok: false, erros: ['a planilha está vazia'] }
-
-  const separador = cabecalho.conteudo.includes(';') ? ';' : ','
-  const nomes = dividirLinha(cabecalho.conteudo, separador).map((nome) => nome.trim())
+  const nomes = csv.cabecalho
   const faltando = COLUNAS.filter((coluna) => !nomes.includes(coluna))
   if (faltando.length > 0) {
     return { ok: false, erros: [`linha 1: faltam as colunas ${faltando.join(', ')}`] }
@@ -58,8 +48,7 @@ export function lerPlanilha(texto: string, hoje: Date = hojeComoData()): Planilh
   const erros: string[] = []
   const produtos = new Map<string, ProdutoFicticio>()
 
-  for (const { numero, conteudo } of dados) {
-    const valores = dividirLinha(conteudo, separador)
+  for (const { numero, valores } of csv.linhas) {
     const campo = (coluna: (typeof COLUNAS)[number]) =>
       (valores[nomes.indexOf(coluna)] ?? '').trim()
     const erro = (mensagem: string) => erros.push(`linha ${numero}: ${mensagem}`)
@@ -142,35 +131,4 @@ export function interpretarValidade(texto: string, hoje: Date): string | null {
   const candidata = partes.join('-')
   // 31/02 vira 03/03 no `Date.UTC`; a volta para texto denuncia a data inexistente.
   return textoDeData(dataDeString(candidata)) === candidata ? candidata : null
-}
-
-/** Divide uma linha de CSV respeitando campos entre aspas e `""` como aspa literal. */
-function dividirLinha(linha: string, separador: string): string[] {
-  const campos: string[] = []
-  let atual = ''
-  let entreAspas = false
-
-  for (let i = 0; i < linha.length; i += 1) {
-    const caractere = linha[i]
-    if (entreAspas) {
-      if (caractere === '"' && linha[i + 1] === '"') {
-        atual += '"'
-        i += 1
-      } else if (caractere === '"') {
-        entreAspas = false
-      } else {
-        atual += caractere
-      }
-    } else if (caractere === '"') {
-      entreAspas = true
-    } else if (caractere === separador) {
-      campos.push(atual)
-      atual = ''
-    } else {
-      atual += caractere
-    }
-  }
-
-  campos.push(atual)
-  return campos
 }

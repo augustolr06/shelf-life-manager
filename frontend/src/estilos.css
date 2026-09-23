@@ -187,6 +187,33 @@ input {
   width: 100%;
 }
 
+/* Importação do catálogo por planilha (T24). O resultado pode ser uma lista
+   longa — códigos pulados ou linhas a corrigir —, então ocupa a largura toda e
+   rola dentro de si em vez de empurrar o catálogo para baixo da tela. */
+.importacao-produtos .explicacao {
+  width: 100%;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cor-texto-suave);
+}
+
+.importacao-produtos .nota-sucesso,
+.importacao-produtos .erro {
+  width: 100%;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.importacao-produtos .nota-sucesso p,
+.importacao-produtos .erro p {
+  margin: 0;
+}
+
+.importacao-produtos ul {
+  margin: 0.375rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .caixa-selecao {
   display: flex;
   align-items: center;

@@ -199,6 +199,7 @@ describe('TelaProdutos (RF02)', () => {
     // 403 do backend (RNF04).
     expect(screen.queryByLabelText('Código interno')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /inativar/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Arquivo CSV')).not.toBeInTheDocument()
   })
 
   it('avisa quando o catálogo não pôde ser carregado', async () => {

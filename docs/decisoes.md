@@ -1614,3 +1614,49 @@ apagado pela limpeza. Enquanto a remoção roda, o `ALTER TABLE` segura um lock 
 `EventoLog`, e toda leitura de QR espera por ele. Por isso ela roda fora do horário de
 atendimento (`docs/deploy.md`, seção 7.1). A leitura de QR inexistente não aponta para produto
 nenhum e não é removida.
+
+## 2026-09-22 — Importação do catálogo por planilha CSV (T24)
+
+**Contexto.** O gestor da loja tem o catálogo (~700 SKUs) numa planilha. O formulário de T04
+cadastra um produto por vez, o que inviabiliza a carga inicial. A tarefa não estava no PRD e
+entrou no backlog como T24, no incremento 8.
+
+**Decisões.** As oito estão justificadas em `tasks/T24-importacao-produtos-csv.md`. Em resumo:
+
+1. **Importa produtos, não unidades.** Cada unidade precisa de etiqueta no frasco e de validade
+   lida no frasco. As unidades continuam entrando pelo Recebimento.
+2. **Na tela de Catálogo**, visível só para GESTOR. O 403 da rota é quem recusa de fato.
+3. **O servidor interpreta o CSV.** O navegador envia o texto do arquivo como está, em
+   `{ conteudo }`. Descartada a alternativa de o frontend converter a planilha em JSON:
+   deixaria no cliente a decisão sobre o que cada coluna significa e sobre o que é uma linha
+   válida, em atrito com a RNF04.
+4. **Planilha com problema não grava nada**, e a resposta lista todas as linhas a corrigir (até
+   50), no formato do Excel: o número da linha conta o cabeçalho como 1.
+5. **Código já cadastrado é pulado e avisado**, nunca atualizado. Decisão do orientando.
+6. **Código repetido na mesma planilha é erro.**
+7. **Colunas pelo nome**, comparado sem acento, maiúscula, espaço, `_` ou `-`, e **colunas
+   extras são ignoradas**. A planilha do gestor pode manter preço e fornecedor.
+8. **Sem novo tipo de `EventoLog`**, como no cadastro manual de produto.
+
+**Achados da implementação.**
+
+- **Encoding.** O Excel em português grava o "CSV (separado por vírgulas)" em Windows-1252. Lido
+  como UTF-8, "Clássica" vira "Cl�ssica" e entra assim no catálogo. O navegador tenta UTF-8 em
+  modo estrito e, se os bytes forem inválidos, relê como Windows-1252. É conversão de
+  transporte, não decisão sobre o conteúdo, e por isso fica no cliente, onde estão os bytes.
+  Conferido no navegador com um arquivo gravado em Windows-1252.
+- **Limite de corpo.** O `bodyLimit` padrão do Fastify (1 MiB) recusaria com 413 uma planilha
+  grande antes de a rota rodar. A rota ganhou limite próprio de 4 MiB, abaixo dos 4,5 MB da
+  Vercel. O teste de 5.000 linhas passa de 1 MiB de propósito, e falha se o limite for retirado.
+- **Leitor de CSV compartilhado.** A leitura de CSV da planilha de produtos fictícios passou para
+  `shared/csv.ts` e agora serve às duas planilhas. Ele passou também a ignorar linhas só de
+  separadores, que é o que o Excel grava quando alguém apaga o conteúdo das células sem excluir
+  a linha.
+- **`ErroApi.corpo`.** O frontend só guardava `mensagem` e `erro` da resposta de erro. A lista
+  de linhas exigiu guardar o corpo inteiro. É acréscimo: os construtores existentes continuam
+  válidos.
+
+**A janela entre a consulta e a escrita.** Um código cadastrado por outra pessoa
+entre a leitura dos existentes e o `createMany` é absorvido pelo `skipDuplicates`: não derruba a
+importação, mas também não entra na lista de ignorados. Aceito: na loja, só a gestora cadastra
+produtos.
