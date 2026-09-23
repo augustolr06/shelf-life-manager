@@ -1570,3 +1570,47 @@ trecho do runtime (o import não termina) e conferido depois (`/health` → 200)
 `listen`; o Fastify só a faz depois de registrar os plugins. Hoje isso leva bem menos de 1 s.
 Um plugin que fizesse I/O lento no registro faria a função falhar com
 `Can't detect handler export shape` — o sintoma a reconhecer.
+
+## 2026-09-22 — Produtos fictícios em produção, e a única exceção à RNF05
+
+**O problema.** Testar o sistema publicado exige estoque, e o único estoque de produção é o da
+loja. Ler a etiqueta de um frasco real dá baixa de verdade. Criar produtos de teste pela
+interface resolve o estoque, mas não a limpeza. Produto, unidades, saídas, descartes e alertas
+se apagam por SQL. Os eventos no `EventoLog`, não: o trigger de T09 recusa o `DELETE`. E o
+dashboard conta `ALERTA_FIFO_DISPARADO` direto do log, sem filtro de produto
+(`dashboard.service.ts`), então os bloqueios FIFO dos testes entrariam para sempre nos números
+da RF13.
+
+**Decisão.** Uma planilha (`backend/dados-ficticios/produtos-ficticios.csv`) e dois scripts,
+`ficticios:cadastrar` e `ficticios:remover`, com a lógica em `src/db/ficticios/`. O dado
+fictício é reconhecido só pelo prefixo `ZZ-` do `codigoInterno`, o mesmo que o roteiro de
+testes manuais já usava para o dado criado à mão. A remoção **apaga também os eventos**:
+desliga o trigger `eventolog_append_only` dentro da própria transação, apaga só os eventos cujo
+`produtoId` ou `unidadeId` pertence a um produto `ZZ-`, religa o trigger e só então apaga o
+resto. `ALTER TABLE` é transacional no PostgreSQL, então uma falha no meio desfaz tudo e o
+trigger volta ligado. O teste `tests/ficticios` confere que o trigger está ativo depois da
+remoção, e falha se a linha que o religa for retirada.
+
+**Por que é exceção à RNF05, e não violação dela.** A RNF05 protege o dado da pesquisa (RF12).
+O evento de um produto fictício não é dado da pesquisa, é contaminação dele, e apagá-lo é o que
+mantém o log fiel ao que aconteceu na loja. A regra continua valendo para a aplicação: nenhuma
+rota, serviço ou tela ganhou caminho de `UPDATE`/`DELETE`. A exceção é um script operado da
+linha de comando, com `--confirmar` explícito, restrito ao prefixo.
+
+**Alternativas descartadas.** (a) Manter os eventos e separar o teste do piloto pela janela de
+tempo: funciona só se os testes nunca se misturarem com o uso real, e o dashboard continuaria
+mostrando o número contaminado para a gestora. (b) Manter os eventos e ensinar o dashboard a
+ignorar produtos fictícios: exigiria guardar os `produtoId` removidos em algum lugar, porque o
+produto some. Seria código de produção a serviço de um procedimento de teste. (c) Coluna
+`ficticio` no `Produto`: migração de schema para uma marca que o prefixo já dá.
+
+**Cadastro pelos serviços da aplicação.** O script usa `criarProduto` e `cadastrarUnidades`, e
+não `createMany`. O dado fictício passa pelas mesmas regras que o real: normalização do código,
+geração do `codigoQr` e evento por unidade. Um atalho testaria um estoque que a aplicação não
+produz.
+
+**Consequências.** O prefixo `ZZ-` passa a ser reservado: um produto real com esse código seria
+apagado pela limpeza. Enquanto a remoção roda, o `ALTER TABLE` segura um lock exclusivo no
+`EventoLog`, e toda leitura de QR espera por ele. Por isso ela roda fora do horário de
+atendimento (`docs/deploy.md`, seção 7.1). A leitura de QR inexistente não aponta para produto
+nenhum e não é removida.

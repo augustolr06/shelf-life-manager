@@ -1,0 +1,12 @@
+codigoInterno;nome;marca;categoria;validade;quantidade
+ZZ-ALFA;TESTE Perfume Alfa;Marca Fictícia;Perfumaria;HOJE+60;2
+ZZ-ALFA;;;;HOJE+200;2
+ZZ-BETA;TESTE Perfume Beta;Marca Fictícia;Perfumaria;HOJE-5;1
+ZZ-BETA;;;;HOJE+100;1
+ZZ-GAMA;TESTE Creme Gama;Marca Fictícia;Cuidados com a pele;HOJE-3;1
+ZZ-GAMA;;;;HOJE-10;1
+ZZ-GAMA;;;;HOJE-20;1
+ZZ-DELTA;TESTE Loção Delta;Marca Fictícia;Corpo e banho;HOJE+10;1
+ZZ-DELTA;;;;HOJE+25;1
+ZZ-DELTA;;;;HOJE+45;1
+ZZ-EPS;TESTE Óleo Épsilon;Marca Fictícia;Corpo e banho;;

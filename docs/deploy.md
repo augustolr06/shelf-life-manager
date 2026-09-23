@@ -251,10 +251,73 @@ Teste a restauração **uma vez**, num banco descartável, antes de precisar del
 | Destravar o **gestor único** que esqueceu a própria senha | `npm run usuario:senha -- <email>` |
 | Ver o que aconteceu no balcão | aba **Logs** do projeto do backend, com `LOG_LEVEL=info` |
 | Conferir se o cron rodou | aba **Cron Jobs** do projeto do backend |
+| Criar ou remover a massa de teste | `npm run ficticios:cadastrar` / `ficticios:remover` — seção 7.1 |
 | Aplicar uma migração nova | `DIRECT_URL="<url-direta>" DATABASE_URL="<url-direta>" npx prisma migrate deploy` |
 
 A regra das duas strings: a **direta** quando se escreve schema, a **com pooler** quando só se
 lê e grava dado.
+
+### 7.1 Produtos fictícios para testar em produção
+
+Para testar o sistema publicado sem tocar no estoque real da loja, há uma planilha de produtos
+fictícios e dois scripts: um que a cadastra e outro que remove do banco **tudo** o que esses
+produtos deixaram.
+
+**A marca é o prefixo `ZZ-` no código interno.** O cadastro recusa a planilha inteira se
+alguma linha não tiver o prefixo, e a remoção apaga todo produto `ZZ-` do banco, inclusive o
+que tiver sido criado à mão pela interface durante o roteiro de testes manuais. Por isso
+**nenhum produto real pode ter código começando em `ZZ-`**.
+
+**A planilha** é `backend/dados-ficticios/produtos-ficticios.csv`. Ela abre no Excel, no
+LibreOffice ou no Google Planilhas, e deve ser salva como **CSV UTF-8** (no Excel: *CSV
+UTF-8 (delimitado por vírgulas)*). O separador pode ser `;` ou `,`.
+
+| Coluna | O que vai |
+|---|---|
+| `codigoInterno` | `ZZ-` + qualquer coisa. Maiúsculas e minúsculas dão no mesmo |
+| `nome`, `marca`, `categoria` | Obrigatórios na primeira linha do produto. Nas seguintes podem ficar em branco |
+| `validade` | `AAAA-MM-DD`, `DD/MM/AAAA`, ou relativa ao dia do cadastro: `HOJE`, `HOJE+60`, `HOJE-5` |
+| `quantidade` | De 1 a 200 unidades com essa validade |
+
+Cada linha é **uma validade de um produto**, como uma linha do recebimento. Um produto com
+três validades ocupa três linhas. Com `validade` e `quantidade` em branco, o produto é criado
+sem nenhuma unidade. Prefira a data relativa: a massa de teste "vencida há 5 dias" continua
+sendo esse caso na semana seguinte. A planilha versionada é a massa da seção 3.1 do roteiro de
+testes manuais.
+
+**Cadastrar:**
+
+```bash
+cd backend
+DATABASE_URL="<url-direta>" npm run ficticios:cadastrar -- <email-de-quem-registra> [planilha.csv]
+```
+
+A planilha é validada **inteira** antes de qualquer escrita. Se houver erro, a saída lista cada
+um com o número da linha, e nada é gravado. O cadastro usa os mesmos serviços da interface:
+cada unidade ganha `codigoQr`, aparece em **Etiquetas** para imprimir e gera seu
+`UNIDADE_CADASTRADA`. A saída do script lista os códigos gerados. Produto que já existe é
+pulado com todas as suas unidades, então rodar duas vezes não duplica o estoque de teste.
+
+**Remover:**
+
+```bash
+DATABASE_URL="<url-direta>" npm run ficticios:remover                  # só mostra o que apagaria
+DATABASE_URL="<url-direta>" npm run ficticios:remover -- --confirmar   # apaga
+```
+
+A remoção apaga os produtos `ZZ-` com suas unidades, saídas, descartes e alertas, **e os
+eventos deles no `EventoLog`**. Essa é a única exceção à RNF05 no sistema. O porquê está em
+`docs/decisoes.md` (2026-09-22). O trigger append-only fica desligado só dentro da transação
+do script e volta a valer no commit, ou no rollback se algo falhar. Três cuidados:
+
+- **Os dois scripts imprimem primeiro o banco de destino.** Confira antes de passar
+  `--confirmar`: o mesmo comando roda contra o banco local e o de produção.
+- **Fora do horário de atendimento.** Enquanto a remoção roda, o `EventoLog` fica travado, e
+  toda leitura de QR espera por ela. São poucos segundos, mas o balcão para.
+- **Faça o backup da seção 6 antes.** A remoção não tem desfazer.
+
+O que ela **não** alcança: a leitura de um QR que não existe no banco. Esse evento não aponta
+para produto nenhum, e fica.
 
 ## 8. O que este deploy não tem
 

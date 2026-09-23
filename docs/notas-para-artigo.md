@@ -1518,3 +1518,39 @@ espera, e a escolha foi a atendente, não a regra.
 RNF02, que é a que mais importa aqui), RNF02, RNF04
 
 **Data:** 2026-09-15
+
+---
+
+## O instrumento de coleta precisa de uma forma de separar o teste do uso real
+
+**Contexto do problema:** o sistema só existe em um lugar publicado, que também é o lugar do
+piloto na loja. Não há ambiente de homologação, porque para uma loja pequena ele seria um
+segundo banco e um segundo deploy para manter. Testar o sistema publicado, então, grava no
+mesmo `EventoLog` que é o instrumento de coleta do TCC. E esse log foi feito para não ser
+corrigido (RNF05).
+
+**Solução adotada:** produtos fictícios marcados pelo prefixo `ZZ-` no código interno,
+cadastrados a partir de uma planilha e removidos por um script que apaga também os eventos
+deles no log. É a única exceção à imutabilidade do log: ela vale só para o prefixo, roda só
+pela linha de comando e desliga a trava do banco apenas dentro da própria transação.
+
+**Por que resolve o problema / trade-offs:** as duas propriedades que o log precisa ter entram
+em conflito aqui. A imutabilidade existe para que ninguém "corrija" o que aconteceu na loja. A
+fidelidade exige que o log registre só o que aconteceu na loja. Um bloqueio FIFO de teste,
+guardado para sempre, satisfaz a primeira e fere a segunda: o indicador da RF13 passaria a
+contar substituições que nenhuma atendente fez. A saída foi tratar a imutabilidade como meio, e
+não como fim. Ela protege o dado real, e por isso não precisa proteger o que nunca foi dado
+real. O critério da exceção não é "quem quer apagar", que é o que a trava existe para barrar. É
+"o que está sendo apagado", uma marca posta no dado no momento em que ele nasce.
+
+O ponto vale para o artigo além deste sistema. Quem usa o registro de operação como instrumento
+de pesquisa numa loja real precisa decidir, **antes** de coletar, como o dado de teste vai ser
+distinguido do dado de uso. Decidir isso depois é reconstruir a distinção a partir de horário e
+memória. A limitação honesta que fica: a separação depende de uma convenção. Um produto real
+cadastrado por engano com `ZZ-` seria apagado junto, e uma leitura de teste de um QR inexistente
+não aponta para produto nenhum e fica no log.
+
+**Tarefa relacionada:** T09 (o trigger append-only), T20 (o dashboard que contaria o teste),
+T23 (o deploy sem homologação), RNF05, RF12, RF13
+
+**Data:** 2026-09-22

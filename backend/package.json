@@ -20,6 +20,8 @@
     "alertas:varrer": "tsx src/modules/alerta/varredura.cli.ts",
     "push:chaves": "tsx src/modules/push/chaves.cli.ts",
     "usuario:senha": "tsx src/modules/auth/senha.cli.ts",
+    "ficticios:cadastrar": "tsx src/db/ficticios/cadastrar.cli.ts",
+    "ficticios:remover": "tsx src/db/ficticios/remover.cli.ts",
     "test:saida": "vitest run tests/saida",
     "test:evento-log": "vitest run tests/evento-log",
     "test:excecao": "vitest run tests/excecao-vencido",
@@ -27,7 +29,8 @@
     "test:etiquetas": "vitest run tests/etiquetas",
     "test:alerta": "vitest run tests/alerta",
     "test:push": "vitest run tests/push",
-    "test:dashboard": "vitest run tests/dashboard"
+    "test:dashboard": "vitest run tests/dashboard",
+    "test:ficticios": "vitest run tests/ficticios"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
