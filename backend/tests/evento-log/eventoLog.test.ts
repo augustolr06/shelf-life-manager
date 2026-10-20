@@ -22,7 +22,15 @@ vi.mock('../../src/db/prisma.js', async () => {
 
 import { buildApp } from '../../src/buildApp.js'
 import { clienteCompartilhadoDeTeste, limparBanco, prepararBancoDeTeste } from '../apoio/bancoDeTeste.js'
-import { cookieDeSessao, criarProduto, criarUnidade, criarUsuario, emDias, eventosDe } from '../apoio/cenario.js'
+import {
+  cookieDeSessao,
+  criarProduto,
+  criarUnidade,
+  criarUsuario,
+  emDias,
+  eventosDe,
+  finalizarCarrinho,
+} from '../apoio/cenario.js'
 
 let prisma: PrismaClient
 let app: FastifyInstance
@@ -208,13 +216,17 @@ describe('sessaoVendaId no registro de saída (RF07)', () => {
     })
   }
 
+  // T33: a Saida nasce na confirmação do carrinho, e o agrupador chega a ela
+  // por `/saidas/finalizar`. A leitura continua levando o agrupador para o
+  // payload de LEITURA_QR_SAIDA (casos abaixo).
   it('grava o agrupador na Saida quando o cliente o envia', async () => {
     const unidade = await novaUnidade(30)
     const sessao = randomUUID()
 
-    const resposta = await ler(unidade.codigoQr, sessao)
+    expect((await ler(unidade.codigoQr, sessao)).json().veredito).toBe('CONFIRMAR')
+    const resposta = await finalizarCarrinho(app, atendente, [unidade.id], sessao)
 
-    expect(resposta.json().veredito).toBe('CONFIRMAR')
+    expect(resposta.json().itens[0].veredito).toBe('CONFIRMAR')
     const saida = await prisma.saida.findUniqueOrThrow({ where: { unidadeId: unidade.id } })
     expect(saida.sessaoVendaId).toBe(sessao)
   })
@@ -223,6 +235,7 @@ describe('sessaoVendaId no registro de saída (RF07)', () => {
     const unidade = await novaUnidade(30)
 
     await ler(unidade.codigoQr)
+    await finalizarCarrinho(app, atendente, [unidade.id])
 
     const saida = await prisma.saida.findUniqueOrThrow({ where: { unidadeId: unidade.id } })
     expect(saida.sessaoVendaId).toBeNull()

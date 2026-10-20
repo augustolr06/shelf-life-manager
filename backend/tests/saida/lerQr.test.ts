@@ -8,9 +8,14 @@
  * comportamento.
  *
  * Contrato: tasks/T08-endpoint-leitura-qr.md · docs/arquitetura.md seções 4 e 5.
+ *
+ * Revista em T33, antes de T33b: ler deixou de vender. `CONFIRMAR` passou a
+ * significar "pode ser vendida", e a venda é `POST /saidas/finalizar`
+ * (`finalizar.test.ts`). Os casos que mudaram estão marcados com `T33`.
  */
 
 import { Papel, type PrismaClient, type Produto, StatusUnidade, type UnidadeProduto, type Usuario } from '@prisma/client'
+import { randomUUID } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -21,7 +26,14 @@ vi.mock('../../src/db/prisma.js', async () => {
 
 import { buildApp } from '../../src/buildApp.js'
 import { clienteCompartilhadoDeTeste, limparBanco, prepararBancoDeTeste } from '../apoio/bancoDeTeste.js'
-import { cookieDeSessao, criarProduto, criarUnidade, criarUsuario, eventosDe } from '../apoio/cenario.js'
+import {
+  cookieDeSessao,
+  criarProduto,
+  criarUnidade,
+  criarUsuario,
+  eventosDe,
+  finalizarCarrinho,
+} from '../apoio/cenario.js'
 
 const ROTA = '/saidas/ler'
 
@@ -57,14 +69,21 @@ function novaUnidade(diasAteVencer: number, status?: StatusUnidade): Promise<Uni
   })
 }
 
-/** Uma leitura, como o balcão faz: uma requisição por vez, sem estado entre elas. */
-function ler(codigoQr: string, usuario: Usuario = atendente) {
+/**
+ * Uma leitura, como o balcão faz: uma requisição por vez, sem estado no
+ * servidor entre elas. O carrinho, quando existe, vem do cliente (T33).
+ */
+function ler(codigoQr: string, usuario: Usuario = atendente, noCarrinho?: string[]) {
   return app.inject({
     method: 'POST',
     url: ROTA,
     cookies: cookieDeSessao(app, usuario),
-    payload: { codigoQr },
+    payload: { codigoQr, ...(noCarrinho ? { noCarrinho } : {}) },
   })
+}
+
+function finalizar(unidadeIds: string[], usuario: Usuario = atendente) {
+  return finalizarCarrinho(app, usuario, unidadeIds)
 }
 
 describe('POST /saidas/ler — acesso', () => {
@@ -116,10 +135,9 @@ describe('POST /saidas/ler — acesso', () => {
     // campo extra, não recusar a requisição (é o `removeAdditional` do AJV, o
     // mesmo comportamento das rotas de T04/T05). Por isso a resposta é 200: o
     // que garante a atribuição não é a recusa do corpo, é a rota nunca ler
-    // dali — o usuário vem da sessão (RF01, RF12).
+    // dali — o usuário vem da sessão (RF01, RF12). T33: a leitura não cria
+    // mais Saida, então a atribuição se confere no evento.
     expect(resposta.statusCode).toBe(200)
-    const saida = await prisma.saida.findUniqueOrThrow({ where: { unidadeId: unidade.id } })
-    expect(saida.usuarioId).toBe(atendente.id)
     const eventos = await eventosDe(prisma, 'LEITURA_QR_SAIDA')
     expect(eventos[0]?.usuarioId).toBe(atendente.id)
   })
@@ -191,22 +209,34 @@ describe('POST /saidas/ler — os quatro vereditos, todos em 200', () => {
     expect(await prisma.saida.count()).toBe(0)
   })
 
-  it('unidade prioritária volta como CONFIRMAR e a saída já está registrada', async () => {
+  it('unidade prioritária volta como CONFIRMAR e continua no estoque (T33)', async () => {
+    // Antes de T33 a resposta era fato consumado: a baixa acontecia dentro da
+    // transação da leitura. Agora CONFIRMAR quer dizer "pode ser vendida", e a
+    // unidade vai para o carrinho da tela.
     const unidade = await novaUnidade(10)
 
     const resposta = await ler(unidade.codigoQr)
 
     expect(resposta.statusCode).toBe(200)
     expect(resposta.json().veredito).toBe('CONFIRMAR')
+    expect(resposta.json().unidade.id).toBe(unidade.id)
 
-    // A resposta é fato consumado, não convite a confirmar: a baixa acontece
-    // dentro da transação da leitura (arquitetura seção 4, ramo 5).
-    const baixada = await prisma.unidadeProduto.findUniqueOrThrow({ where: { id: unidade.id } })
-    expect(baixada.status).toBe(StatusUnidade.VENDIDA)
-    const saida = await prisma.saida.findUniqueOrThrow({ where: { unidadeId: unidade.id } })
-    expect(saida.usuarioId).toBe(atendente.id)
-    expect(saida.alertaFifoDisparado).toBe(false)
-    expect(saida.tentativasAteAcerto).toBe(0)
+    const naoBaixada = await prisma.unidadeProduto.findUniqueOrThrow({ where: { id: unidade.id } })
+    expect(naoBaixada.status).toBe(StatusUnidade.EM_ESTOQUE)
+    expect(await prisma.saida.count()).toBe(0)
+    expect(await eventosDe(prisma, 'SAIDA_CONFIRMADA')).toHaveLength(0)
+  })
+
+  it('a mensagem de CONFIRMAR não diz que a saída foi registrada (T33)', async () => {
+    // A tela exibe o texto do servidor (RNF04). Dizer "Saída registrada" para
+    // uma unidade que só foi liberada levaria a atendente a não confirmar o
+    // carrinho.
+    const unidade = await novaUnidade(10)
+
+    const corpo = (await ler(unidade.codigoQr)).json()
+
+    expect(corpo.mensagem).toBeTruthy()
+    expect(corpo.mensagem).not.toMatch(/registrada/i)
   })
 })
 
@@ -265,8 +295,50 @@ describe('POST /saidas/ler — entrada manual (fallback do RF05)', () => {
   })
 })
 
+describe('POST /saidas/ler — unidades no carrinho (`noCarrinho`, T33)', () => {
+  it('a de validade maior é liberada quando a de validade menor já está no carrinho', async () => {
+    const janeiro = await novaUnidade(10)
+    const fevereiro = await novaUnidade(40)
+
+    const resposta = await ler(fevereiro.codigoQr, atendente, [janeiro.id])
+
+    expect(resposta.statusCode).toBe(200)
+    expect(resposta.json().veredito).toBe('CONFIRMAR')
+    expect(await eventosDe(prisma, 'ALERTA_FIFO_DISPARADO')).toHaveLength(0)
+  })
+
+  it('sem a lista, a mesma leitura é bloqueada — a rota não guarda carrinho', async () => {
+    await novaUnidade(10)
+    const fevereiro = await novaUnidade(40)
+
+    expect((await ler(fevereiro.codigoQr)).json().veredito).toBe('BLOQUEAR_FIFO')
+  })
+
+  it('recusa lista com id fora do formato, e nenhuma leitura é registrada', async () => {
+    const unidade = await novaUnidade(10)
+
+    const resposta = await ler(unidade.codigoQr, atendente, ['PRF-ABC123'])
+
+    expect(resposta.statusCode).toBe(400)
+    expect(resposta.json().erro).toBe('CORPO_INVALIDO')
+    expect(await eventosDe(prisma, 'LEITURA_QR_SAIDA')).toHaveLength(0)
+  })
+
+  it('recusa lista acima do teto da confirmação (50), e nenhuma leitura é registrada', async () => {
+    // Mesmo teto de `/saidas/finalizar`: uma lista maior descreve um carrinho
+    // que não poderia ser confirmado.
+    const unidade = await novaUnidade(10)
+    const lista = Array.from({ length: 51 }, () => randomUUID())
+
+    const resposta = await ler(unidade.codigoQr, atendente, lista)
+
+    expect(resposta.statusCode).toBe(400)
+    expect(await eventosDe(prisma, 'LEITURA_QR_SAIDA')).toHaveLength(0)
+  })
+})
+
 describe('POST /saidas/ler — o laço de revalidação (RF06)', () => {
-  it('bloqueia, revalida a cada nova leitura e confirma quando vem a certa', async () => {
+  it('bloqueia, revalida a cada nova leitura e libera quando vem a certa', async () => {
     const maisAntiga = await novaUnidade(10)
     const intermediaria = await novaUnidade(40)
     const maisNova = await novaUnidade(90)
@@ -285,6 +357,8 @@ describe('POST /saidas/ler — o laço de revalidação (RF06)', () => {
     const terceira = (await ler(maisAntiga.codigoQr)).json()
     expect(terceira.veredito).toBe('CONFIRMAR')
 
+    // T33: o ciclo fecha na confirmação do carrinho, com o mesmo total.
+    await finalizar([maisAntiga.id])
     const saida = await prisma.saida.findUniqueOrThrow({ where: { unidadeId: maisAntiga.id } })
     expect(saida.tentativasAteAcerto).toBe(2)
     expect(saida.alertaFifoDisparado).toBe(true)
@@ -305,10 +379,24 @@ describe('POST /saidas/ler — o laço de revalidação (RF06)', () => {
     expect(await eventosDe(prisma, 'ALERTA_FIFO_DISPARADO')).toHaveLength(1)
   })
 
-  it('reler a unidade já confirmada devolve UNIDADE_JA_BAIXADA', async () => {
+  it('reler a unidade liberada e não vendida libera de novo (T33)', async () => {
+    // Não há reserva no servidor (PRD 6.2). Evitar o item repetido no
+    // carrinho é da tela (T34).
     const unidade = await novaUnidade(10)
 
     expect((await ler(unidade.codigoQr)).json().veredito).toBe('CONFIRMAR')
+    expect((await ler(unidade.codigoQr)).json().veredito).toBe('CONFIRMAR')
+
+    expect(await eventosDe(prisma, 'LEITURA_QR_SAIDA')).toHaveLength(2)
+    expect(await prisma.saida.count()).toBe(0)
+  })
+
+  it('reler a unidade já vendida devolve UNIDADE_JA_BAIXADA', async () => {
+    // T33: "vendida" passou a ser depois da confirmação, não depois da leitura.
+    const unidade = await novaUnidade(10)
+
+    expect((await ler(unidade.codigoQr)).json().veredito).toBe('CONFIRMAR')
+    await finalizar([unidade.id])
     const relida = (await ler(unidade.codigoQr)).json()
 
     expect(relida.veredito).toBe('ERRO')

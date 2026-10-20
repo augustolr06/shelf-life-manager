@@ -47,12 +47,17 @@ O fluxo novo, definido pelo orientando em 2026-10-13:
 ## Contrato proposto (o que os testes fixam)
 
 ```ts
-validarSaidaFifo(codigoQr, usuarioId, tx, {
-  sessaoVendaId?: string | null,
+validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId, {
   modo: 'AVALIAR' | 'EFETIVAR',
   noCarrinho?: string[]   // ids das unidades já liberadas neste carrinho
 })
 ```
+
+> **Ajuste ao escrever os testes (2026-10-20):** a proposta original punha `sessaoVendaId`
+> dentro do objeto de opções. Ficou como quarto argumento, como já é hoje, para que a função
+> atual ignore o quinto e os casos falhem por asserção, e não por erro do Prisma. Os dois modos
+> recebem o **código**: a rota de confirmação traduz os ids do carrinho na mesma consulta que
+> usa para ordenar a fila. Detalhes em `docs/decisoes.md` (T33).
 
 - **`AVALIAR`** (leitura): os ramos 1–4 são idênticos aos de hoje, com os mesmos eventos
   (`LEITURA_QR_SAIDA`, `TENTATIVA_VENDA_UNIDADE_VENCIDA`, `ALERTA_FIFO_DISPARADO`). O ramo 5
@@ -71,46 +76,72 @@ validarSaidaFifo(codigoQr, usuarioId, tx, {
 ## Casos de teste a escrever
 
 ### `AVALIAR`
-- [ ] Ramos 1–4: mesmos vereditos e mesmos eventos de hoje
-- [ ] Ramo 5: `CONFIRMAR`, unidade continua `EM_ESTOQUE`, nenhuma `Saida`, um único
+- [x] Ramos 1–4: mesmos vereditos e mesmos eventos de hoje
+- [x] Ramo 5: `CONFIRMAR`, unidade continua `EM_ESTOQUE`, nenhuma `Saida`, um único
       `LEITURA_QR_SAIDA` com `veredito: 'CONFIRMAR'`, nenhum `SAIDA_CONFIRMADA`
-- [ ] Duas unidades do mesmo produto e mesma validade: a segunda, com a primeira em
+- [x] Duas unidades do mesmo produto e mesma validade: a segunda, com a primeira em
       `noCarrinho`, é liberada
-- [ ] Unidade A (jan) no carrinho e leitura de B (fev), sem outra de jan no estoque: B
+- [x] Unidade A (jan) no carrinho e leitura de B (fev), sem outra de jan no estoque: B
       liberada, **sem** `ALERTA_FIFO_DISPARADO`
-- [ ] A (jan) no carrinho, C (jan) fora dele, leitura de B (fev): `BLOQUEAR_FIFO` apontando C
-- [ ] `noCarrinho` com id inexistente ou já baixado: ignorado (não libera nada a mais)
+- [x] A (jan) no carrinho, C (jan) fora dele, leitura de B (fev): `BLOQUEAR_FIFO` apontando C
+- [x] `noCarrinho` com id inexistente ou já baixado: ignorado (não libera nada a mais)
 
 ### `EFETIVAR`
-- [ ] Item liberado e estoque inalterado: `Saida` criada, `VENDIDA`, `SAIDA_CONFIRMADA`, sem
+- [x] Item liberado e estoque inalterado: `Saida` criada, `VENDIDA`, `SAIDA_CONFIRMADA`, sem
       `LEITURA_QR_SAIDA`
-- [ ] Unidade vendida por outra atendente entre a leitura e a confirmação: `ERRO /
+- [x] Unidade vendida por outra atendente entre a leitura e a confirmação: `ERRO /
       UNIDADE_JA_BAIXADA`, nada criado
-- [ ] Unidade que venceu entre a leitura e a confirmação (virada do dia): `EXCECAO_VENCIDO`
-- [ ] Entrou no estoque uma unidade de validade menor depois da leitura: `BLOQUEAR_FIFO`
-- [ ] `tentativasAteAcerto` da `Saida`: bloqueio na leitura, depois a certa, depois confirmar
+- [x] Unidade que venceu entre a leitura e a confirmação (virada do dia): `EXCECAO_VENCIDO`
+- [x] Entrou no estoque uma unidade de validade menor depois da leitura: `BLOQUEAR_FIFO`
+- [x] `tentativasAteAcerto` da `Saida`: bloqueio na leitura, depois a certa, depois confirmar
       → 1. **Decidir e fixar no teste** a atribuição quando o carrinho tem duas unidades do
       mesmo produto e só uma delas teve bloqueio (a contagem é por par produto+usuário desde a
-      última `SAIDA_CONFIRMADA`)
+      última `SAIDA_CONFIRMADA`). **Fixado:** a regra não muda; com a confirmação em ordem de
+      validade, o bloqueio fica com a unidade de menor validade do SKU no carrinho e as outras
+      saem com 0
 
 ### Rota de confirmação (`POST /saidas/finalizar`, ver T33b)
-- [ ] Itens processados em ordem de validade crescente decidida no servidor; resposta na
+- [x] Itens processados em ordem de validade crescente decidida no servidor; resposta na
       ordem do corpo
-- [ ] Resultado parcial: um item barrado não desfaz os confirmados
-- [ ] Código repetido → 400; lista vazia ou acima do teto → 400; sem sessão → 401
+- [x] Resultado parcial: um item barrado não desfaz os confirmados
+- [x] Código repetido → 400; lista vazia ou acima do teto → 400; sem sessão → 401
+      (fixados: o corpo leva **ids**, então "código repetido" é id repetido; teto **50**; id
+      desconhecido → **404 `UNIDADE_NAO_ENCONTRADA`** sem processar item algum)
 
 ### Correção de validade (T11)
-- [ ] `POST /excecao-vencido/corrigir` com revalidação `CONFIRMAR` **não** cria `Saida`
+- [x] `POST /excecao-vencido/corrigir` com revalidação `CONFIRMAR` **não** cria `Saida`
+
+### Casos acrescentados ao escrever a suíte
+
+- [x] `EFETIVAR` não grava `LEITURA_QR_SAIDA` em ramo nenhum; grava os eventos dos ramos 3 e 4
+- [x] A própria unidade lida em `noCarrinho` não sai do pool (reler o que já está no carrinho
+      libera, sem estourar)
+- [x] Liberar para o carrinho não fecha o ciclo de tentativas (comportamento atual fixado;
+      ver "Consequência registrada" em `docs/decisoes.md`)
+- [x] Leituras simultâneas da mesma unidade liberam as duas, sem baixa (sem reserva, PRD 6.2)
+- [x] `/saidas/ler` e `/excecao-vencido/corrigir` aceitam `noCarrinho` (uuids, teto 50)
+- [x] A mensagem de `CONFIRMAR` não diz "registrada"
+- [x] Dashboard: unidade liberada e não confirmada não conta como saída
+- [x] Suítes de rota que usavam a leitura como venda (`lerQr`, `eventoLog`, `dashboard`)
+      passam a confirmar por `/saidas/finalizar` (helper `finalizarCarrinho` em
+      `tests/apoio/cenario.ts`)
 
 ## Critério de aceite
 
-- [ ] Casos acima escritos em `backend/tests/`, falhando pelo motivo certo ou como `todo`
-- [ ] Nenhuma mudança em `src/`
-- [ ] Os casos de T06 que mudam de significado reescritos, com comentário apontando esta
+- [x] Casos acima escritos em `backend/tests/`, falhando pelo motivo certo ou como `todo`
+- [x] Nenhuma mudança em `src/`
+- [x] Os casos de T06 que mudam de significado reescritos, com comentário apontando esta
       tarefa
-- [ ] `docs/decisoes.md` com o contrato novo e as decisões afetadas listadas acima
+- [x] `docs/decisoes.md` com o contrato novo e as decisões afetadas listadas acima
 
 ## Fora de escopo
 
 - Implementação — T33b. Frontend — T34.
 - Override de venda vencida (`/excecao-vencido/override`) — ver T33b, Decisão 3.
+
+## Resultado (2026-10-20)
+
+517 casos, 468 verdes, 49 vermelhos, todos nos casos novos ou reescritos: 18 em `tests/fifo`,
+21 em `tests/saida/finalizar.test.ts` (novo), 6 em `tests/saida/lerQr.test.ts`, 2 em
+`tests/excecao-vencido`, 1 em `tests/dashboard`, 1 em `tests/evento-log`. Todos falham por
+asserção ou por rota inexistente (404), nenhum por erro de infraestrutura.

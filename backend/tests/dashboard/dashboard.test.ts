@@ -13,7 +13,7 @@
  * Contrato: tasks/T20-endpoints-dashboard.md · docs/arquitetura.md seção 5.
  */
 
-import { Papel, type PrismaClient, type Produto, StatusUnidade, type Usuario } from '@prisma/client'
+import { Papel, type PrismaClient, type Produto, StatusUnidade, type UnidadeProduto, type Usuario } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,7 +24,7 @@ vi.mock('../../src/db/prisma.js', async () => {
 
 import { buildApp } from '../../src/buildApp.js'
 import { clienteCompartilhadoDeTeste, limparBanco, prepararBancoDeTeste } from '../apoio/bancoDeTeste.js'
-import { cookieDeSessao, criarProduto, criarUnidade, criarUsuario } from '../apoio/cenario.js'
+import { cookieDeSessao, criarProduto, criarUnidade, criarUsuario, finalizarCarrinho } from '../apoio/cenario.js'
 import { hojeComoData, textoDeData } from '../../src/shared/data.js'
 
 const DASHBOARD = '/dashboard'
@@ -309,6 +309,10 @@ describe('dashboard — recorte de período (RF13)', () => {
 })
 
 describe('dashboard — FIFO e taxa de acerto (RF12, RF13)', () => {
+  // T33: a venda é a confirmação do carrinho, e não mais a leitura. Os
+  // cenários abaixo leem e confirmam, como o balcão passou a fazer.
+  const vender = (unidade: UnidadeProduto) => finalizarCarrinho(app, atendente, [unidade.id])
+
   it('conta bloqueio e substituição efetiva a partir do que o núcleo grava', async () => {
     // Cenário do PRD: duas unidades do mesmo SKU, a atendente pega a de
     // validade mais longa duas vezes antes de pegar a certa.
@@ -319,6 +323,7 @@ describe('dashboard — FIFO e taxa de acerto (RF12, RF13)', () => {
     expect((await ler(errada.codigoQr)).json().veredito).toBe('BLOQUEAR_FIFO')
     expect((await ler(errada.codigoQr)).json().veredito).toBe('BLOQUEAR_FIFO')
     expect((await ler(prioritaria.codigoQr)).json().veredito).toBe('CONFIRMAR')
+    await vender(prioritaria)
 
     const corpo = (await consultar()).json()
 
@@ -335,11 +340,26 @@ describe('dashboard — FIFO e taxa de acerto (RF12, RF13)', () => {
     const unidade = await novaUnidade(10)
 
     await chamar('/saidas/ler', { codigoQr: unidade.codigoQr }, atendente)
+    await vender(unidade)
 
     const corpo = (await consultar()).json()
 
     expect(corpo.fifo).toEqual({ alertasDisparados: 0, substituicoesEfetivas: 0 })
     expect(corpo.saidas.taxaAcertoPrimeiraLeitura).toBe(1)
+  })
+
+  it('unidade liberada e não confirmada não conta como saída (T33)', async () => {
+    // O cliente desistiu depois da leitura. A desistência fica no EventoLog
+    // (uma LEITURA_QR_SAIDA com veredito CONFIRMAR sem SAIDA_CONFIRMADA
+    // depois), mas não é venda: não entra no total nem na taxa.
+    const unidade = await novaUnidade(10)
+
+    await chamar('/saidas/ler', { codigoQr: unidade.codigoQr }, atendente)
+
+    const corpo = (await consultar()).json()
+
+    expect(corpo.saidas).toEqual({ total: 0, naPrimeiraLeitura: 0, taxaAcertoPrimeiraLeitura: null })
+    expect(corpo.estoque.unidadesEmEstoque).toBe(1)
   })
 
   it('taxa é null, nunca 0, quando não houve saída no período', async () => {
@@ -365,6 +385,7 @@ describe('dashboard — FIFO e taxa de acerto (RF12, RF13)', () => {
     const errada = await novaUnidade(60)
     await chamar('/saidas/ler', { codigoQr: errada.codigoQr }, atendente)
     await chamar('/saidas/ler', { codigoQr: prioritaria.codigoQr }, atendente)
+    await vender(prioritaria)
 
     const corpo = (await consultar(`?de=${dataEm(-10)}&ate=${dataEm(-5)}`)).json()
 
@@ -410,7 +431,9 @@ describe('dashboard — perdas e overrides (RF09, RF13, PRD 6.1)', () => {
   it('venda comum não infla o contador de override', async () => {
     const unidade = await novaUnidade(10)
 
+    // T33: a venda comum é a leitura seguida da confirmação.
     await chamar('/saidas/ler', { codigoQr: unidade.codigoQr }, atendente)
+    await finalizarCarrinho(app, atendente, [unidade.id])
 
     expect((await consultar()).json().overrides.total).toBe(0)
   })

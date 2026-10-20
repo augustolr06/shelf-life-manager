@@ -1722,3 +1722,38 @@ profundidade.
 **Tarefa relacionada:** T31, T10 (câmera contínua), T33b e T34 (ler sem vender), RF05, RF12
 
 **Data:** 2026-10-20
+
+
+---
+
+## Separar ler de vender obriga o FIFO a saber o que já está na mão da atendente
+
+**Contexto do problema:** no desenho original, ler o QR era vender, e cada frasco era um ciclo
+fechado. Para tirar o risco da leitura involuntária, a leitura passou a só validar, e a venda a
+acontecer na confirmação de um carrinho. Ao escrever os casos de teste dessa mudança (antes do
+código, como no núcleo), apareceu um caso que o processo manual nem chega a enfrentar: o
+cliente leva dois frascos do mesmo perfume. O primeiro, de validade menor, é liberado e vai para
+o carrinho, mas continua "em estoque" até a confirmação. Na leitura do segundo, a regra de FIFO
+encontra o primeiro como unidade de validade menor ainda disponível e barra a venda: o sistema
+pediria à atendente o frasco que ela já está segurando.
+
+**Solução adotada:** a leitura recebe a lista do que já está no carrinho do atendimento, e
+essas unidades saem do conjunto de comparação. A lista não decide nada no lugar do servidor: ele
+confere que cada unidade ainda está em estoque, e a confirmação revalida tudo de novo, sob lock,
+em ordem de validade crescente, para que os itens do mesmo carrinho não barrem uns aos outros.
+O carrinho continua sem existir no servidor: nenhuma reserva e nenhuma tabela nova.
+
+**Por que importa / trade-offs:** mostra que "FIFO por validade" não é uma propriedade de cada
+leitura isolada, mas do atendimento: o que conta como "unidade que deveria sair primeiro"
+depende do que já foi separado para o mesmo cliente. Também cria um dado novo para a pesquisa
+sem tipo de evento novo: uma leitura liberada sem venda confirmada depois é uma desistência, e
+passa a ser contável. Há uma limitação a mencionar: o indicador de tentativas por venda fecha o
+ciclo na venda confirmada. Se a atendente é barrada, troca o frasco e o cliente desiste antes de
+confirmar, aquele bloqueio entra na conta da próxima venda do mesmo perfume pela mesma
+atendente. O efeito já existia quando o atendimento era abandonado no meio, e com o carrinho
+ficou mais frequente. Mudar a regra muda o indicador, e ficou como decisão em aberto.
+
+**Tarefa relacionada:** T33 (casos de teste), T33b (implementação), T34 (carrinho na tela),
+T31, RF06, RF12, PRD 6.2
+
+**Data:** 2026-10-20

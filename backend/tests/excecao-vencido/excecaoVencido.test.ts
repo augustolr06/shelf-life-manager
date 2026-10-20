@@ -245,7 +245,10 @@ describe('caminho 1 — correção de dado (PRD 6.1)', () => {
     })
   })
 
-  it('revalida o FIFO do zero: corrigida para a mais antiga do pool, confirma a saída', async () => {
+  it('revalida o FIFO do zero: corrigida para a mais antiga do pool, libera sem vender (T33)', async () => {
+    // Antes de T33, a revalidação que confirmava já vendia, dentro da mesma
+    // transação da correção. Agora ela é uma leitura como outra qualquer: a
+    // unidade corrigida vai para o carrinho, e a venda é a confirmação dele.
     await novaUnidade(90)
     const vencida = await novaUnidade(-3)
 
@@ -253,10 +256,26 @@ describe('caminho 1 — correção de dado (PRD 6.1)', () => {
 
     expect(resposta.statusCode).toBe(200)
     expect(resposta.json().revalidacao.veredito).toBe('CONFIRMAR')
-    // Não existe `POST /saidas/confirmar` (T09): quando a revalidação confirma,
-    // a venda já aconteceu dentro da mesma transação da correção.
-    expect((await recarregar(vencida)).status).toBe(StatusUnidade.VENDIDA)
-    expect(await prisma.saida.count({ where: { unidadeId: vencida.id } })).toBe(1)
+    expect((await recarregar(vencida)).status).toBe(StatusUnidade.EM_ESTOQUE)
+    expect(await prisma.saida.count()).toBe(0)
+    expect(await eventosDe(prisma, 'SAIDA_CONFIRMADA')).toHaveLength(0)
+  })
+
+  it('a revalidação considera o carrinho, como a leitura (`noCarrinho`, T33)', async () => {
+    // A unidade de janeiro já está no carrinho do atendimento. Sem a lista, a
+    // corrigida para fevereiro seria barrada por ela, que ainda está
+    // EM_ESTOQUE porque só baixa na confirmação.
+    const janeiroNoCarrinho = await novaUnidade(10)
+    const vencida = await novaUnidade(-3)
+
+    const resposta = await chamar(CORRIGIR, {
+      unidadeId: vencida.id,
+      dataValidade: validadeEm(40),
+      noCarrinho: [janeiroNoCarrinho.id],
+    })
+
+    expect(resposta.statusCode).toBe(200)
+    expect(resposta.json().revalidacao.veredito).toBe('CONFIRMAR')
   })
 
   it('revalida o FIFO do zero: se outra é mais antiga, a correção termina em bloqueio', async () => {

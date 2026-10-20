@@ -196,9 +196,22 @@ validade deixa de vender na revalidação).
 |---|---|---|---|---|
 | T31 | Leitura única: câmera desliga ao identificar o código e a tela mostra o resultado | concluída | T10 | `tasks/T31-leitura-unica-camera.md` |
 | T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | pendente | T10 | `tasks/T32-consulta-unidade-qr.md` |
-| T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | pendente | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
+| T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | concluída | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
 | T33b | Backend: leitura sem baixa e confirmação da venda (`POST /saidas/finalizar`) | pendente | T33 | `tasks/T33b-avaliacao-efetivacao-backend.md` |
 | T34 | Frontend: carrinho na tela de venda | pendente | T31, T33b, T39 | `tasks/T34-carrinho-frontend.md` |
+
+**Estado de T33 (2026-10-20).** Concluída com a suíte **vermelha de propósito**, como T06:
+49 casos novos ou reescritos falham (por asserção ou por `/saidas/finalizar` ainda não existir)
+até T33b. Os outros 468 seguem verdes. Contrato fixado e decisões em `docs/decisoes.md` (T33).
+
+**Achado de T33 (2026-10-20), sem tarefa aberta.** `npm run typecheck` não checa `tests/`:
+`tsconfig.tests.json` estende `tsconfig.json` sem redefinir `exclude`, e herda o `"tests"` de
+lá. Com o `exclude` corrigido numa configuração temporária, as suítes têm **77 erros de tipo já
+existentes**, concentrados em `tests/alerta/configuracaoAlerta.test.ts` (44), `usuario` (10),
+`push/inscricoesPush` (7), `auth` (5), `definirSenha` e `unidade` (4 cada). Nenhum está nos
+arquivos tocados por T33. A correção é dar ao `tsconfig.tests.json` um `exclude` próprio
+(`["node_modules", "dist"]`) e acertar os 77. Fazer depois de T33b, porque até lá a suíte de
+`tests/fifo` tem 3 erros esperados (a assinatura nova de `validarSaidaFifo`).
 
 ## Incremento 11 — Redesign
 

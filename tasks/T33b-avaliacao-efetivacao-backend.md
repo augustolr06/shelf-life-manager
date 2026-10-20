@@ -29,10 +29,17 @@ decisões anteriores afetadas estão em `tasks/T33-testes-avaliacao-efetivacao.m
      em modo `EFETIVAR`. Sem tudo-ou-nada: um item barrado não desfaz os outros (mesma
      semântica de "cada item é um ciclo independente" da 6.2).
    - Recebe ids (que a leitura devolveu), não códigos: o carrinho guarda o que o servidor
-     identificou. A função ganha a busca por id, que `travarUnidade.ts` já oferece (T11).
-   - Teto de itens no schema (sugestão: 50).
+     identificou. **Fixado em T33:** a rota traduz os ids em códigos na mesma consulta que usa
+     para ordenar a fila, e a função continua travando por código nos dois modos. Id
+     desconhecido → 404 `UNIDADE_NAO_ENCONTRADA`, sem processar item algum.
+   - Teto de itens no schema: **50** (fixado em T33), ids `uuid` e `uniqueItems`.
 4. **`POST /excecao-vencido/corrigir`** revalida em modo `AVALIAR`: com a data corrigida e
-   `CONFIRMAR`, a unidade vai para o carrinho, e não é vendida.
+   `CONFIRMAR`, a unidade vai para o carrinho, e não é vendida. Aceita `noCarrinho`, como a
+   leitura (acrescentado em T33).
+5. **Contrato da função** como fixado em T33:
+   `validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId, { modo, noCarrinho? })`. Em
+   `EFETIVAR`, os ramos 3 e 4 gravam os mesmos eventos da leitura, e nenhum ramo grava
+   `LEITURA_QR_SAIDA`. A própria unidade lida não sai do pool por estar em `noCarrinho`.
 
 ## Decisões que esta tarefa toma (registrar em `docs/decisoes.md`)
 

@@ -2080,3 +2080,90 @@ de permissão. Em `TelaLeituraQr.test.tsx`, o dublê do leitor respeita o modo, 
 cobrem a câmera desligando, "Ler próximo" nos dois caminhos, a leitura digitada com a câmera
 ligada, o bloqueio FIFO e a unidade vencida que ficam na tela, e o erro. A conferência no
 navegador foi feita pela entrada manual. A leitura pela câmera fica para o celular real.
+
+## 2026-10-20 — Casos de teste da leitura sem baixa e da confirmação da venda (T33)
+
+**Contexto.** Ler o QR deixa de ser vender (incremento 10): a leitura valida e libera a unidade
+para um carrinho que existe só no navegador, e a venda é a confirmação do carrinho. Pela regra
+do CLAUDE.md e da seção 8 do PRD, os casos vêm antes da implementação (T33b), no mesmo par de
+T06/T07. Nenhuma linha de `src/` mudou.
+
+**Decisões anteriores revistas** (alerta do incremento 10, nenhuma bloqueia):
+
+- **PRD 6.2** ("não há carrinho"): passa a haver carrinho, no navegador. Continuam valendo as
+  consequências que a 6.2 protege: nenhuma entidade nova no schema, nenhuma reserva no
+  servidor, lock só durante a transação de cada unidade. Um caso fixa isso: duas leituras da
+  mesma unidade, inclusive de atendentes diferentes, liberam as duas.
+- **T09** (remoção de `POST /saidas/confirmar`, por exigir partir a função em "decidir" e
+  "efetivar"): é o que esta mudança faz, de propósito. A objeção de T09 era editar a suíte de
+  T06 depois da implementação, e a resposta é esta tarefa, que reescreve os casos antes.
+- **Suíte de T06**: os casos do ramo 5, do laço de revalidação e de concorrência foram
+  reescritos, marcados com `T33` no comentário. Os ramos 1 a 4 não mudaram de significado e
+  seguem como leitura.
+- **T11, correção de validade**: a revalidação deixa de vender. Com `CONFIRMAR`, a unidade
+  corrigida vai para o carrinho.
+- **RF12**: "acerto na primeira leitura" mantém o significado, porque a validação continua na
+  leitura. A `Saida` passa a nascer na confirmação.
+
+**Contrato fixado pelos testes.**
+
+1. **`validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId, { modo, noCarrinho? })`.** O
+   arquivo da tarefa propunha `sessaoVendaId` dentro do objeto de opções. Ficou como quarto
+   argumento, como já é hoje, e as opções vão num quinto. Justificativa: com a assinatura atual,
+   a função ignora o quinto argumento e se comporta exatamente como antes. Assim os casos que
+   não mudaram passam, e os que mudaram falham por asserção (`expected 'VENDIDA' to be
+   'EM_ESTOQUE'`), e não por um erro do Prisma ao receber um objeto onde esperava texto. Com o
+   `sessaoVendaId` no objeto, toda chamada que chegasse ao ramo 5 estouraria em `saida.create`,
+   e o vermelho deixaria de mostrar o que mudou.
+2. **Os dois modos recebem o código, não o id.** A rota de confirmação recebe ids (o carrinho
+   guarda o que o servidor identificou) e precisa consultar as unidades de qualquer jeito para
+   ordenar a fila por validade. Na mesma consulta ela obtém o código, que é imutável, e o lock
+   por código trava a mesma linha que o lock por id. O arquivo de T33b dizia "a função ganha a
+   busca por id"; foi atualizado.
+3. **`EFETIVAR` grava os eventos dos ramos 3 e 4** (`TENTATIVA_VENDA_UNIDADE_VENCIDA`,
+   `ALERTA_FIFO_DISPARADO`), iguais aos da leitura, e não grava `LEITURA_QR_SAIDA` em ramo
+   nenhum. O bloqueio na confirmação (entrou uma unidade de validade menor depois da leitura)
+   conta como tentativa do ciclo: a venda precisou de uma troca de frasco, como no bloqueio
+   comum, ainda que a atendente não tenha errado ao ler. É raro (minutos entre leitura e
+   confirmação), e separar exigiria um segundo tipo de alerta.
+4. **`noCarrinho` tira unidades do pool do passo 4, menos a própria unidade lida.** Sem a
+   exceção, reler o que já está no carrinho esvaziaria o pool e a função estouraria no
+   `findFirstOrThrow`. Ids inexistentes ou já baixados não têm efeito. Evitar o item repetido
+   no carrinho é da tela (T34), porque não é veredito.
+5. **`tentativasAteAcerto` não muda de regra.** Contagem do par (SKU, atendente) desde a última
+   `SAIDA_CONFIRMADA`. Com a confirmação em ordem de validade crescente, o bloqueio do ciclo fica
+   com a unidade de menor validade do SKU no carrinho (a que a troca de frasco buscava), e as
+   outras saem com 0. A soma no carrinho é o número de bloqueios, sem contagem dupla.
+6. **`POST /saidas/finalizar`**: corpo `{ unidadeIds, sessaoVendaId? }`, teto de **50** itens,
+   ids em formato uuid e sem repetição (400 `CORPO_INVALIDO`). Id que não é de unidade nenhuma
+   recusa o carrinho inteiro com **404 `UNIDADE_NAO_ENCONTRADA`**, mesmo código e status dos
+   caminhos de T11, sem processar item algum: unidade não é apagada, então o id desconhecido só
+   vem de cliente quebrado. Resposta `200 { itens }`, um item por unidade na ordem do corpo,
+   cada um no formato de `/saidas/ler` mais `unidadeId`.
+7. **`POST /saidas/ler` e `POST /excecao-vencido/corrigir` aceitam `noCarrinho`** (uuids, teto
+   50). A correção não estava no arquivo da tarefa, mas tem o mesmo problema da leitura: a
+   unidade corrigida para fevereiro seria barrada pela de janeiro que já está no carrinho.
+8. **A mensagem de `CONFIRMAR` não diz "registrada".** Um caso garante isso, sem fixar o texto,
+   que é de T33b.
+
+**Consequência registrada, não resolvida: liberar não fecha o ciclo.** A fronteira do ciclo de
+tentativas continua sendo a `SAIDA_CONFIRMADA`, que agora só nasce na confirmação. Se a
+atendente é barrada, pega o frasco certo e o cliente desiste antes de confirmar, o bloqueio
+entra na conta da próxima venda do mesmo SKU pela mesma atendente. O efeito já existia para o
+ciclo abandonado antes de T33, mas ficou mais frequente. Um caso fixa o comportamento atual
+("liberar a unidade para o carrinho não fecha o ciclo"). Mudar a fronteira é decisão do
+orientando, e afeta o indicador do TCC.
+
+**Estado da suíte ao fim de T33:** 517 casos, 468 verdes e 49 vermelhos, todos nos casos novos
+ou reescritos (18 em `fifo`, 21 em `saida/finalizar`, 6 em `saida/lerQr`, 2 em
+`excecao-vencido`, 1 em `dashboard`, 1 em `evento-log`). `test:sem-banco` segue verde. A
+definição de pronto de T33b é a mesma de T07: estes casos passam, sem editá-los.
+
+**Achado: o typecheck nunca checou `tests/`.** `tsconfig.tests.json` estende `tsconfig.json` e
+não redefine `exclude`, então herda `"exclude": [..., "tests"]`: os arquivos de teste ficam fora
+do programa e `npm run typecheck` passa sem olhar para eles. A decisão de T06 ("o tipo
+`Veredito` é o contrato, e um contrato que ninguém verifica não é contrato") está sem efeito
+desde então. Medido com uma configuração temporária que corrige o `exclude`: 77 erros de tipo
+já existentes nas suítes, nenhum nos arquivos tocados por T33, mais os 3 esperados da
+assinatura nova em `tests/fifo` (`Expected 3-4 arguments, but got 5`), que somem com T33b. A
+correção não entrou aqui por estar fora do escopo. Registrada no backlog como achado.

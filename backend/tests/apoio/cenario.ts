@@ -94,3 +94,22 @@ export function cookieDeSessao(app: FastifyInstance, usuario: Usuario): Record<s
   }
   return { [NOME_COOKIE_SESSAO]: app.jwt.sign(payload) }
 }
+
+/**
+ * A confirmação do carrinho (`POST /saidas/finalizar`, T33b): é o que vende
+ * desde T33, quando ler o QR deixou de dar baixa. As suítes que precisam de uma
+ * venda real como cenário passam por aqui, em vez de repetir o corpo da rota.
+ */
+export function finalizarCarrinho(
+  app: FastifyInstance,
+  usuario: Usuario,
+  unidadeIds: string[],
+  sessaoVendaId?: string,
+) {
+  return app.inject({
+    method: 'POST',
+    url: '/saidas/finalizar',
+    cookies: cookieDeSessao(app, usuario),
+    payload: { unidadeIds, ...(sessaoVendaId === undefined ? {} : { sessaoVendaId }) },
+  })
+}
