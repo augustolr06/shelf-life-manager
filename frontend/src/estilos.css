@@ -187,6 +187,39 @@ input {
   width: 100%;
 }
 
+/* Limite de caracteres do cadastro de produto (T25). O contador fica sempre à
+   vista, na linha do rótulo; o aviso de colagem cortada e a recusa do servidor
+   ficam embaixo do campo a que se referem. Como só o campo com mensagem
+   cresce, o formulário alinha pelo topo — alinhado pela base, o campo com
+   mensagem empurraria a caixa dos outros para baixo. O botão desce a altura
+   da linha do rótulo para ficar na linha das caixas. */
+.cadastro-produto {
+  --altura-rotulo: 1rem;
+  align-items: flex-start;
+}
+
+.cadastro-produto > button {
+  margin-top: calc(var(--altura-rotulo) + 0.25rem);
+}
+
+.rotulo-com-contador {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  line-height: var(--altura-rotulo);
+}
+
+.contador-caracteres {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
+.campo .nota-informativa,
+.campo .erro {
+  margin: 0;
+}
+
 /* Importação do catálogo por planilha (T24). O resultado pode ser uma lista
    longa — códigos pulados ou linhas a corrigir —, então ocupa a largura toda e
    rola dentro de si em vez de empurrar o catálogo para baixo da tela. */

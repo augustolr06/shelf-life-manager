@@ -20,8 +20,9 @@ o limite.
 
 1. **Prevenir na tela, não só explicar depois.** É o mesmo princípio da Decisão 3 de T12,
    reafirmado em T12b: um campo que mostra o limite é melhor que uma recusa bem escrita.
-   Os quatro campos ganham `maxLength={120}` e um contador (`87/120`) visível a partir de
-   ~100 caracteres.
+   Os quatro campos ganham `maxLength={120}` e um contador (`87/120`) sempre visível. (A
+   versão inicial previa o contador só a partir de ~100 caracteres; o orientando decidiu
+   mantê-lo sempre à vista — ver `docs/decisoes.md`, 2026-10-20.)
 2. **`maxLength` sozinho não basta.** Colar um texto maior que 120 é truncado em silêncio
    pelo navegador — a gestora cadastraria um nome cortado sem perceber. Ao colar texto
    truncado, a tela avisa abaixo do campo ("O nome foi cortado em 120 caracteres").
@@ -33,14 +34,14 @@ o limite.
 
 ## Critério de aceite
 
-- [ ] Os quatro campos do cadastro com `maxLength` e contador de caracteres
-- [ ] Aviso ao colar texto maior que o limite
-- [ ] Recusa `CORPO_INVALIDO` com `campos: ['nome']` mostra a mensagem com o rótulo do campo,
+- [x] Os quatro campos do cadastro com `maxLength` e contador de caracteres
+- [x] Aviso ao colar texto maior que o limite
+- [x] Recusa `CORPO_INVALIDO` com `campos: ['nome']` mostra a mensagem com o rótulo do campo,
       junto ao campo (não num aviso solto no topo)
-- [ ] O valor 120 vem de uma constante única do frontend, comentada como espelho do schema da
+- [x] O valor 120 vem de uma constante única do frontend, comentada como espelho do schema da
       rota (o servidor continua sendo a fonte)
-- [ ] Testes de componente: contador, aviso de colagem, mensagem a partir de `campos`
-- [ ] Conferência no navegador com o `playwright-cli` (colar 130 caracteres no Nome)
+- [x] Testes de componente: contador, aviso de colagem, mensagem a partir de `campos`
+- [x] Conferência no navegador com o `playwright-cli` (colar 130 caracteres no Nome)
 
 ## Notas técnicas
 

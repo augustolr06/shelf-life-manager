@@ -16,6 +16,14 @@ export type DadosProduto = {
   categoria: string
 }
 
+/**
+ * Espelho do `maxLength` de `campoTexto` no schema de
+ * `backend/src/modules/produto/produto.routes.ts` (T25). Quem aplica o limite
+ * continua sendo o servidor: este valor só deixa o formulário avisar antes da
+ * recusa, e precisa mudar junto se o schema mudar.
+ */
+export const TAMANHO_MAXIMO_CAMPO_PRODUTO = 120
+
 export type PaginaDeProdutos = {
   produtos: Produto[]
   total: number

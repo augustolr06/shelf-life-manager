@@ -143,12 +143,18 @@ começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras i
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T25 | Mensagem clara para o limite de 120 caracteres no cadastro de produto | pendente | T04 | `tasks/T25-limite-caracteres-produto.md` |
+| T25 | Mensagem clara para o limite de 120 caracteres no cadastro de produto | concluída | T04 | `tasks/T25-limite-caracteres-produto.md` |
 | T26 | Busca em tempo real no Catálogo de produtos | pendente | T04 | `tasks/T26-busca-tempo-real-catalogo.md` |
 | T27 | Componente de paginação completo, compartilhado pelas telas paginadas | pendente | — | `tasks/T27-paginacao-completa.md` |
 | T28 | Seletor de produto com filtro (busca e escolha num campo só) | pendente | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
 | T29 | Mensagens de sucesso e erro de ação em toasts | pendente | — | `tasks/T29-toasts.md` |
 | T30 | Aviso de sessão expirada em modal que leva ao login | pendente | — | `tasks/T30-sessao-expirada.md` |
+
+**Achado de T25 (2026-10-20), sem tarefa aberta.** A tela de Contas de acesso (T22,
+`TelaUsuarios.tsx`) tem o mesmo problema que T25 resolveu no catálogo: Nome (máx. 120),
+E-mail (máx. 200) e Senha (máx. 200) não têm `maxLength` na tela, e a recusa do schema sai com
+a mensagem genérica de `CORPO_INVALIDO`. O helper `camposRecusados` de `services/api.ts` já
+serve para corrigir.
 
 ## Incremento 10 — Fluxo de leitura: leitura única, consulta e carrinho
 

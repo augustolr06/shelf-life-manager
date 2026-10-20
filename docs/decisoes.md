@@ -1660,3 +1660,46 @@ entrou no backlog como T24, no incremento 8.
 entre a leitura dos existentes e o `createMany` é absorvido pelo `skipDuplicates`: não derruba a
 importação, mas também não entra na lista de ignorados. Aceito: na loja, só a gestora cadastra
 produtos.
+
+## 2026-10-20 — Limite de 120 caracteres explicado no cadastro de produto (T25)
+
+**Contexto.** Um nome de produto acima de 120 caracteres era recusado pelo schema da rota com a
+mensagem genérica de T12b ("Alguns campos do formulário não foram aceitos..."), sem dizer o
+campo nem o motivo. O formulário de `TelaProdutos.tsx` não espelhava o limite.
+
+**Decisões.** As três da tarefa estão justificadas em `tasks/T25-limite-caracteres-produto.md`:
+
+1. **Prevenir na tela.** Os quatro campos têm `maxLength` e um contador `n/120`. O contador fica
+   **sempre** visível, e não só a partir de ~100 caracteres como a tarefa sugeria. Decisão do
+   orientando.
+2. **Avisar o corte da colagem.** O navegador corta em silêncio o texto colado que passa do
+   `maxLength`. A tela calcula no `paste` se o corte vai acontecer, considerando o trecho
+   selecionado que o texto colado substitui e as quebras de linha que o campo descarta, e avisa
+   abaixo do campo ("O nome foi cortado em 120 caracteres."). O corte continua sendo do
+   navegador. O aviso some na próxima edição do campo (decisão do orientando). A edição que a
+   própria colagem gera é reconhecida por `inputType === 'insertFromPaste'` e não apaga o aviso.
+3. **O servidor continua sendo a rede.** Na recusa `CORPO_INVALIDO`, o array `campos` de T12b
+   vira mensagem junto ao campo, com o rótulo da tela: "O campo Nome aceita no máximo 120
+   caracteres." O texto genérico do servidor só aparece quando nenhum campo do formulário é
+   nomeado. O backend não mudou.
+
+**A mensagem presume a regra.** `campos` diz qual campo foi recusado, não qual regra do ajv
+falhou. A tela afirma "no máximo 120 caracteres" porque é a única regra que esses campos podem
+violar com o formulário preenchido: os quatro vão sempre como texto, e o `required` impede o
+vazio. Se o schema ganhar outra regra para eles, essa mensagem precisa ser revista. O orientando
+preferiu manter o texto da tarefa a usar um texto neutro.
+
+**Detalhes de implementação.**
+
+- O limite mora em `TAMANHO_MAXIMO_CAMPO_PRODUTO` (`services/produtos.ts`), comentado como
+  espelho do schema da rota. O helper `camposRecusados(corpo)` em `services/api.ts` lê `campos`
+  de qualquer recusa, para outros formulários reaproveitarem.
+- A recusa de um campo some quando esse campo é editado, porque era sobre o valor anterior.
+- **Layout.** O formulário alinhava os campos pela base (`align-items: flex-end`). Com uma
+  mensagem embaixo de um campo, a caixa dos outros descia e as quatro ficavam desalinhadas
+  (visto no navegador). O cadastro passou a alinhar pelo topo, com o contador na linha do rótulo
+  e o botão deslocado pela altura dessa linha.
+
+**Achado: Contas de acesso (T22) tem o mesmo problema.** Nome (máx. 120), E-mail (máx. 200) e
+Senha (máx. 200) não têm `maxLength` na tela, e a recusa sai genérica. Anotado no backlog, sem
+correção nesta tarefa.

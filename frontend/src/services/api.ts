@@ -74,6 +74,19 @@ export async function requisitarApi<T>(caminho: string, init: RequestInit = {}):
   return (await lerJson<T>(resposta)) as T
 }
 
+/**
+ * Os nomes de campo que acompanham a recusa `CORPO_INVALIDO` (T12b), para o
+ * formulário apontar o campo pelo rótulo em vez de mostrar a mensagem genérica
+ * (T25). São nomes do JSON (`nome`, `codigoInterno`), não rótulos de tela:
+ * traduzi-los é papel de cada formulário.
+ */
+export function camposRecusados(corpo: unknown): string[] {
+  const campos = (corpo as { campos?: unknown } | null)?.campos
+  return Array.isArray(campos)
+    ? campos.filter((campo): campo is string => typeof campo === 'string')
+    : []
+}
+
 /** Lê o JSON tolerando corpo vazio ou malformado, que não deve mascarar o status. */
 async function lerJson<T>(resposta: Response): Promise<T | null> {
   try {

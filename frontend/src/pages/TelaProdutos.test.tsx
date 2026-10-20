@@ -209,4 +209,111 @@ describe('TelaProdutos (RF02)', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/conexão/i)
   })
+
+  describe('limite de 120 caracteres (T25)', () => {
+    const LONGO = 'x'.repeat(130)
+
+    async function abrirFormulario() {
+      buscar.mockResolvedValueOnce(pagina([]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText(/nenhum produto encontrado/i)
+    }
+
+    it('limita os quatro campos e mostra o contador de caracteres', async () => {
+      await abrirFormulario()
+
+      for (const rotulo of ['Código interno', 'Nome', 'Marca', 'Categoria']) {
+        const campo = screen.getByLabelText(rotulo)
+        expect(campo).toHaveAttribute('maxLength', '120')
+        expect(campo).toHaveAccessibleDescription('0/120')
+      }
+
+      fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'n'.repeat(87) } })
+
+      expect(screen.getByLabelText('Nome')).toHaveAccessibleDescription('87/120')
+    })
+
+    it('avisa que o texto colado foi cortado, e o aviso some na próxima edição', async () => {
+      await abrirFormulario()
+      const nome = screen.getByLabelText('Nome')
+
+      // O corte em si é do navegador (`maxLength`), que o jsdom não aplica:
+      // a colagem e a edição que ela gera são simuladas em separado.
+      fireEvent.paste(nome, { clipboardData: { getData: () => LONGO } })
+      fireEvent.input(nome, {
+        target: { value: LONGO.slice(0, 120) },
+        inputType: 'insertFromPaste',
+      })
+
+      expect(screen.getByRole('status')).toHaveTextContent('O nome foi cortado em 120 caracteres.')
+      expect(nome).toHaveAccessibleDescription(/O nome foi cortado em 120 caracteres/)
+
+      fireEvent.change(nome, { target: { value: LONGO.slice(0, 119) } })
+
+      expect(screen.queryByText(/foi cortado/)).not.toBeInTheDocument()
+    })
+
+    it('escreve o aviso de colagem no gênero do campo', async () => {
+      await abrirFormulario()
+
+      fireEvent.paste(screen.getByLabelText('Categoria'), {
+        clipboardData: { getData: () => LONGO },
+      })
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'A categoria foi cortada em 120 caracteres.',
+      )
+    })
+
+    it('não avisa quando o texto colado cabe, contando o trecho selecionado que ele substitui', async () => {
+      await abrirFormulario()
+      const marca = screen.getByLabelText('Marca') as HTMLInputElement
+
+      fireEvent.change(marca, { target: { value: 'm'.repeat(120) } })
+      marca.setSelectionRange(0, 120)
+      fireEvent.paste(marca, { clipboardData: { getData: () => 'Marca Exemplo' } })
+
+      expect(screen.queryByText(/foi cortad/)).not.toBeInTheDocument()
+    })
+
+    it('nomeia junto ao campo, pelo rótulo, o campo que o servidor recusou', async () => {
+      await abrirFormulario()
+      buscar.mockResolvedValueOnce(
+        respostaFalsa(400, {
+          erro: 'CORPO_INVALIDO',
+          mensagem: 'Alguns campos do formulário não foram aceitos. Confira os dados e tente de novo.',
+          campos: ['nome'],
+        }),
+      )
+
+      cadastrar('PRF-001')
+
+      const nome = screen.getByLabelText('Nome')
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'O campo Nome aceita no máximo 120 caracteres.',
+      )
+      expect(nome).toHaveAccessibleDescription(/O campo Nome aceita no máximo 120 caracteres/)
+      expect(nome).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.queryByText(/confira os dados/i)).not.toBeInTheDocument()
+
+      // Corrigir o campo tira a recusa, que era sobre o valor anterior.
+      fireEvent.change(nome, { target: { value: 'Eau de Parfum' } })
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('mostra a mensagem genérica do servidor quando a recusa não nomeia campo', async () => {
+      await abrirFormulario()
+      buscar.mockResolvedValueOnce(
+        respostaFalsa(400, {
+          erro: 'CORPO_INVALIDO',
+          mensagem: 'Alguns campos do formulário não foram aceitos. Confira os dados e tente de novo.',
+          campos: [],
+        }),
+      )
+
+      cadastrar('PRF-001')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/confira os dados/i)
+    })
+  })
 })
