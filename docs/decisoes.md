@@ -1928,3 +1928,59 @@ estado global e reapresenta os ativos a cada `<Toaster />` montado. Por isso o `
 fecha todos depois de cada teste: sem isso, um erro (que não some) passaria para o teste
 seguinte. `semAvisos()` espera uma volta do laço de eventos antes de olhar, porque o toast
 entra num `setTimeout` da biblioteca.
+
+## 2026-10-20 — Aviso de sessão expirada em modal (T30)
+
+**Contexto.** Quando o JWT expira, a próxima requisição volta 401 `NAO_AUTENTICADO`, e cada
+tela mostrava isso como mais um erro inline (ou, desde T29, como toast). A pessoa tentava de
+novo, recebia o mesmo erro, e só descobria que precisava entrar outra vez recarregando a
+página.
+
+**Decisões da tarefa** (as quatro do arquivo da tarefa, confirmadas na implementação):
+
+1. **Modal, não toast.** Toda ação a partir daí falha; o modal bloqueia a tela porque ela de
+   fato está bloqueada. Não fecha por Esc nem por clique fora: não há para onde voltar.
+2. **O que estava na tela se perde.** Ao clicar em "Entrar novamente" a área autenticada é
+   desmontada. Guardar rascunho fica fora (limitação registrada em `docs/notas-para-artigo.md`).
+3. **Detecção num ponto só**, em `requisitarApi`, pelo par status 401 + código
+   `NAO_AUTENTICADO`. O aviso sai por um callback registrado pelo `App`
+   (`aoExpirarSessao(ouvinte)`, que devolve a função de remoção, no formato de `useEffect`), e
+   `services/` continua sem importar React. A falha continua sendo lançada para a tela que
+   pediu; o aviso é a mais. O `GET /auth/me` da abertura e o `POST /auth/login` passam
+   `{ avisaSessaoExpirada: false }` num terceiro parâmetro de `requisitarApi`, porque ali 401
+   quer dizer "não está logado" e "senha errada". A exclusão é explícita na chamada, e não por
+   comparação de caminho dentro de `api.ts`.
+4. **`components/Dialogo.tsx`** sobre o `<dialog>` nativo com `showModal()`, que já dá tela de
+   trás inerte, foco preso e camada superior (acima dos toasts). Controlado por `aberto`;
+   `aoCancelar` opcional decide o que o Esc faz, e sem ele o Esc não fecha. O foco inicial vai
+   para o primeiro botão de `acoes` — para T39, isso significa pôr "Cancelar" primeiro.
+
+**Decisões que o arquivo da tarefa não cobria.**
+
+- **O toast de erro ignora sessão expirada** (`avisar.erro` sai cedo quando
+  `eSessaoExpirada(falha)`). A região dos toasts fica fora do guardião de sessão (T29) e o erro
+  não some sozinho: sem isso, um clique recusado deixaria um toast "Sessão ausente ou expirada"
+  na tela da sessão nova. O erro **inline** de carregamento continua sendo escrito pela tela,
+  mas fica atrás do modal (inerte) e é desmontado junto com a área autenticada — é assim que o
+  item 4 do comportamento ("a tela não mostra o erro por cima do modal") é atendido, sem mexer
+  em nenhuma tela.
+- **A rota de retorno é estado do `App`, e não estado de rota** (`navigate('/login', { state })`).
+  O React Router 7 navega em transição, e a troca de sessão é uma atualização urgente: o ramo
+  anônimo renderizava ainda na rota antiga, a rota coringa redirecionava para `/login` sem o
+  estado, e o retorno se perdia. Pelo mesmo motivo, no login a troca de sessão e a navegação de
+  volta ficam dentro de um `startTransition` único; fora dele a rota coringa do ramo
+  autenticado mandava para a tela inicial do papel por cima do retorno. O teste de retorno
+  falhava nas duas versões anteriores, e é ele que segura isso.
+- **Outra pessoa entrando no mesmo aparelho** volta para a rota guardada; se o papel dela não
+  alcança a rota, a rota coringa leva à tela inicial, como qualquer URL digitada.
+- **Uma requisição que ainda estava no ar** pode voltar 401 depois do "Entrar novamente". O
+  login zera o aviso, para que a sessão nova não abra com o modal.
+- **Defesa contra o Chrome fechar o diálogo.** O Chrome ignora o `preventDefault` do `cancel`
+  repetido sem interação do usuário entre um e outro. O Esc é barrado já no `keydown`, e se o
+  diálogo fechar por fora (botão voltar do Android), um diálogo sem `aoCancelar` se reabre.
+
+**Testes.** O jsdom não implementa `showModal`/`close`; o `setupTests.ts` ganhou um substituto
+mínimo (atributo `open` e evento `close`). `services/api.test.ts` (novo) cobre o aviso e as
+exclusões; `components/Dialogo.test.tsx` cobre foco, Esc e reabertura; `App.test.tsx` cobre o
+modal em carregamento e em clique, a ausência de toast, o retorno à rota, e os casos que não
+abrem o modal (401 do `/auth/me`, 401 do login, 403).

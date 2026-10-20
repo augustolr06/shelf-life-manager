@@ -148,7 +148,7 @@ começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras i
 | T27 | Componente de paginação completo, compartilhado pelas telas paginadas | concluída | — | `tasks/T27-paginacao-completa.md` |
 | T28 | Seletor de produto com filtro (busca e escolha num campo só) | concluída | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
 | T29 | Mensagens de sucesso e erro de ação em toasts | concluída | — | `tasks/T29-toasts.md` |
-| T30 | Aviso de sessão expirada em modal que leva ao login | pendente | — | `tasks/T30-sessao-expirada.md` |
+| T30 | Aviso de sessão expirada em modal que leva ao login | concluída | — | `tasks/T30-sessao-expirada.md` |
 | T39 | Confirmação em diálogo antes de ação destrutiva | pendente | T30 | `tasks/T39-confirmacao-acoes-destrutivas.md` |
 
 **T39 (2026-10-20).** Hoje nenhuma ação pede confirmação: descarte, inativação de produto,

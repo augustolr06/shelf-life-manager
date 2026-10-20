@@ -1631,3 +1631,32 @@ override como acerto.
 pela fila), T11, RF12, RF13
 
 **Data:** 2026-10-12
+
+---
+
+## Sessão expirada no balcão: perde-se o que estava digitado, não a integridade do estoque
+
+**Contexto do problema:** a sessão dura 8 horas, o tamanho de um turno. Quem abre o sistema no
+começo do expediente e não sai dele pode ter a sessão vencida no meio de um atendimento ou de
+um recebimento. Até T30, o sintoma era um erro genérico que se repetia a cada clique, sem dizer
+que bastava entrar de novo.
+
+**Solução adotada:** a primeira requisição recusada por sessão expirada abre um aviso que cobre
+a tela inteira, com um único botão que leva ao login. Depois de entrar, a pessoa volta para a
+tela em que estava.
+
+**Por que resolve o problema / trade-offs:** o que se perde é só o que ainda não chegou ao
+servidor, como um recebimento meio digitado, que precisa ser redigitado. Nenhuma decisão de
+estoque se perde nem fica pela metade, e isso é consequência direta de o veredito e a baixa
+viverem só no servidor (RNF02 a RNF04). A ação recusada não aconteceu, e a ação aceita já está
+gravada. A tela do navegador não guarda estado de estoque que precise ser reconciliado. Para o
+artigo, é um exemplo concreto do custo que o desenho centralizado aceita: em troca da garantia
+de consistência, a interface fica descartável, e o trabalho em andamento nela também.
+**Limitação a declarar:** não há rascunho de formulário nem renovação automática da sessão; uma
+sessão que expira durante um recebimento longo custa a redigitação. A mitigação simples, se
+isso aparecer no uso, é renovar a sessão a cada requisição bem-sucedida, o que é trabalho
+futuro e fica fora do escopo.
+
+**Tarefa relacionada:** T30, T03 (duração da sessão), RNF02, RNF03, RNF04
+
+**Data:** 2026-10-20

@@ -11,10 +11,11 @@ export type Usuario = {
 }
 
 export async function autenticar(email: string, senha: string): Promise<Usuario> {
-  const { usuario } = await requisitarApi<{ usuario: Usuario }>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, senha }),
-  })
+  const { usuario } = await requisitarApi<{ usuario: Usuario }>(
+    '/auth/login',
+    { method: 'POST', body: JSON.stringify({ email, senha }) },
+    { avisaSessaoExpirada: false },
+  )
   return usuario
 }
 
@@ -30,7 +31,11 @@ export async function encerrarSessao(): Promise<void> {
  */
 export async function buscarSessaoAtual(): Promise<Usuario | null> {
   try {
-    const { usuario } = await requisitarApi<{ usuario: Usuario }>('/auth/me')
+    const { usuario } = await requisitarApi<{ usuario: Usuario }>(
+      '/auth/me',
+      {},
+      { avisaSessaoExpirada: false },
+    )
     return usuario
   } catch (erro) {
     if (erro instanceof ErroApi && erro.status === 401) return null

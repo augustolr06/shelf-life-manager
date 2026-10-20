@@ -1,6 +1,7 @@
-import { useEffect, useState, type ReactElement } from 'react'
-import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { startTransition, useEffect, useState, type ReactElement } from 'react'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Avisos } from './components/Avisos'
+import { Dialogo } from './components/Dialogo'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDashboard } from './pages/TelaDashboard'
@@ -13,6 +14,7 @@ import { TelaUsuarios } from './pages/TelaUsuarios'
 import { TelaMinhaSenha } from './pages/TelaMinhaSenha'
 import { TelaRecebimento } from './pages/TelaRecebimento'
 import { contarAlertasNaoLidos } from './services/alertas'
+import { aoExpirarSessao } from './services/api'
 import { avisar } from './services/avisos'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
 
@@ -185,7 +187,23 @@ function Aplicacao() {
    * constante custaria bateria de celular no balcão para nada.
    */
   const [alertasNaoLidos, setAlertasNaoLidos] = useState(0)
+  /**
+   * Uma requisição autenticada voltou 401 `NAO_AUTENTICADO` (T30). A sessão
+   * continua `autenticado` até a pessoa clicar em "Entrar novamente": a tela
+   * fica onde estava, por baixo do modal, e é dela que se guarda a rota.
+   */
+  const [sessaoExpirada, setSessaoExpirada] = useState(false)
+  /**
+   * De onde o modal de sessão expirada tirou a pessoa, para voltar lá depois
+   * do login. Estado do `App`, e não estado de rota: na troca para o ramo
+   * anônimo a rota coringa redireciona ao login antes da navegação chegar, e
+   * o estado de rota se perderia no caminho.
+   */
+  const [voltarPara, setVoltarPara] = useState<string | null>(null)
   const navegar = useNavigate()
+  const local = useLocation()
+
+  useEffect(() => aoExpirarSessao(() => setSessaoExpirada(true)), [])
 
   useEffect(() => {
     let ativo = true
@@ -254,6 +272,12 @@ function Aplicacao() {
     )
   }
 
+  function entrarNovamente() {
+    setSessaoExpirada(false)
+    setVoltarPara(`${local.pathname}${local.search}`)
+    setSessao({ situacao: 'anonimo' })
+  }
+
   if (sessao.situacao === 'anonimo') {
     return (
       <>
@@ -268,8 +292,21 @@ function Aplicacao() {
             element={
               <TelaLogin
                 aoAutenticar={(usuario) => {
-                  setSessao({ situacao: 'autenticado', usuario })
-                  navegar(rotaInicial(usuario), { replace: true })
+                  // Uma requisição que já estava no ar pode ter voltado 401
+                  // depois do "Entrar novamente"; a sessão nova não herda o aviso.
+                  setSessaoExpirada(false)
+                  setVoltarPara(null)
+                  // Sessão e rota na mesma transição, porque o roteador navega
+                  // em transição: com a sessão aplicada antes, o ramo
+                  // autenticado renderiza ainda em `/login`, e a rota coringa
+                  // manda para a tela inicial por cima do retorno (T30).
+                  startTransition(() => {
+                    setSessao({ situacao: 'autenticado', usuario })
+                    // Rota que o papel de quem entrou não alcança — outra
+                    // pessoa entrou no mesmo aparelho — cai na rota coringa e
+                    // vai para a tela inicial, como qualquer URL digitada.
+                    navegar(voltarPara ?? rotaInicial(usuario), { replace: true })
+                  })
                 }}
               />
             }
@@ -335,6 +372,20 @@ function Aplicacao() {
           <Route path="*" element={<Navigate to={inicial} replace />} />
         </Routes>
       </main>
+
+      {/* Sem `aoCancelar`: não há tela para onde voltar, porque toda ação a
+          partir daqui falharia. */}
+      <Dialogo
+        aberto={sessaoExpirada}
+        titulo="Sessão expirada"
+        acoes={
+          <button type="button" onClick={entrarNovamente}>
+            Entrar novamente
+          </button>
+        }
+      >
+        <p>Sua sessão expirou. Entre novamente para continuar.</p>
+      </Dialogo>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { ErroApi } from './api'
+import { ErroApi, eSessaoExpirada } from './api'
 
 /**
  * Ponto único de chamada dos toasts (T29). As telas não importam a biblioteca:
@@ -29,6 +29,10 @@ export const avisar = {
    * texto de cada ação para a falha que não trouxe mensagem própria.
    */
   erro(falha: unknown, padrao: string = MENSAGEM_PADRAO) {
+    // Sessão expirada já tem o modal do `App` (T30). O toast de erro não some
+    // sozinho e fica fora do guardião de sessão: sem isto, ele continuaria na
+    // tela depois do novo login, falando de uma sessão que já foi renovada.
+    if (eSessaoExpirada(falha)) return
     toast.error(mensagemDaFalha(falha, padrao), { duration: Infinity, closeButton: true })
   },
 }

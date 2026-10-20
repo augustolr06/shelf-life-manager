@@ -37,15 +37,15 @@ próximo carregamento da página.
 
 ## Critério de aceite
 
-- [ ] `requisitarApi` notifica 401 `NAO_AUTENTICADO` por um mecanismo simples (callback
+- [x] `requisitarApi` notifica 401 `NAO_AUTENTICADO` por um mecanismo simples (callback
       registrado pelo `App` ou `EventTarget`), sem importar React em `services/`
-- [ ] Modal com foco no botão, sem fechar por clique fora (não há para onde voltar)
-- [ ] Após o login, retorno à rota anterior
-- [ ] 401 do login e do `/auth/me` inicial **não** abrem o modal
-- [ ] 403 `PAPEL_INSUFICIENTE` **não** abre o modal (é outra situação)
-- [ ] Testes: `api.ts` notificando; `App.test.tsx` com uma tela recebendo 401 e o modal
+- [x] Modal com foco no botão, sem fechar por clique fora (não há para onde voltar)
+- [x] Após o login, retorno à rota anterior
+- [x] 401 do login e do `/auth/me` inicial **não** abrem o modal
+- [x] 403 `PAPEL_INSUFICIENTE` **não** abre o modal (é outra situação)
+- [x] Testes: `api.ts` notificando; `App.test.tsx` com uma tela recebendo 401 e o modal
       aparecendo; retorno à rota
-- [ ] Conferência no navegador com o `playwright-cli`: apagar o cookie de sessão
+- [x] Conferência no navegador com o `playwright-cli`: apagar o cookie de sessão
       (`cookie-clear` ou DevTools) e clicar numa ação
 
 ## Fora de escopo

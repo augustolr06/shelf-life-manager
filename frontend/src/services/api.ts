@@ -35,7 +35,44 @@ type CorpoErro = { erro?: string; mensagem?: string; message?: string }
 const MENSAGEM_REDE =
   'Não foi possível falar com o servidor. Verifique sua conexão e tente novamente.'
 
-export async function requisitarApi<T>(caminho: string, init: RequestInit = {}): Promise<T> {
+/**
+ * Quem quer saber que a sessão expirou no meio do uso (T30). É o `App`, que
+ * abre o modal de "entre novamente"; `services/` não conhece React, então o
+ * aviso passa por um callback e não por contexto ou estado.
+ */
+let ouvinteSessaoExpirada: (() => void) | null = null
+
+/** Registra o ouvinte e devolve a função que o remove, no formato de `useEffect`. */
+export function aoExpirarSessao(ouvinte: () => void): () => void {
+  ouvinteSessaoExpirada = ouvinte
+  return () => {
+    if (ouvinteSessaoExpirada === ouvinte) ouvinteSessaoExpirada = null
+  }
+}
+
+/**
+ * A recusa que significa "a sessão que existia não vale mais". Pelo par status
+ * + código, e não pela mensagem: 403 `PAPEL_INSUFICIENTE` é outra situação, e o
+ * 401 do login é `CREDENCIAL_INVALIDA`.
+ */
+export function eSessaoExpirada(falha: unknown): boolean {
+  return falha instanceof ErroApi && falha.status === 401 && falha.codigo === 'NAO_AUTENTICADO'
+}
+
+type OpcoesRequisicao = {
+  /**
+   * `false` nas duas chamadas em que 401 não quer dizer "expirou": o
+   * `GET /auth/me` da abertura do app (ali é "não está logado") e o
+   * `POST /auth/login` (senha errada).
+   */
+  avisaSessaoExpirada?: boolean
+}
+
+export async function requisitarApi<T>(
+  caminho: string,
+  init: RequestInit = {},
+  { avisaSessaoExpirada = true }: OpcoesRequisicao = {},
+): Promise<T> {
   const enviaCorpo = init.body !== undefined
 
   let resposta: Response
@@ -58,7 +95,7 @@ export async function requisitarApi<T>(caminho: string, init: RequestInit = {}):
 
   if (!resposta.ok) {
     const corpo = await lerJson<CorpoErro>(resposta)
-    throw new ErroApi(
+    const erro = new ErroApi(
       resposta.status,
       // A mensagem exibida ao usuário é a que o backend escreveu. O frontend
       // só recorre a um texto próprio quando não recebeu nenhum.
@@ -66,6 +103,10 @@ export async function requisitarApi<T>(caminho: string, init: RequestInit = {}):
       corpo?.erro ?? null,
       corpo,
     )
+    // A tela que pediu continua recebendo a falha: o aviso é a mais, para o
+    // `App` cobrir a tela com o modal (T30).
+    if (avisaSessaoExpirada && eSessaoExpirada(erro)) ouvinteSessaoExpirada?.()
+    throw erro
   }
 
   // 204 (logout) não tem corpo para desserializar.

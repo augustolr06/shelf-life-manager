@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
-import { encontrarAviso } from './services/testes/avisos'
+import { encontrarAviso, semAvisos } from './services/testes/avisos'
 import { respostaFalsa } from './services/testes/respostaFalsa'
 
 const GESTOR = {
@@ -245,6 +245,120 @@ describe('App — guardião de sessão', () => {
 
       expect(await screen.findByLabelText(/senha/i)).toBeInTheDocument()
       expect(screen.queryByRole('heading', { name: /leitura de qr/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('sessão expirada no meio do uso (T30)', () => {
+    const SESSAO_EXPIRADA = () =>
+      respostaFalsa(401, {
+        erro: 'NAO_AUTENTICADO',
+        mensagem: 'Sessão ausente ou expirada. Faça login novamente.',
+      })
+    const SEM_JANELAS = () => respostaFalsa(200, { configuracoes: [] })
+
+    it('cobre a tela com o modal quando uma tela recebe 401, com o foco no botão', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /configuracao-alerta': SESSAO_EXPIRADA })
+
+      montar('/alertas/configuracao')
+
+      const modal = await screen.findByRole('dialog', { name: /sessão expirada/i })
+      expect(modal).toHaveAccessibleDescription(/entre novamente para continuar/i)
+      expect(screen.getByRole('button', { name: /entrar novamente/i })).toHaveFocus()
+    })
+
+    it('não deixa toast de erro para trás quando a ação recusada é um clique', async () => {
+      // O toast de erro não some sozinho e sobrevive ao login: se aparecesse,
+      // continuaria na tela da sessão nova.
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /configuracao-alerta': SEM_JANELAS,
+        'POST /configuracao-alerta': SESSAO_EXPIRADA,
+      })
+
+      montar('/alertas/configuracao')
+      fireEvent.change(await screen.findByLabelText(/dias de antecedência/i), {
+        target: { value: '30' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: /adicionar janela/i }))
+
+      expect(await screen.findByRole('dialog', { name: /sessão expirada/i })).toBeInTheDocument()
+      expect(await semAvisos()).toBe(true)
+    })
+
+    it('leva ao login e, depois de entrar, devolve à rota em que a pessoa estava', async () => {
+      let sessaoValida = false
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /configuracao-alerta': () => (sessaoValida ? SEM_JANELAS() : SESSAO_EXPIRADA()),
+        'POST /auth/login': () => {
+          sessaoValida = true
+          return respostaFalsa(200, { usuario: GESTOR })
+        },
+      })
+
+      montar('/alertas/configuracao')
+      fireEvent.click(await screen.findByRole('button', { name: /entrar novamente/i }))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      fireEvent.change(await screen.findByLabelText(/e-mail/i), {
+        target: { value: GESTOR.email },
+      })
+      fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'segredo123' } })
+      fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+
+      // A rota inicial do GESTOR é o catálogo; voltar à configuração prova
+      // que a rota veio do modal, e não do papel.
+      expect(
+        await screen.findByRole('heading', { name: /alertas de vencimento próximo/i }),
+      ).toBeInTheDocument()
+      expect(await screen.findByText(/nenhuma janela de antecedência/i)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('não abre o modal no 401 do GET /auth/me da abertura: ali é "não está logado"', async () => {
+      rotear({ 'GET /auth/me': SEM_SESSAO })
+
+      montar()
+
+      expect(await screen.findByLabelText(/e-mail/i)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('não abre o modal no 401 do login: é senha errada', async () => {
+      rotear({
+        'GET /auth/me': SEM_SESSAO,
+        'POST /auth/login': () =>
+          respostaFalsa(401, {
+            erro: 'CREDENCIAL_INVALIDA',
+            mensagem: 'E-mail ou senha inválidos.',
+          }),
+      })
+
+      montar()
+      fireEvent.change(await screen.findByLabelText(/e-mail/i), {
+        target: { value: GESTOR.email },
+      })
+      fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'errada' } })
+      fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+
+      expect(await screen.findByText(/e-mail ou senha inválidos/i)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('não abre o modal no 403 PAPEL_INSUFICIENTE: a sessão continua valendo', async () => {
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /configuracao-alerta': () =>
+          respostaFalsa(403, {
+            erro: 'PAPEL_INSUFICIENTE',
+            mensagem: 'Seu papel não permite esta ação.',
+          }),
+      })
+
+      montar('/alertas/configuracao')
+
+      expect(await screen.findByText(/seu papel não permite/i)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
   })
 })
