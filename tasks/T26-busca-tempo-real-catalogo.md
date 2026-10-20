@@ -28,21 +28,22 @@ A lista passa a filtrar enquanto se digita, e campo vazio volta à lista complet
 
 ## Critério de aceite
 
-- [ ] Botão **Buscar** removido; a lista reage à digitação após o atraso
-- [ ] Campo vazio volta a mostrar todos os produtos (respeitando "Mostrar produtos inativos")
-- [ ] Enter no campo não recarrega a página nem dispara busca duplicada
-- [ ] Indicação discreta de carregamento durante a busca, sem apagar a lista anterior (a
+- [x] Botão **Buscar** removido; a lista reage à digitação após o atraso
+- [x] Campo vazio volta a mostrar todos os produtos (respeitando "Mostrar produtos inativos")
+- [x] Enter no campo não recarrega a página nem dispara busca duplicada
+- [x] Indicação discreta de carregamento durante a busca, sem apagar a lista anterior (a
       tabela não "pisca" a cada tecla)
-- [ ] Resposta antiga que chega depois da nova é ignorada
-- [ ] Hook com teste próprio (timers falsos do Vitest); testes de `TelaProdutos.test.tsx`
+- [x] Resposta antiga que chega depois da nova é ignorada
+- [x] Hook com teste próprio (timers falsos do Vitest); testes de `TelaProdutos.test.tsx`
       atualizados
-- [ ] Conferência no navegador com o `playwright-cli`: digitar, apagar, ver a lista completa
+- [x] Conferência no navegador com o `playwright-cli`: digitar, apagar, ver a lista completa
 
 ## Notas técnicas
 
 - O `GET /produtos` não tem rate limit (só `/auth/login` tem, desde T23), então o atraso é
   questão de economia de rede no celular, não de bloqueio.
-- Um botão "limpar" (×) no campo é bem-vindo, mas opcional.
+- Um botão "limpar" (×) no campo é bem-vindo, mas opcional. (Implementado, por decisão do
+  orientando — ver `docs/decisoes.md`, 2026-10-20.)
 
 ## Fora de escopo
 

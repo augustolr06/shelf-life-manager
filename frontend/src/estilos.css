@@ -260,6 +260,42 @@ input {
   height: 1rem;
 }
 
+/* Busca em tempo real do catálogo (T26). O × de limpar fica dentro da caixa,
+   à direita, e o campo reserva o espaço dele para não cobrir o texto. O
+   indicador de carregamento é só texto suave na linha do rótulo: a lista
+   anterior continua na tela enquanto a nova não chega. */
+.campo-com-limpar {
+  position: relative;
+  display: flex;
+}
+
+.campo-com-limpar input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 2.75rem;
+}
+
+.botao-limpar-busca {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2.75rem;
+  padding: 0;
+  background: transparent;
+  color: var(--cor-texto-suave);
+  font-size: 1.25rem;
+}
+
+.botao-limpar-busca:hover:not(:disabled) {
+  background: transparent;
+  color: var(--cor-texto);
+}
+
+.indicador-carregando {
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

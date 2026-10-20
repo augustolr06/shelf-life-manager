@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaProdutos } from './TelaProdutos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
@@ -31,7 +31,23 @@ function pagina(produtos: typeof PERFUME[], total = produtos.length) {
   return respostaFalsa(200, { produtos, total, pagina: 1, tamanhoPagina: 20 })
 }
 
+const COLONIA = {
+  ...PERFUME,
+  id: '44444444-4444-4444-4444-444444444444',
+  codigoInterno: 'COL-002',
+  nome: 'Colônia 100ml',
+}
+
 const buscar = vi.fn<typeof fetch>()
+
+/** Uma resposta que só chega quando o teste mandar, para controlar a ordem. */
+function respostaAdiada() {
+  let entregar!: (resposta: Response) => void
+  const promessa = new Promise<Response>((resolver) => {
+    entregar = resolver
+  })
+  return { promessa, entregar }
+}
 
 /** Preenche o formulário de cadastro e submete. */
 function cadastrar(codigo: string) {
@@ -114,25 +130,6 @@ describe('TelaProdutos (RF02)', () => {
     expect(screen.getByLabelText('Código interno')).toHaveValue('PRF-001')
   })
 
-  it('busca por nome ou código e volta para a primeira página', async () => {
-    buscar.mockResolvedValue(pagina([PERFUME]))
-
-    render(<TelaProdutos usuario={GESTOR} />)
-    await screen.findByText('PRF-001')
-
-    fireEvent.change(screen.getByLabelText(/buscar por nome ou código/i), {
-      target: { value: '  parfum ' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /buscar/i }))
-
-    await waitFor(() =>
-      expect(buscar).toHaveBeenLastCalledWith(
-        'http://localhost:3333/produtos?busca=parfum',
-        expect.anything(),
-      ),
-    )
-  })
-
   it('pede os inativos ao backend quando o filtro é marcado', async () => {
     buscar.mockResolvedValue(pagina([PERFUME]))
 
@@ -208,6 +205,212 @@ describe('TelaProdutos (RF02)', () => {
     render(<TelaProdutos usuario={GESTOR} />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/conexão/i)
+  })
+
+  describe('busca em tempo real (T26)', () => {
+    const ATRASO = 300
+
+    function campoBusca() {
+      return screen.getByLabelText(/buscar por nome ou código/i)
+    }
+
+    function digitar(valor: string) {
+      fireEvent.change(campoBusca(), { target: { value: valor } })
+    }
+
+    function avancar(ms: number) {
+      act(() => vi.advanceTimersByTime(ms))
+    }
+
+    /**
+     * Relógio falso só no trecho que digita e espera o atraso. O `findBy` do
+     * Testing Library precisa do `setTimeout` real para terminar, então o
+     * relógio volta ao normal antes de qualquer espera pela tela.
+     */
+    function comRelogioFalso(passos: () => void) {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      try {
+        passos()
+      } finally {
+        vi.useRealTimers()
+      }
+    }
+
+    function digitarEEsperar(valor: string) {
+      comRelogioFalso(() => {
+        digitar(valor)
+        avancar(ATRASO)
+      })
+    }
+
+    /** Espera a resposta da consulta chegar à tela antes do próximo passo. */
+    async function esperarFimDoCarregamento() {
+      await waitFor(() => expect(screen.queryByText('Carregando…')).not.toBeInTheDocument())
+    }
+
+    it('busca depois da pausa na digitação, uma vez só, sem botão Buscar', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+      expect(screen.queryByRole('button', { name: /^buscar$/i })).not.toBeInTheDocument()
+
+      comRelogioFalso(() => {
+        digitar('p')
+        avancar(ATRASO - 100)
+        digitar('  parfum ')
+        avancar(ATRASO - 1)
+
+        // Nenhuma pausa completa ainda: só a carga inicial saiu.
+        expect(buscar).toHaveBeenCalledTimes(1)
+
+        avancar(1)
+      })
+      await esperarFimDoCarregamento()
+
+      expect(buscar).toHaveBeenCalledTimes(2)
+      expect(buscar).toHaveBeenLastCalledWith(
+        'http://localhost:3333/produtos?busca=parfum',
+        expect.anything(),
+      )
+    })
+
+    it('campo apagado volta à lista completa, respeitando o filtro de inativos', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+
+      fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
+      await esperarFimDoCarregamento()
+      digitarEEsperar('parfum')
+      await esperarFimDoCarregamento()
+      expect(buscar).toHaveBeenLastCalledWith(
+        'http://localhost:3333/produtos?busca=parfum&incluirInativos=true',
+        expect.anything(),
+      )
+
+      digitarEEsperar('')
+      await esperarFimDoCarregamento()
+
+      expect(buscar).toHaveBeenLastCalledWith(
+        'http://localhost:3333/produtos?incluirInativos=true',
+        expect.anything(),
+      )
+    })
+
+    it('o botão de limpar só aparece com texto, esvazia o campo e volta à lista completa', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+      expect(screen.queryByRole('button', { name: 'Limpar busca' })).not.toBeInTheDocument()
+
+      digitarEEsperar('parfum')
+      await esperarFimDoCarregamento()
+      comRelogioFalso(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Limpar busca' }))
+
+        expect(campoBusca()).toHaveValue('')
+        expect(campoBusca()).toHaveFocus()
+        expect(screen.queryByRole('button', { name: 'Limpar busca' })).not.toBeInTheDocument()
+
+        avancar(ATRASO)
+      })
+      await esperarFimDoCarregamento()
+
+      expect(buscar).toHaveBeenLastCalledWith('http://localhost:3333/produtos', expect.anything())
+    })
+
+    it('Enter no campo não recarrega a página nem busca de novo', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+
+      digitarEEsperar('parfum')
+      await esperarFimDoCarregamento()
+      expect(buscar).toHaveBeenCalledTimes(2)
+
+      comRelogioFalso(() => {
+        // `fireEvent` devolve `false` quando o evento teve o padrão cancelado.
+        expect(fireEvent.submit(campoBusca().closest('form') as HTMLFormElement)).toBe(false)
+        avancar(ATRASO)
+      })
+
+      expect(buscar).toHaveBeenCalledTimes(2)
+    })
+
+    it('mantém a lista anterior na tela enquanto a busca carrega', async () => {
+      const busca = respostaAdiada()
+      buscar.mockResolvedValueOnce(pagina([PERFUME])).mockReturnValueOnce(busca.promessa)
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+
+      digitarEEsperar('colônia')
+
+      expect(screen.getByRole('status')).toHaveTextContent('Carregando…')
+      expect(screen.getByText('PRF-001')).toBeInTheDocument()
+
+      busca.entregar(pagina([COLONIA]))
+
+      expect(await screen.findByText('COL-002')).toBeInTheDocument()
+      expect(screen.queryByText('PRF-001')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('ignora a resposta de um termo antigo que chega depois da do termo atual', async () => {
+      const antiga = respostaAdiada()
+      const atual = respostaAdiada()
+      buscar
+        .mockResolvedValueOnce(pagina([]))
+        .mockReturnValueOnce(antiga.promessa)
+        .mockReturnValueOnce(atual.promessa)
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText(/nenhum produto encontrado/i)
+
+      digitarEEsperar('col')
+      digitarEEsperar('colônia')
+
+      atual.entregar(pagina([COLONIA]))
+      expect(await screen.findByText('COL-002')).toBeInTheDocument()
+
+      await act(async () => antiga.entregar(pagina([PERFUME])))
+
+      expect(screen.getByText('COL-002')).toBeInTheDocument()
+      expect(screen.queryByText('PRF-001')).not.toBeInTheDocument()
+      expect(screen.getByText(/1 produto\(s\)/)).toBeInTheDocument()
+    })
+
+    it('termo novo volta para a primeira página', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME], 45))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+
+      fireEvent.click(screen.getByRole('button', { name: /próxima/i }))
+      await esperarFimDoCarregamento()
+      expect(buscar).toHaveBeenLastCalledWith(
+        'http://localhost:3333/produtos?pagina=2',
+        expect.anything(),
+      )
+
+      digitarEEsperar('parfum')
+      await esperarFimDoCarregamento()
+
+      expect(buscar).toHaveBeenLastCalledWith(
+        'http://localhost:3333/produtos?busca=parfum',
+        expect.anything(),
+      )
+      // Nenhuma consulta com o termo novo na página antiga.
+      expect(buscar).not.toHaveBeenCalledWith(
+        'http://localhost:3333/produtos?busca=parfum&pagina=2',
+        expect.anything(),
+      )
+    })
+
+    it('limita o termo aos 120 caracteres que o servidor aceita', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      render(<TelaProdutos usuario={GESTOR} />)
+      await screen.findByText('PRF-001')
+
+      expect(campoBusca()).toHaveAttribute('maxLength', '120')
+    })
   })
 
   describe('limite de 120 caracteres (T25)', () => {

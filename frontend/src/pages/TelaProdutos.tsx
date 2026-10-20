@@ -1,12 +1,14 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ChangeEvent,
   type ClipboardEvent,
   type FormEvent,
 } from 'react'
 import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
+import { useValorComAtraso } from '../hooks/useValorComAtraso'
 import { camposRecusados, ErroApi } from '../services/api'
 import type { Usuario } from '../services/auth'
 import {
@@ -46,20 +48,44 @@ const CAMPOS_DO_FORMULARIO: readonly {
 
 type MensagensPorCampo = Partial<Record<CampoProduto, string>>
 
+/**
+ * Espelho do `maxLength` de `busca` no schema da listagem em
+ * `backend/src/modules/produto/produto.routes.ts`. Com a busca disparando a
+ * cada pausa na digitação (T26), o 121º caractere viraria a recusa genérica
+ * de campo inválido; o campo para antes.
+ */
+const TAMANHO_MAXIMO_BUSCA = 120
+
 type Props = {
   usuario: Usuario
 }
 
 export function TelaProdutos({ usuario }: Props) {
-  const [produtos, setProdutos] = useState<Produto[]>([])
+  // `null` até a primeira resposta: depois dela, a lista anterior fica na tela
+  // enquanto a próxima carrega, para a tabela não piscar a cada tecla (T26).
+  const [produtos, setProdutos] = useState<Produto[] | null>(null)
   const [total, setTotal] = useState(0)
   const [tamanhoPagina, setTamanhoPagina] = useState(20)
   const [pagina, setPagina] = useState(1)
-  const [busca, setBusca] = useState('')
   const [termoDigitado, setTermoDigitado] = useState('')
   const [incluirInativos, setIncluirInativos] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const campoBusca = useRef<HTMLInputElement>(null)
+  const ultimaConsulta = useRef(0)
+
+  // A busca vai ao servidor só depois de uma pausa na digitação (T26). Campo
+  // vazio, ou só com espaços, vira busca vazia: a lista completa.
+  const busca = useValorComAtraso(termoDigitado.trim())
+
+  // Volta à primeira página quando o termo muda: a página atual pode nem
+  // existir no novo filtro. Ajustada durante a renderização, e não num efeito,
+  // para não sair uma consulta com o termo novo e a página antiga.
+  const [buscaDaPagina, setBuscaDaPagina] = useState(busca)
+  if (buscaDaPagina !== busca) {
+    setBuscaDaPagina(busca)
+    setPagina(1)
+  }
 
   const [novo, setNovo] = useState<DadosProduto>(CAMPOS_VAZIOS)
   const [erroFormulario, setErroFormulario] = useState<string | null>(null)
@@ -73,17 +99,25 @@ export function TelaProdutos({ usuario }: Props) {
   const podeEditar = usuario.papel === 'GESTOR'
 
   const carregar = useCallback(async () => {
+    // Só a consulta mais recente pode mexer na tela. Se a resposta de "per"
+    // chegar depois da de "perfume", a lista seria a de um termo que já não
+    // está no campo (T26, Decisão 3).
+    const consulta = ++ultimaConsulta.current
+    const ehAtual = () => consulta === ultimaConsulta.current
+
     setCarregando(true)
     setErro(null)
     try {
       const resultado = await listarProdutos({ busca, incluirInativos, pagina })
+      if (!ehAtual()) return
       setProdutos(resultado.produtos)
       setTotal(resultado.total)
       setTamanhoPagina(resultado.tamanhoPagina)
     } catch (falha) {
+      if (!ehAtual()) return
       setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível carregar o catálogo.')
     } finally {
-      setCarregando(false)
+      if (ehAtual()) setCarregando(false)
     }
   }, [busca, incluirInativos, pagina])
 
@@ -91,11 +125,9 @@ export function TelaProdutos({ usuario }: Props) {
     void carregar()
   }, [carregar])
 
-  function buscarProdutos(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    // Volta à primeira página: a página atual pode nem existir no novo filtro.
-    setPagina(1)
-    setBusca(termoDigitado.trim())
+  function limparBusca() {
+    setTermoDigitado('')
+    campoBusca.current?.focus()
   }
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
@@ -181,7 +213,9 @@ export function TelaProdutos({ usuario }: Props) {
         await carregar()
         return
       }
-      setProdutos((atuais) => atuais.map((p) => (p.id === atualizado.id ? atualizado : p)))
+      setProdutos((atuais) =>
+        atuais?.map((p) => (p.id === atualizado.id ? atualizado : p)) ?? null,
+      )
     } catch (falha) {
       setErro(
         falha instanceof ErroApi ? falha.message : 'Não foi possível alterar a situação do produto.',
@@ -257,17 +291,41 @@ export function TelaProdutos({ usuario }: Props) {
 
       {podeEditar && <ImportacaoProdutos aoImportar={() => void carregar()} />}
 
-      <form className="filtros" onSubmit={buscarProdutos}>
+      {/* A busca reage à digitação (T26). O formulário continua existindo só
+          para o Enter no campo não recarregar a página. */}
+      <form className="filtros" onSubmit={(evento) => evento.preventDefault()}>
         <div className="campo">
-          <label htmlFor="busca">Buscar por nome ou código</label>
-          <input
-            id="busca"
-            name="busca"
-            value={termoDigitado}
-            onChange={(evento) => setTermoDigitado(evento.target.value)}
-          />
+          {/* O indicador fica na linha do rótulo: ao lado da caixa, aparecer e
+              sumir a cada busca mudaria a largura dela. */}
+          <div className="rotulo-com-contador">
+            <label htmlFor="busca">Buscar por nome ou código</label>
+            {carregando && produtos !== null && (
+              <span className="indicador-carregando" role="status">
+                Carregando…
+              </span>
+            )}
+          </div>
+          <div className="campo-com-limpar">
+            <input
+              id="busca"
+              name="busca"
+              ref={campoBusca}
+              maxLength={TAMANHO_MAXIMO_BUSCA}
+              value={termoDigitado}
+              onChange={(evento) => setTermoDigitado(evento.target.value)}
+            />
+            {termoDigitado && (
+              <button
+                type="button"
+                className="botao-limpar-busca"
+                aria-label="Limpar busca"
+                onClick={limparBusca}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-        <button type="submit">Buscar</button>
         <label className="caixa-selecao">
           <input
             type="checkbox"
@@ -287,8 +345,8 @@ export function TelaProdutos({ usuario }: Props) {
         </p>
       )}
 
-      {carregando ? (
-        <p role="status">Carregando produtos…</p>
+      {produtos === null ? (
+        carregando && <p role="status">Carregando produtos…</p>
       ) : produtos.length === 0 ? (
         <p>Nenhum produto encontrado.</p>
       ) : (

@@ -1703,3 +1703,47 @@ preferiu manter o texto da tarefa a usar um texto neutro.
 **Achado: Contas de acesso (T22) tem o mesmo problema.** Nome (máx. 120), E-mail (máx. 200) e
 Senha (máx. 200) não têm `maxLength` na tela, e a recusa sai genérica. Anotado no backlog, sem
 correção nesta tarefa.
+
+## 2026-10-20 — Busca em tempo real no Catálogo de produtos (T26)
+
+**Contexto.** A busca do Catálogo só disparava no botão **Buscar**, e apagar o campo não
+voltava à lista completa até um novo clique.
+
+**Decisões.** As quatro da tarefa estão justificadas em `tasks/T26-busca-tempo-real-catalogo.md`:
+
+1. **A busca continua no servidor** (`GET /produtos?busca=`). O backend não mudou.
+2. **Atraso de 300 ms após a última tecla**, no hook `frontend/src/hooks/useValorComAtraso.ts`,
+   que T28 vai reaproveitar. O termo passa pelo `trim()` antes do atraso: espaço a mais não gera
+   consulta nova, e campo só com espaços é a lista completa.
+3. **Resposta fora de ordem é ignorada, não cancelada.** Cada chamada de `carregar` recebe um
+   número, e só a mais recente mexe na tela (lista, erro e indicador). A tarefa deixava aberto
+   entre `AbortController` e ignorar; ignorar foi escolhido porque `carregar` também é chamado
+   depois de cadastrar, inativar e importar, e o número cobre essas chamadas igual. O
+   `AbortController` exigiria ainda distinguir o cancelamento da falha de rede, já que
+   `requisitarApi` converte qualquer rejeição do `fetch` em `SEM_RESPOSTA`.
+4. **Termo novo volta à página 1**, ajustado durante a renderização e não num efeito: num
+   efeito, sairia antes uma consulta com o termo novo e a página antiga.
+
+**Decisões do orientando.**
+
+- **Botão × de limpar**, opcional na tarefa: implementado como botão próprio (não o × nativo de
+  `type="search"`, que o Firefox não mostra). Aparece só com texto no campo, e devolve o foco a
+  ele.
+- **`maxLength={120}` no campo de busca**, espelhando o `maxLength` de `busca` no schema da
+  listagem. Com a busca disparando sozinha, o 121º caractere viraria a recusa genérica de campo
+  inválido.
+
+**Detalhes de implementação.**
+
+- **A tabela não some durante a busca.** `produtos` começa `null` e só a primeira carga mostra
+  "Carregando produtos…". Depois dela, a lista anterior fica na tela, e um "Carregando…" discreto
+  aparece na linha do rótulo da busca. Na primeira versão o indicador ficava ao lado da caixa,
+  e o navegador mostrou a caixa encolhendo e voltando a cada busca; na linha do rótulo, como o
+  contador de T25, a largura não muda. Isso vale também para paginação, filtro de inativos e as
+  recargas depois de cadastrar ou inativar.
+- **Falha na primeira carga** deixa de mostrar "Nenhum produto encontrado." embaixo do erro:
+  sem lista carregada, a tela mostra só o erro.
+- **Enter** continua preso no `onSubmit` do formulário, que só faz `preventDefault`. O campo
+  é o único de texto do formulário, então o Enter submeteria e recarregaria a página.
+- **Testes.** O relógio falso do Vitest fica ligado só no trecho que digita e avança o atraso:
+  o `findBy` do Testing Library usa `setTimeout` real para terminar e trava com o relógio falso.
