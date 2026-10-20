@@ -8,7 +8,7 @@ export default defineConfig({
     // RNF07 — instalabilidade e comportamento offline previsível.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'apple-touch-icon.png'],
+      includeAssets: ['icone.svg', 'favicon.png', 'apple-touch-icon.png'],
       workbox: {
         // T19b — os handlers de `push` e `notificationclick` entram por
         // importação, e não trocando o `generateSW` por um `injectManifest`:
@@ -46,8 +46,12 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#ffffff',
-        theme_color: '#0f766e',
+        // As duas cores repetem tokens de `src/estilos.css` (T35): o fundo da
+        // página (`--cor-fundo`), para a tela de abertura emendar no app, e a
+        // barra do topo (`--cor-barra`), para a barra de status do celular
+        // continuar a do app. O manifest é JSON e não lê variável CSS.
+        background_color: '#f3f4f6',
+        theme_color: '#115e59',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

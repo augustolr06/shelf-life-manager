@@ -191,7 +191,7 @@ export function NotificacoesDoAparelho() {
   }
 
   return (
-    <section className="notificacoes-do-aparelho">
+    <section className="cartao notificacoes-do-aparelho">
       <h3>Notificações neste aparelho</h3>
 
       {estado.situacao === 'verificando' && <p role="status">Verificando este aparelho…</p>}
@@ -219,6 +219,7 @@ export function NotificacoesDoAparelho() {
             abrir o sistema.
           </p>
           <button
+            aria-busy={ocupado}
             type="button"
             disabled={ocupado}
             onClick={() => void ativar(estado.chavePublica)}
@@ -233,7 +234,12 @@ export function NotificacoesDoAparelho() {
           <p className="nota-informativa">
             Este aparelho recebe as notificações das janelas com canal push ou ambos.
           </p>
-          <button type="button" disabled={ocupado} onClick={() => void desativar(estado.endpoint)}>
+          <button
+            type="button"
+            aria-busy={ocupado}
+            disabled={ocupado}
+            onClick={() => void desativar(estado.endpoint)}
+          >
             {ocupado ? 'Desativando…' : 'Desativar notificações'}
           </button>
         </>

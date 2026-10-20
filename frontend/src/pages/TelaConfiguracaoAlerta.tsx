@@ -140,7 +140,7 @@ export function TelaConfiguracaoAlerta() {
   }
 
   return (
-    <section className="tela-configuracao-alerta">
+    <section className="tela tela-configuracao-alerta">
       <h2>Alertas de vencimento próximo</h2>
       <p className="subtitulo">
         Quantos dias antes do vencimento o sistema deve avisar. O número depende do giro do
@@ -160,7 +160,7 @@ export function TelaConfiguracaoAlerta() {
 
       <NotificacoesDoAparelho />
 
-      <form className="formulario-configuracao-alerta" onSubmit={cadastrar}>
+      <form className="cartao formulario-linha" onSubmit={cadastrar}>
         <h3>Nova janela de antecedência</h3>
 
         <div className="campo">
@@ -196,7 +196,7 @@ export function TelaConfiguracaoAlerta() {
           </select>
         </div>
 
-        <button type="submit" disabled={salvando}>
+        <button type="submit" aria-busy={salvando} disabled={salvando}>
           {salvando ? 'Salvando…' : 'Adicionar janela'}
         </button>
       </form>
@@ -266,7 +266,7 @@ export function TelaConfiguracaoAlerta() {
                       </div>
 
                       <button type="submit">Salvar</button>
-                      <button type="button" onClick={() => setEdicao(null)}>
+                      <button type="button" className="secundario" onClick={() => setEdicao(null)}>
                         Cancelar
                       </button>
                     </form>

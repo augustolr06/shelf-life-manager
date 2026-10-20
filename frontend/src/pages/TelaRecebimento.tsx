@@ -101,14 +101,14 @@ export function TelaRecebimento() {
     produto !== null && linhas.length > 0 && linhas.every((linha) => linha.dataValidade !== '')
 
   return (
-    <section className="tela-recebimento">
+    <section className="tela tela-recebimento">
       <h2>Registrar recebimento</h2>
       <p className="subtitulo">
         Cada unidade recebe um código próprio. Unidades do mesmo produto podem ter validades
         diferentes — adicione uma linha por validade.
       </p>
 
-      <form className="formulario-recebimento" onSubmit={registrar}>
+      <form className="cartao formulario-coluna" onSubmit={registrar}>
         <SeletorProduto valor={produto} aoEscolher={setProduto} />
 
         <fieldset className="validades">
@@ -161,13 +161,13 @@ export function TelaRecebimento() {
 
         <p className="resumo-lote">Total: {totalUnidades} unidade(s) neste recebimento.</p>
 
-        <button type="submit" disabled={!podeEnviar || enviando}>
+        <button type="submit" aria-busy={enviando} disabled={!podeEnviar || enviando}>
           {enviando ? 'Registrando…' : 'Registrar recebimento'}
         </button>
       </form>
 
       {recebido && (
-        <section className="resultado-recebimento" aria-live="polite">
+        <section className="cartao resultado-recebimento" aria-live="polite">
           <h3>{recebido.resultado.unidades.length} unidade(s) cadastrada(s)</h3>
 
           {recebido.resultado.avisos.map((aviso) => (

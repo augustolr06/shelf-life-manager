@@ -60,7 +60,7 @@ export function ImportacaoProdutos({ aoImportar }: Props) {
   }
 
   return (
-    <form className="formulario-produto importacao-produtos" onSubmit={importar}>
+    <form className="cartao formulario-linha importacao-produtos" onSubmit={importar}>
       <h3>Importar produtos de planilha</h3>
 
       <p className="explicacao">
@@ -82,7 +82,7 @@ export function ImportacaoProdutos({ aoImportar }: Props) {
         />
       </div>
 
-      <button type="submit" disabled={!arquivo || enviando}>
+      <button type="submit" aria-busy={enviando} disabled={!arquivo || enviando}>
         {enviando ? 'Importando…' : 'Importar'}
       </button>
 

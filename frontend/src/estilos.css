@@ -1,20 +1,206 @@
-/* Estilos globais da aplicação. Enxutos de propósito: o sistema é operado em
-   celular no balcão da loja, então o que importa é alvo de toque grande e
-   contraste alto, não identidade visual. */
+/* Estilos globais da aplicação. O sistema é operado em celular no balcão da
+   loja, então alvo de toque grande e contraste alto vêm antes de identidade
+   visual — mas, desde T35, a partir de uma base única: os tokens abaixo e os
+   componentes base logo depois deles. Telas novas usam o que já existe aqui
+   antes de criar valor próprio.
 
+   CSS próprio com variáveis, sem framework (decisão de T35 em
+   `docs/decisoes.md`). Nenhuma cor fica fora do `:root`. */
+
+/* ==========================================================================
+   Tokens
+   ==========================================================================
+
+   As cores são nomeadas por **papel** (`--cor-fundo`, `--cor-texto`), e não
+   por tom (`--cinza-100`): um modo escuro, se vier, redefine só este bloco.
+
+   Paleta semântica. Cada tom tem três cores: `-fundo` (área), `-texto` (texto
+   sobre o fundo do mesmo tom) e `-forte` (borda de destaque, e fundo de
+   distintivo com texto branco). Contraste conferido em T35 (WCAG AA pede 4,5:1
+   para texto normal):
+
+     tom       texto sobre -fundo     branco sobre -forte
+     sucesso   #065f46/#ecfdf5 7,29   #047857 5,48
+     atencao   #92400e/#fffbeb 6,84   #b45309 5,02
+     perigo    #991b1b/#fee2e2 6,80   #b91c1c 6,47
+     inativo   #4b5563/#f3f4f6 6,87   #4b5563 7,56
+     vencido   #5b21b6/#f5f3ff 8,19   #6d28d9 7,10
+
+   E os pares de uso geral: texto #1f2937 sobre o fundo da página 13,34;
+   texto suave #4b5563 sobre o fundo da página 6,87 (era #6b7280, com 4,39 —
+   abaixo do AA, e é a cor de todo `.subtitulo`); branco sobre a primária
+   5,47; primária sobre branco 5,47.
+
+   `vencido` não está entre os quatro tons do escopo de T35: é o roxo que o
+   sistema já usava para a unidade vencida (balcão, fila de descarte, alerta
+   que não funcionou), e virou token para não ser valor solto. Quando e onde
+   ele aparece é regra de T38. */
 :root {
+  /* Superfícies, texto e bordas */
+  --cor-fundo: #f3f4f6;
+  --cor-superficie: #ffffff;
+  --cor-superficie-suave: #f9fafb;
+  --cor-texto: #1f2937;
+  --cor-texto-suave: #4b5563;
+  --cor-texto-inverso: #ffffff;
+  --cor-borda: #d1d5db;
+  /* Borda de campo de formulário: 4,83:1 sobre branco. A `--cor-borda`, com
+     1,5:1, deixava a caixa do campo quase invisível ao sol do balcão. */
+  --cor-borda-campo: #6b7280;
+  --cor-foco: #1d4ed8;
+  --cor-veu: rgb(0 0 0 / 45%);
+
+  /* Marca */
   --cor-primaria: #0f766e;
   --cor-primaria-escura: #115e59;
-  --cor-texto: #1f2937;
-  --cor-texto-suave: #6b7280;
-  --cor-borda: #d1d5db;
-  --cor-fundo: #f3f4f6;
-  --cor-erro: #b91c1c;
-  --cor-erro-fundo: #fee2e2;
+  --cor-primaria-suave: #f0fdfa;
+  /* A barra do topo. É também o `theme_color` do manifest do PWA
+     (`vite.config.ts`) e o fundo do ícone: a barra de status do celular
+     continua a barra do app. */
+  --cor-barra: #115e59;
+  /* O traço claro do ícone, repetido no nome do app na barra. */
+  --cor-acento: #5eead4;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Semânticas — ver tabela de contraste acima */
+  --cor-sucesso-fundo: #ecfdf5;
+  --cor-sucesso-texto: #065f46;
+  --cor-sucesso-forte: #047857;
+  --cor-atencao-fundo: #fffbeb;
+  --cor-atencao-texto: #92400e;
+  --cor-atencao-forte: #b45309;
+  --cor-perigo-fundo: #fee2e2;
+  --cor-perigo-texto: #991b1b;
+  --cor-perigo-forte: #b91c1c;
+  --cor-inativo-fundo: #f3f4f6;
+  --cor-inativo-texto: #4b5563;
+  --cor-inativo-forte: #4b5563;
+  --cor-vencido-fundo: #f5f3ff;
+  --cor-vencido-texto: #5b21b6;
+  --cor-vencido-forte: #6d28d9;
+
+  /* Impressão de etiquetas: papel branco, guia de corte cinza, texto preto */
+  --cor-papel: #ffffff;
+  --cor-impressao-texto: #000000;
+  --cor-impressao-guia: #999999;
+
+  /* Tipografia. Cinco tamanhos, nomeados pelo uso. */
+  --fonte-base: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fonte-mono: ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+  --tamanho-legenda: 0.75rem;
+  --tamanho-apoio: 0.875rem;
+  --tamanho-corpo: 1rem;
+  --tamanho-titulo: 1.25rem;
+  --tamanho-destaque: 1.75rem;
+  --peso-normal: 400;
+  --peso-forte: 600;
+  --peso-destaque: 700;
+  --altura-linha: 1.5;
+
+  /* Espaçamento: 4, 8, 12, 16, 24 e 32 px */
+  --espaco-1: 0.25rem;
+  --espaco-2: 0.5rem;
+  --espaco-3: 0.75rem;
+  --espaco-4: 1rem;
+  --espaco-5: 1.5rem;
+  --espaco-6: 2rem;
+
+  /* Raio, sombra e alvo de toque */
+  --raio-pequeno: 0.375rem;
+  --raio-medio: 0.5rem;
+  --raio-grande: 0.75rem;
+  --raio-pilula: 999px;
+  --sombra-cartao: 0 1px 2px rgb(0 0 0 / 6%);
+  --sombra-flutuante: 0 4px 12px rgb(0 0 0 / 12%);
+  --sombra-dialogo: 0 10px 30px rgb(0 0 0 / 25%);
+  /* 44 px, o mínimo de alvo de toque. Vale para todo botão, inclusive os de
+     linha de tabela, que até T35 tinham 36 px. */
+  --alvo-toque: 2.75rem;
+
+  /* Tom corrente. Quem não declara tom fica neutro; as classes de tom logo
+     abaixo trocam as três variáveis de uma vez. */
+  --tom-fundo: var(--cor-superficie-suave);
+  --tom-texto: var(--cor-texto-suave);
+  --tom-forte: var(--cor-borda-campo);
+
+  font-family: var(--fonte-base);
+  line-height: var(--altura-linha);
   color: var(--cor-texto);
 }
+
+/* ==========================================================================
+   Tons semânticos
+   ==========================================================================
+
+   Uma classe de tom só define `--tom-fundo`, `--tom-texto` e `--tom-forte`;
+   o componente decide onde usar cada um (fundo de aviso, faixa lateral de
+   cartão, fundo de distintivo). As classes de domínio entram na lista do tom
+   que representam, para que o significado de cada cor fique escrito num lugar
+   só. T38 aplica `tom-*` onde faltar destaque. */
+.tom-sucesso,
+.nota-sucesso,
+.distintivo-sucesso,
+.resultado-confirmar {
+  --tom-fundo: var(--cor-sucesso-fundo);
+  --tom-texto: var(--cor-sucesso-texto);
+  --tom-forte: var(--cor-sucesso-forte);
+}
+
+/* O bloqueio de FIFO é o comportamento central do sistema, não um erro: tom de
+   atenção, não de perigo. O alerta proativo também: ainda dá tempo. */
+.tom-atencao,
+.nota-atencao,
+.distintivo,
+.resultado-bloqueio,
+.item-com-pendencia,
+.alerta {
+  --tom-fundo: var(--cor-atencao-fundo);
+  --tom-texto: var(--cor-atencao-texto);
+  --tom-forte: var(--cor-atencao-forte);
+}
+
+.tom-perigo,
+.erro,
+.aviso,
+.distintivo-perigo,
+.resultado-erro,
+.resultado-override,
+.bloqueio-offline,
+.marca-override,
+.faixa-vencida {
+  --tom-fundo: var(--cor-perigo-fundo);
+  --tom-texto: var(--cor-perigo-texto);
+  --tom-forte: var(--cor-perigo-forte);
+}
+
+/* Reconhecido, inativo ou só informativo: continua na tela, mas para de
+   disputar atenção. */
+.tom-inativo,
+.nota-informativa,
+.distintivo-inativo,
+.alerta.lido,
+.linha-inativa {
+  --tom-fundo: var(--cor-inativo-fundo);
+  --tom-texto: var(--cor-inativo-texto);
+  --tom-forte: var(--cor-inativo-forte);
+}
+
+/* A unidade vencida, vista de cada lugar do sistema: o resultado do balcão,
+   o descarte que a resolveu, a fila do gestor e o alerta que não chegou a
+   tempo. É perda consumada, e por isso tem cor própria. */
+.tom-vencido,
+.distintivo-vencido,
+.resultado-vencido,
+.resultado-descarte,
+.pendente,
+.alerta.vencido {
+  --tom-fundo: var(--cor-vencido-fundo);
+  --tom-texto: var(--cor-vencido-texto);
+  --tom-forte: var(--cor-vencido-forte);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
@@ -25,459 +211,31 @@ body {
   background: var(--cor-fundo);
 }
 
-button {
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  border: none;
-  border-radius: 0.375rem;
-  background: var(--cor-primaria);
-  color: #fff;
-  font-size: 1rem;
-  cursor: pointer;
+/* Controles de formulário não herdam a fonte do documento por padrão; sem
+   isto, botões e campos saíam numa fonte diferente do texto em volta. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
 }
 
-button:hover:not(:disabled) {
-  background: var(--cor-primaria-escura);
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-input {
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.375rem;
-  font-size: 1rem;
-}
-
-.tela-carregando,
-.tela-login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 1rem;
-}
-
-.tela-carregando {
-  color: var(--cor-texto-suave);
-}
-
-.cartao {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 24rem;
-  padding: 2rem;
-  border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
-}
-
-.cartao h1 {
-  margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.3;
-}
-
-.subtitulo {
-  margin: 0 0 0.5rem;
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
-
-.cartao label {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.cartao button {
-  margin-top: 1rem;
-}
-
-.erro,
-.aviso {
-  margin: 0.5rem 0 0;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.375rem;
-  background: var(--cor-erro-fundo);
-  color: var(--cor-erro);
-  font-size: 0.875rem;
-}
-
-.aviso {
-  margin: 0;
-  border-radius: 0;
-  text-align: center;
-}
-
-.barra-topo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: #fff;
-  border-bottom: 1px solid var(--cor-borda);
-}
-
-.barra-topo h1 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.identidade {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--cor-texto-suave);
-}
-
-.aplicacao > main {
-  padding: 1rem;
-}
-
-.tela-produtos h2 {
-  margin: 0 0 1rem;
-  font-size: 1.125rem;
-}
-
-.formulario-produto,
-.formulario-configuracao-alerta,
-.filtros {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--cor-borda);
-}
-
-.formulario-produto h3,
-.formulario-configuracao-alerta h3 {
-  width: 100%;
-  margin: 0;
-  font-size: 1rem;
-}
-
-.campo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 10rem;
-  flex: 1 1 10rem;
-}
-
-.campo label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.formulario-produto .erro,
-.formulario-configuracao-alerta .erro {
-  width: 100%;
-}
-
-/* Limite de caracteres do cadastro de produto (T25). O contador fica sempre à
-   vista, na linha do rótulo; o aviso de colagem cortada e a recusa do servidor
-   ficam embaixo do campo a que se referem. Como só o campo com mensagem
-   cresce, o formulário alinha pelo topo — alinhado pela base, o campo com
-   mensagem empurraria a caixa dos outros para baixo. O botão desce a altura
-   da linha do rótulo para ficar na linha das caixas. */
-.cadastro-produto {
-  --altura-rotulo: 1rem;
-  align-items: flex-start;
-}
-
-.cadastro-produto > button {
-  margin-top: calc(var(--altura-rotulo) + 0.25rem);
-}
-
-.rotulo-com-contador {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.5rem;
-  line-height: var(--altura-rotulo);
-}
-
-.contador-caracteres {
-  font-size: 0.75rem;
-  color: var(--cor-texto-suave);
-}
-
-.campo .nota-informativa,
-.campo .erro {
-  margin: 0;
-}
-
-/* Importação do catálogo por planilha (T24). O resultado pode ser uma lista
-   longa — códigos pulados ou linhas a corrigir —, então ocupa a largura toda e
-   rola dentro de si em vez de empurrar o catálogo para baixo da tela. */
-.importacao-produtos .explicacao {
-  width: 100%;
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--cor-texto-suave);
-}
-
-.importacao-produtos .nota-sucesso,
-.importacao-produtos .erro {
-  width: 100%;
-  max-height: 16rem;
-  overflow-y: auto;
-}
-
-.importacao-produtos .nota-sucesso p,
-.importacao-produtos .erro p {
-  margin: 0;
-}
-
-.importacao-produtos ul {
-  margin: 0.375rem 0 0;
-  padding-left: 1.25rem;
-}
-
-.caixa-selecao {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-}
-
-.caixa-selecao input {
-  min-height: auto;
-  width: 1rem;
-  height: 1rem;
-}
-
-/* Busca em tempo real do catálogo (T26). O × de limpar fica dentro da caixa,
-   à direita, e o campo reserva o espaço dele para não cobrir o texto. O
-   indicador de carregamento é só texto suave na linha do rótulo: a lista
-   anterior continua na tela enquanto a nova não chega. */
-.campo-com-limpar {
-  position: relative;
-  display: flex;
-}
-
-.campo-com-limpar input {
-  flex: 1;
-  min-width: 0;
-  padding-right: 2.75rem;
-}
-
-.botao-limpar-busca {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 2.75rem;
-  padding: 0;
-  background: transparent;
-  color: var(--cor-texto-suave);
-  font-size: 1.25rem;
-}
-
-.botao-limpar-busca:hover:not(:disabled) {
-  background: transparent;
-  color: var(--cor-texto);
-}
-
-.indicador-carregando {
-  font-size: 0.75rem;
-  color: var(--cor-texto-suave);
-}
-
-/* Seletor de produto com filtro (T28). A lista abre logo abaixo da caixa,
-   por cima do que vem depois, e rola dentro de si: com 20 itens de duas
-   linhas, ocuparia a tela do celular inteira. Ela se ancora na caixa, e não
-   no `.campo`, que em formulário de coluna (Recebimento) é mais alto que o
-   que tem dentro. */
-.seletor-produto-caixa {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-.seletor-produto-lista {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  margin-top: 0.25rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.375rem;
-  background: #fff;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
-}
-
-.seletor-produto-lista[hidden] {
-  display: none;
-}
-
-.seletor-produto-lista ul {
-  max-height: 18rem;
-  overflow-y: auto;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.seletor-produto-opcao {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-height: 2.75rem;
-  justify-content: center;
-  padding: 0.375rem 0.75rem;
-  cursor: pointer;
-}
-
-.seletor-produto-opcao.destacada {
-  background: var(--cor-fundo);
-}
-
-.seletor-produto-opcao.escolhida .seletor-produto-nome {
+a {
   color: var(--cor-primaria);
 }
 
-.seletor-produto-nome {
-  font-weight: 600;
+a:hover {
+  color: var(--cor-primaria-escura);
 }
 
-.seletor-produto-detalhe {
-  font-size: 0.8125rem;
-  color: var(--cor-texto-suave);
-}
-
-.seletor-produto-situacao p {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--cor-texto-suave);
-}
-
-.seletor-produto-situacao:empty {
-  display: none;
-}
-
-.seletor-produto-lista ul:not(:empty) + .seletor-produto-situacao:not(:empty) {
-  border-top: 1px solid var(--cor-borda);
-}
-
-.seletor-produto-erro {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.seletor-produto-erro button.secundario {
-  align-self: auto;
-  min-height: 2.25rem;
-  background: #fff;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  font-size: 0.875rem;
-}
-
-caption {
-  padding: 0.5rem 0;
-  color: var(--cor-texto-suave);
-  font-size: 0.8125rem;
-  text-align: left;
-}
-
-th,
-td {
-  padding: 0.625rem 0.75rem;
-  border-bottom: 1px solid var(--cor-borda);
-  text-align: left;
-}
-
-th {
-  background: #f9fafb;
-  font-size: 0.8125rem;
-}
-
-.linha-inativa {
-  color: var(--cor-texto-suave);
-}
-
-td button {
-  min-height: 2.25rem;
-  font-size: 0.8125rem;
-}
-
-/* Paginação das listas (T27). O alvo de toque continua o de 2.75rem de todo
-   botão; os números só ficam mais estreitos. A `.paginacao` é contêiner para
-   o modo compacto depender da largura que ela tem, e não da tela: no Dashboard
-   ela fica dentro de um `.bloco-painel`, mais estreito que as outras listas. */
-.paginacao {
-  container-type: inline-size;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.paginacao-numeros {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.paginacao-numeros button,
-.paginacao-atual {
-  min-width: 2.75rem;
-  padding: 0 0.5rem;
-}
-
-/* Os números no estilo de `button.secundario`, para a atual se destacar. */
-.paginacao-numeros button {
-  background: transparent;
-  color: var(--cor-primaria);
-  border: 1px solid var(--cor-borda);
-}
-
-.paginacao-numeros button:hover:not(:disabled) {
-  background: var(--cor-fundo);
-}
-
-.paginacao-atual {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-height: 2.75rem;
-  border-radius: 0.375rem;
-  background: var(--cor-primaria);
-  color: #fff;
-  font-weight: 600;
-}
-
-.paginacao-compacta {
-  display: none;
-  min-width: 4.5rem;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+/* Foco visível em tudo que é interativo, igual em toda tela. Só no foco por
+   teclado (`:focus-visible`): o toque no celular não deixa anel para trás.
+   O `:where` mantém a especificidade zero, para que um componente possa
+   ajustar o deslocamento. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--cor-foco);
+  outline-offset: 2px;
 }
 
 /* Fora da vista, não do leitor de tela. */
@@ -488,6 +246,654 @@ td button {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* ==========================================================================
+   Componentes base
+   ========================================================================== */
+
+/* --- Botão ---------------------------------------------------------------
+   Sem classe, o botão é o primário. Variantes: `secundario` (contorno),
+   `perigo` (ação destrutiva — quem aplica é T38) e `fantasma` (sem caixa,
+   para ação de apoio). `aria-busy="true"` é o estado carregando: a tela já
+   troca o rótulo ("Salvando…") e desabilita o botão; o atributo acrescenta o
+   indicador girando e avisa o leitor de tela. */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
+  min-height: var(--alvo-toque);
+  padding: 0 var(--espaco-4);
+  border: 1px solid transparent;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-primaria);
+  color: var(--cor-texto-inverso);
+  font-size: var(--tamanho-corpo);
+  font-weight: var(--peso-forte);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--cor-primaria-escura);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+button[aria-busy='true'] {
+  cursor: progress;
+}
+
+button[aria-busy='true']::before {
+  content: '';
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button[aria-busy='true']::before {
+    animation: none;
+  }
+}
+
+button.secundario {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-primaria);
+}
+
+button.secundario:hover:not(:disabled) {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria-escura);
+}
+
+button.perigo {
+  background: var(--cor-perigo-forte);
+}
+
+button.perigo:hover:not(:disabled) {
+  background: var(--cor-perigo-texto);
+}
+
+button.fantasma {
+  background: transparent;
+  color: var(--cor-primaria);
+}
+
+button.fantasma:hover:not(:disabled) {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria-escura);
+}
+
+/* --- Campo de formulário -------------------------------------------------
+   `.campo` agrupa rótulo, controle, ajuda (`.ajuda`), erro (`.erro`) e, quando
+   houver limite, o contador de caracteres na linha do rótulo (T25). */
+input,
+select,
+textarea {
+  min-height: var(--alvo-toque);
+  border: 1px solid var(--cor-borda-campo);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  font-size: var(--tamanho-corpo);
+}
+
+input {
+  padding: 0 var(--espaco-3);
+}
+
+select {
+  padding: 0 var(--espaco-2);
+}
+
+textarea {
+  padding: var(--espaco-2) var(--espaco-3);
+  resize: vertical;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--cor-inativo-fundo);
+  color: var(--cor-texto-suave);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+  min-width: 10rem;
+  flex: 1 1 10rem;
+}
+
+.campo label {
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+.campo .ajuda,
+.campo small {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.campo .nota-informativa,
+.campo .erro {
+  margin: 0;
+}
+
+.rotulo-com-contador {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--espaco-2);
+  line-height: var(--altura-rotulo, var(--altura-linha));
+}
+
+.contador-caracteres,
+.indicador-carregando {
+  font-size: var(--tamanho-legenda);
+  color: var(--cor-texto-suave);
+}
+
+.caixa-selecao {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  /* O rótulo inteiro é a área de clique da caixinha. */
+  min-height: var(--alvo-toque);
+  font-size: var(--tamanho-apoio);
+}
+
+.caixa-selecao input,
+input[type='checkbox'],
+input[type='radio'] {
+  min-height: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--cor-primaria);
+}
+
+/* --- Formulário ----------------------------------------------------------
+   Dois arranjos. `formulario-linha`: campos lado a lado, que quebram linha
+   quando não cabem, e o botão alinhado pela base das caixas (filtros,
+   cadastro de produto). `formulario-coluna`: um campo por linha, para
+   formulário mais longo ou de senha. */
+.formulario-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espaco-3);
+}
+
+.formulario-coluna {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--espaco-4);
+  max-width: 40rem;
+}
+
+/* Em coluna, o `.campo` não pode crescer: o `flex: 1 1 10rem` dele viraria
+   10rem de altura, e abria um vão embaixo da caixa (era o caso do produto, no
+   Recebimento). */
+.formulario-coluna .campo {
+  flex: 0 0 auto;
+}
+
+.formulario-coluna > button {
+  align-self: flex-start;
+}
+
+/* Mais de um botão ao pé do formulário: lado a lado, o principal primeiro. */
+.acoes-formulario {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+.formulario-linha > h3,
+.formulario-linha > .erro,
+.formulario-linha > .explicacao {
+  width: 100%;
+}
+
+/* --- Cartão --------------------------------------------------------------
+   A superfície branca de tudo que agrupa: formulários, resultados, blocos do
+   painel, itens das filas. Só a superfície — o arranjo de dentro é de quem
+   usa. Com um tom, ganha a faixa lateral da cor dele (`cartao-faixa`). */
+.cartao {
+  margin: 0 0 var(--espaco-4);
+  padding: var(--espaco-4);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-medio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-cartao);
+}
+
+.cartao h3 {
+  margin: 0 0 var(--espaco-2);
+  font-size: var(--tamanho-corpo);
+}
+
+.cartao-faixa,
+.resultado,
+.pendente,
+.alerta {
+  border-left: 6px solid var(--tom-forte);
+}
+
+/* --- Aviso inline --------------------------------------------------------
+   Para o que não virou toast (T29): erro de campo, falha ao carregar a tela,
+   relatório da planilha, explicação de estado. Um aviso por tom; `.erro` é o
+   de perigo, e mantém o nome curto porque é o mais usado. */
+.erro,
+.nota-sucesso,
+.nota-atencao,
+.nota-informativa {
+  margin: var(--espaco-2) 0 0;
+  padding: var(--espaco-2) var(--espaco-3);
+  border-left: 3px solid var(--tom-forte);
+  border-radius: var(--raio-pequeno);
+  background: var(--tom-fundo);
+  color: var(--tom-texto);
+  font-size: var(--tamanho-apoio);
+}
+
+.nota-informativa {
+  margin: 0 0 var(--espaco-4);
+}
+
+/* Faixa de largura total acima da tela de login: o servidor não respondeu à
+   verificação da sessão. */
+.aviso {
+  margin: 0;
+  padding: var(--espaco-2) var(--espaco-3);
+  background: var(--tom-fundo);
+  color: var(--tom-texto);
+  font-size: var(--tamanho-apoio);
+  text-align: center;
+}
+
+/* --- Distintivo ----------------------------------------------------------
+   Contagem ou situação em pílula. O padrão é de atenção (o contador de
+   alertas não lidos); `distintivo-sucesso`, `-perigo`, `-inativo` e
+   `-vencido` trocam o tom. */
+.distintivo {
+  display: inline-block;
+  margin-left: var(--espaco-2);
+  padding: 0 var(--espaco-2);
+  min-width: 1.25rem;
+  border-radius: var(--raio-pilula);
+  background: var(--tom-forte);
+  color: var(--cor-texto-inverso);
+  font-size: var(--tamanho-legenda);
+  font-weight: var(--peso-forte);
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+/* --- Tabela -------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--cor-superficie);
+  font-size: var(--tamanho-apoio);
+}
+
+caption {
+  padding: var(--espaco-2) 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  text-align: left;
+}
+
+th,
+td {
+  padding: var(--espaco-2) var(--espaco-3);
+  border-bottom: 1px solid var(--cor-borda);
+  text-align: left;
+}
+
+th {
+  background: var(--cor-superficie-suave);
+  font-weight: var(--peso-forte);
+}
+
+td button {
+  font-size: var(--tamanho-apoio);
+}
+
+/* Botões lado a lado na coluna "Ações". */
+td button + button {
+  margin-left: var(--espaco-2);
+}
+
+.linha-inativa {
+  color: var(--tom-texto);
+}
+
+/* --- Lista de dados ------------------------------------------------------
+   Rótulo à esquerda, valor à direita: os dados de uma unidade no balcão, no
+   carrinho, na fila e no histórico. */
+.dados-unidade {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--espaco-1) var(--espaco-3);
+  margin: 0;
+  font-size: var(--tamanho-apoio);
+}
+
+.dados-unidade dt {
+  color: var(--cor-texto-suave);
+}
+
+.dados-unidade dd {
+  margin: 0;
+}
+
+/* ==========================================================================
+   Estrutura da aplicação
+   ========================================================================== */
+
+.tela-carregando,
+.tela-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--espaco-4);
+}
+
+.tela-carregando {
+  color: var(--cor-texto-suave);
+}
+
+.cartao-login {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-2);
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--espaco-6);
+  border-radius: var(--raio-grande);
+}
+
+.cartao-login h1 {
+  margin: 0;
+  font-size: var(--tamanho-titulo);
+  line-height: 1.3;
+}
+
+.cartao-login label {
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+.cartao-login button {
+  margin-top: var(--espaco-4);
+}
+
+/* A barra do topo leva a cor da marca: é a identidade mínima do app, e a
+   mesma cor do `theme_color`, que pinta a barra de status do celular com o
+   PWA instalado. */
+.barra-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  padding: var(--espaco-2) var(--espaco-4);
+  background: var(--cor-barra);
+  color: var(--cor-texto-inverso);
+}
+
+.barra-topo h1 {
+  margin: 0;
+  font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-destaque);
+  letter-spacing: 0.01em;
+}
+
+.barra-topo h1 span {
+  color: var(--cor-acento);
+}
+
+.identidade {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  font-size: var(--tamanho-apoio);
+}
+
+/* Sobre a barra escura, o botão vira contorno claro, e o anel de foco também:
+   o azul do foco não aparece sobre o verde-escuro. */
+.barra-topo button {
+  background: transparent;
+  border-color: var(--cor-texto-inverso);
+  color: var(--cor-texto-inverso);
+}
+
+.barra-topo button:hover:not(:disabled) {
+  background: var(--cor-primaria);
+}
+
+.barra-topo :focus-visible {
+  outline-color: var(--cor-texto-inverso);
+}
+
+/* Navegação entre telas. Virou link em T10, quando cada tela ganhou URL
+   própria — antes eram botões trocando estado no App. */
+.abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-1);
+  padding: 0 var(--espaco-4);
+  background: var(--cor-superficie);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.aba {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--espaco-3);
+  min-height: var(--alvo-toque);
+  border-bottom: 3px solid transparent;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  text-decoration: none;
+}
+
+.aba:hover {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.aba.ativa {
+  color: var(--cor-primaria);
+  border-bottom-color: var(--cor-primaria);
+  font-weight: var(--peso-forte);
+}
+
+/* O anel de foco por dentro da aba: por fora, ele cobriria a vizinha. */
+.aba:focus-visible {
+  outline-offset: -3px;
+}
+
+.aplicacao > main {
+  padding: var(--espaco-4);
+}
+
+/* Cabeçalho de toda tela: título e, quando houver, a frase que explica para
+   que ela serve. */
+.tela h2 {
+  margin: 0 0 var(--espaco-1);
+  font-size: var(--tamanho-titulo);
+}
+
+.subtitulo {
+  margin: 0 0 var(--espaco-2);
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.tela > .subtitulo,
+.controles-etiquetas > .subtitulo {
+  max-width: 42rem;
+  margin-bottom: var(--espaco-4);
+}
+
+/* ==========================================================================
+   Toasts (T29) — a biblioteca (`sonner`) expõe as cores em variáveis; aqui
+   elas passam a vir dos tokens. O `:root` na frente ganha da especificidade
+   do tema claro dela, que é injetado em tempo de execução.
+   ========================================================================== */
+:root [data-sonner-toaster][data-sonner-theme] {
+  --normal-bg: var(--cor-superficie);
+  --normal-border: var(--cor-borda);
+  --normal-text: var(--cor-texto);
+  --success-bg: var(--cor-sucesso-fundo);
+  --success-border: var(--cor-sucesso-forte);
+  --success-text: var(--cor-sucesso-texto);
+  --info-bg: var(--cor-inativo-fundo);
+  --info-border: var(--cor-inativo-forte);
+  --info-text: var(--cor-inativo-texto);
+  --warning-bg: var(--cor-atencao-fundo);
+  --warning-border: var(--cor-atencao-forte);
+  --warning-text: var(--cor-atencao-texto);
+  --error-bg: var(--cor-perigo-fundo);
+  --error-border: var(--cor-perigo-forte);
+  --error-text: var(--cor-perigo-texto);
+  --border-radius: var(--raio-medio);
+  font-family: var(--fonte-base);
+}
+
+:root [data-sonner-toaster] [data-sonner-toast][data-styled='true'] {
+  font-size: var(--tamanho-apoio);
+  box-shadow: var(--sombra-flutuante);
+}
+
+/* O × de fechar herda o alvo de toque de todo botão sem este ajuste, e
+   ficaria maior que o próprio toast. */
+:root [data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  min-height: 0;
+  padding: 0;
+}
+
+/* ==========================================================================
+   Diálogo (T30, reaproveitado em T39). O `<dialog>` nativo já centraliza e
+   fica acima de tudo; aqui só cartão, fundo escurecido e largura de celular.
+   ========================================================================== */
+.dialogo {
+  width: calc(100% - 2rem);
+  max-width: 24rem;
+  /* O espaço interno fica no `.dialogo-conteudo`: assim o clique no próprio
+     `<dialog>` é sempre clique no fundo (T39). */
+  padding: 0;
+  border: none;
+  border-radius: var(--raio-grande);
+  color: var(--cor-texto);
+  box-shadow: var(--sombra-dialogo);
+}
+
+.dialogo-conteudo {
+  padding: var(--espaco-5);
+}
+
+.dialogo::backdrop {
+  background: var(--cor-veu);
+}
+
+.dialogo h2 {
+  margin: 0 0 var(--espaco-2);
+  font-size: var(--tamanho-titulo);
+}
+
+.dialogo p {
+  margin: 0;
+}
+
+.dialogo-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espaco-2);
+  margin-top: var(--espaco-5);
+}
+
+/* ==========================================================================
+   Paginação das listas (T27). O alvo de toque continua o de todo botão; os
+   números só ficam mais estreitos. A `.paginacao` é contêiner para o modo
+   compacto depender da largura que ela tem, e não da tela: no Dashboard ela
+   fica dentro de um `.bloco-painel`, mais estreito que as outras listas.
+   ========================================================================== */
+.paginacao {
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+  margin-top: var(--espaco-4);
+}
+
+.paginacao-numeros {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paginacao-numeros button,
+.paginacao-atual {
+  min-width: var(--alvo-toque);
+  padding: 0 var(--espaco-2);
+}
+
+/* Os números no estilo de `button.secundario`, com borda neutra, para a atual
+   se destacar. */
+.paginacao-numeros button {
+  background: var(--cor-superficie);
+  color: var(--cor-primaria);
+  border-color: var(--cor-borda);
+}
+
+.paginacao-numeros button:hover:not(:disabled) {
+  background: var(--cor-primaria-suave);
+}
+
+.paginacao-atual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--alvo-toque);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-primaria);
+  color: var(--cor-texto-inverso);
+  font-weight: var(--peso-forte);
+}
+
+.paginacao-compacta {
+  display: none;
+  min-width: 4.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Pouco espaço: só ‹ [6 / 35] ›. O texto de Anterior e Próxima sai da vista,
@@ -514,88 +920,204 @@ td button {
   }
 }
 
-/* Navegação entre telas. Virou link em T10, quando cada tela ganhou URL
-   própria — antes eram botões trocando estado no App. */
-.abas {
+/* ==========================================================================
+   Busca em tempo real do catálogo (T26). O × de limpar fica dentro da caixa,
+   à direita, e o campo reserva o espaço dele para não cobrir o texto. O
+   indicador de carregamento é só texto suave na linha do rótulo: a lista
+   anterior continua na tela enquanto a nova não chega.
+   ========================================================================== */
+.campo-com-limpar {
+  position: relative;
   display: flex;
-  gap: 0.25rem;
-  padding: 0 1rem;
-  background: #fff;
-  border-bottom: 1px solid var(--cor-borda);
 }
 
-.aba {
-  display: flex;
-  align-items: center;
-  padding: 0 1rem;
-  min-height: 2.75rem;
-  border-radius: 0;
+.campo-com-limpar input {
+  flex: 1;
+  min-width: 0;
+  padding-right: var(--alvo-toque);
+}
+
+.botao-limpar-busca {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--alvo-toque);
+  padding: 0;
   background: transparent;
   color: var(--cor-texto-suave);
-  border-bottom: 3px solid transparent;
-  font-size: 0.9375rem;
-  text-decoration: none;
+  font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-normal);
 }
 
-.aba:hover {
-  background: var(--cor-fundo);
+.botao-limpar-busca:hover:not(:disabled) {
+  background: transparent;
+  color: var(--cor-texto);
 }
 
-.aba.ativa {
-  color: var(--cor-primaria);
-  border-bottom-color: var(--cor-primaria);
-  font-weight: 600;
+.botao-limpar-busca:focus-visible {
+  outline-offset: -3px;
 }
 
-/* Recebimento de mercadoria (RF03). */
-.tela-recebimento h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1.125rem;
-}
-
-.tela-recebimento > .subtitulo {
-  max-width: 42rem;
-}
-
-.formulario-recebimento {
+/* ==========================================================================
+   Seletor de produto com filtro (T28). A lista abre logo abaixo da caixa,
+   por cima do que vem depois, e rola dentro de si: com 20 itens de duas
+   linhas, ocuparia a tela do celular inteira. Ela se ancora na caixa, e não
+   no `.campo`.
+   ========================================================================== */
+.seletor-produto-caixa {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--cor-borda);
 }
 
-.formulario-recebimento small {
+.seletor-produto-lista {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin-top: var(--espaco-1);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-flutuante);
+}
+
+.seletor-produto-lista[hidden] {
+  display: none;
+}
+
+.seletor-produto-lista ul {
+  max-height: 18rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seletor-produto-opcao {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  min-height: var(--alvo-toque);
+  padding: var(--espaco-1) var(--espaco-3);
+  cursor: pointer;
+}
+
+/* A opção destacada pelo teclado ou pelo ponteiro: é o foco da lista, que
+   não sai da caixa de texto (`aria-activedescendant`). */
+.seletor-produto-opcao.destacada {
+  background: var(--cor-primaria-suave);
+  box-shadow: inset 3px 0 0 var(--cor-primaria);
+}
+
+.seletor-produto-opcao.escolhida .seletor-produto-nome {
+  color: var(--cor-primaria);
+}
+
+.seletor-produto-nome {
+  font-weight: var(--peso-forte);
+}
+
+.seletor-produto-detalhe {
+  font-size: var(--tamanho-apoio);
   color: var(--cor-texto-suave);
-  font-size: 0.8125rem;
 }
 
-select {
-  min-height: 2.75rem;
-  padding: 0 0.5rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.375rem;
-  background: #fff;
-  font-size: 1rem;
+.seletor-produto-situacao p {
+  margin: 0;
+  padding: var(--espaco-2) var(--espaco-3);
+  font-size: var(--tamanho-apoio);
+  color: var(--cor-texto-suave);
 }
 
+.seletor-produto-situacao:empty {
+  display: none;
+}
+
+.seletor-produto-lista ul:not(:empty) + .seletor-produto-situacao:not(:empty) {
+  border-top: 1px solid var(--cor-borda);
+}
+
+.seletor-produto-erro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+}
+
+/* ==========================================================================
+   Catálogo de produtos (T04, T24, T25)
+   ========================================================================== */
+
+/* Limite de caracteres do cadastro de produto (T25). O contador fica sempre à
+   vista, na linha do rótulo; o aviso de colagem cortada e a recusa do servidor
+   ficam embaixo do campo a que se referem. Como só o campo com mensagem
+   cresce, o formulário alinha pelo topo — alinhado pela base, o campo com
+   mensagem empurraria a caixa dos outros para baixo. O botão desce a altura
+   da linha do rótulo para ficar na linha das caixas. */
+.cadastro-produto {
+  --altura-rotulo: 1.3125rem;
+  align-items: flex-start;
+}
+
+.cadastro-produto > button {
+  margin-top: calc(var(--altura-rotulo) + var(--espaco-1));
+}
+
+/* Importação do catálogo por planilha (T24). O resultado pode ser uma lista
+   longa — códigos pulados ou linhas a corrigir —, então ocupa a largura toda e
+   rola dentro de si em vez de empurrar o catálogo para baixo da tela. */
+.importacao-produtos .explicacao {
+  margin: 0;
+  font-size: var(--tamanho-apoio);
+  color: var(--cor-texto-suave);
+}
+
+.importacao-produtos .nota-sucesso,
+.importacao-produtos .erro {
+  width: 100%;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.importacao-produtos .nota-sucesso p,
+.importacao-produtos .erro p {
+  margin: 0;
+}
+
+.importacao-produtos ul {
+  margin: var(--espaco-2) 0 0;
+  padding-left: var(--espaco-5);
+}
+
+/* O seletor de arquivo do navegador não tem a altura de um campo de texto. */
+.importacao-produtos input[type='file'] {
+  padding: var(--espaco-2) var(--espaco-3);
+}
+
+/* ==========================================================================
+   Recebimento de mercadoria (RF03)
+   ========================================================================== */
 .validades {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
   margin: 0;
-  padding: 0.75rem 1rem 1rem;
+  padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);
   border: 1px solid var(--cor-borda);
-  border-radius: 0.5rem;
+  border-radius: var(--raio-medio);
 }
 
 .validades legend {
-  padding: 0 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+  padding: 0 var(--espaco-2);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+.validades > button {
+  align-self: flex-start;
 }
 
 /* Uma linha por validade: é a variação de validade dentro de uma mesma
@@ -604,7 +1126,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
 }
 
 .campo-quantidade {
@@ -612,64 +1134,42 @@ select {
   min-width: 7rem;
 }
 
-button.secundario {
-  background: transparent;
-  color: var(--cor-primaria);
-  border: 1px solid var(--cor-borda);
-  align-self: flex-end;
-}
-
-button.secundario:hover:not(:disabled) {
-  background: var(--cor-fundo);
-}
-
 .resumo-lote {
   margin: 0;
   color: var(--cor-texto-suave);
-  font-size: 0.875rem;
+  font-size: var(--tamanho-apoio);
 }
 
 .resultado-recebimento h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
+  margin: 0 0 var(--espaco-1);
+  font-size: var(--tamanho-corpo);
 }
 
-/* Leitura de QR no balcão (RF05, RF06). A tela é operada com uma mão só,
-   segurando um frasco na outra: alvo de toque grande e resultado legível de
-   relance vêm antes de qualquer refinamento visual. */
-.tela-leitura h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1.125rem;
-}
-
-.tela-leitura > .subtitulo {
-  max-width: 42rem;
-}
-
+/* ==========================================================================
+   Venda e consulta no balcão (RF05, RF06, T32, T34). A tela é operada com uma
+   mão só, segurando um frasco na outra: alvo de toque grande e resultado
+   legível de relance vêm antes de qualquer refinamento visual.
+   ========================================================================== */
 .atendimento,
-.camera,
 .entrada-manual {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--cor-borda);
+  gap: var(--espaco-3);
 }
 
 .atendimento p {
   flex: 1 1 16rem;
   margin: 0;
   color: var(--cor-texto-suave);
-  font-size: 0.875rem;
+  font-size: var(--tamanho-apoio);
 }
 
 .camera {
+  display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: var(--espaco-3);
 }
 
 .leitor-camera {
@@ -678,100 +1178,67 @@ button.secundario:hover:not(:disabled) {
   align-self: center;
 }
 
-.camera .erro {
-  width: 100%;
-}
-
 .area-resultado {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
   align-items: flex-start;
 }
 
-.resultado {
+.area-resultado > .cartao {
   width: 100%;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--cor-borda);
-  border-left-width: 6px;
+  margin: 0;
 }
 
+/* O veredito: cartão com a faixa lateral do tom (ver "Tons semânticos").
+   Sem tom — a consulta de unidade dentro da validade —, a faixa é neutra. */
 .resultado h3 {
-  margin: 0 0 0.375rem;
-  font-size: 1.0625rem;
+  margin: 0 0 var(--espaco-2);
+  font-size: var(--tamanho-titulo);
 }
 
 .resultado p {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--espaco-2);
 }
 
-.resultado-confirmar {
-  border-left-color: var(--cor-primaria);
-}
-
-/* O bloqueio é o comportamento central do sistema, não um erro: cor de aviso,
-   não de falha. */
-.resultado-bloqueio {
-  border-left-color: #b45309;
-  background: #fffbeb;
-}
-
-.resultado-vencido {
-  border-left-color: #7c3aed;
-}
-
-.resultado-erro {
-  border-left-color: var(--cor-erro);
+/* O bloqueio e a pendência do carrinho pintam o fundo, além da faixa: é o
+   desfecho que pede que a atendente pare e procure outro frasco. */
+.resultado-bloqueio,
+.item-com-pendencia {
+  background: var(--tom-fundo);
 }
 
 /* O que a atendente vai procurar na prateleira é o maior elemento da tela. */
 .codigo-correto {
-  margin: 0.25rem 0 0.75rem;
-  font-size: 1.75rem;
-  font-weight: 700;
+  margin: var(--espaco-1) 0 var(--espaco-3);
+  font-size: var(--tamanho-destaque);
+  font-weight: var(--peso-destaque);
   letter-spacing: 0.05em;
 }
 
 .comparacao {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--espaco-4);
 }
 
 .comparacao > div {
   flex: 1 1 12rem;
 }
 
-.comparacao h4 {
-  margin: 0 0 0.25rem;
-  font-size: 0.8125rem;
+.comparacao h4,
+.caminhos-excecao h4 {
+  margin: 0 0 var(--espaco-1);
+  font-size: var(--tamanho-legenda);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--cor-texto-suave);
 }
 
-.dados-unidade {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.125rem 0.75rem;
-  margin: 0;
-  font-size: 0.875rem;
-}
-
-.dados-unidade dt {
-  color: var(--cor-texto-suave);
-}
-
-.dados-unidade dd {
-  margin: 0;
-}
-
 .tentativas {
-  margin: 0.75rem 0 0;
+  margin: var(--espaco-3) 0 0;
   color: var(--cor-texto-suave);
-  font-size: 0.8125rem;
+  font-size: var(--tamanho-apoio);
 }
 
 /* Carrinho do atendimento (T34). Fica abaixo do resultado, e também abaixo
@@ -782,31 +1249,26 @@ button.secundario:hover:not(:disabled) {
 }
 
 .resultado .vendidas {
-  margin: 0 0 0.5rem;
-  padding-left: 1.25rem;
+  margin: 0 0 var(--espaco-2);
+  padding-left: var(--espaco-5);
 }
 
 .carrinho {
-  margin-top: 1rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: #fff;
-  border: 1px solid var(--cor-borda);
+  margin-top: var(--espaco-4);
 }
 
 .carrinho h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.0625rem;
+  font-size: var(--tamanho-titulo);
 }
 
 .carrinho .contagem {
   color: var(--cor-texto-suave);
-  font-weight: 400;
+  font-weight: var(--peso-normal);
 }
 
 .itens-carrinho {
   list-style: none;
-  margin: 0 0 1rem;
+  margin: 0 0 var(--espaco-4);
   padding: 0;
 }
 
@@ -815,8 +1277,8 @@ button.secundario:hover:not(:disabled) {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding: 0.75rem 0;
+  gap: var(--espaco-2) var(--espaco-4);
+  padding: var(--espaco-3) 0;
   border-bottom: 1px solid var(--cor-borda);
 }
 
@@ -824,82 +1286,77 @@ button.secundario:hover:not(:disabled) {
   flex: 1 1 14rem;
 }
 
-/* O item que a confirmação não vendeu: mesma cor de aviso do bloqueio, porque
-   quase sempre é o FIFO mudando entre a leitura e a confirmação. */
+/* O item que a confirmação não vendeu: mesmo tom de atenção do bloqueio,
+   porque quase sempre é o FIFO mudando entre a leitura e a confirmação. */
 .item-com-pendencia {
-  padding: 0.75rem;
-  border-left: 4px solid #b45309;
-  background: #fffbeb;
+  padding: var(--espaco-3);
+  border-left: 4px solid var(--tom-forte);
 }
 
 .pendencia {
   flex: 1 1 100%;
   order: 1;
-  font-size: 0.875rem;
+  font-size: var(--tamanho-apoio);
 }
 
 .pendencia p {
-  margin: 0 0 0.375rem;
+  margin: 0 0 var(--espaco-2);
 }
 
 .acoes-carrinho {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
 }
 
 /* Sem conexão não há leitura: o veredito depende do estoque inteiro do
    produto naquele instante, e isso mora no servidor (RNF07). */
 .bloqueio-offline {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background: var(--cor-erro-fundo);
-  border: 1px solid var(--cor-erro);
-  color: var(--cor-erro);
+  padding: var(--espaco-4);
+  border: 1px solid var(--tom-forte);
+  border-radius: var(--raio-medio);
+  background: var(--tom-fundo);
+  color: var(--tom-texto);
 }
 
 .bloqueio-offline h3 {
-  margin: 0 0 0.375rem;
-  font-size: 1rem;
+  margin: 0 0 var(--espaco-2);
+  font-size: var(--tamanho-corpo);
 }
 
 .bloqueio-offline p {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--espaco-3);
 }
 
 /* Os três caminhos da unidade vencida (PRD 6.1, T12). A ordem visual é a do
    PRD: correção, descarte e — por último, atrás de um passo a mais — o
    override, que não é o botão primário da tela. */
 .caminhos-excecao {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
+  margin-top: var(--espaco-4);
+  padding-top: var(--espaco-3);
   border-top: 1px solid var(--cor-borda);
 }
 
 .caminhos-excecao h4 {
-  margin: 0 0 0.75rem;
-  font-size: 0.8125rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--cor-texto-suave);
+  margin-bottom: var(--espaco-3);
 }
 
 .caminho {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--espaco-2);
+  margin-bottom: var(--espaco-4);
 }
 
 .caminho h5 {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--tamanho-corpo);
 }
 
 .caminho p {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--tamanho-apoio);
   color: var(--cor-texto-suave);
 }
 
@@ -915,7 +1372,7 @@ button.secundario:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: var(--espaco-2);
   width: 100%;
 }
 
@@ -923,142 +1380,125 @@ button.secundario:hover:not(:disabled) {
    também visual. */
 .caminho-override {
   margin-bottom: 0;
-  padding-top: 0.75rem;
+  padding-top: var(--espaco-3);
   border-top: 1px dashed var(--cor-borda);
 }
 
-.aviso-override {
-  color: var(--cor-erro);
+.caminho .aviso-override {
+  color: var(--cor-perigo-texto);
 }
 
-textarea {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.375rem;
-  font-family: inherit;
-  font-size: 1rem;
-  resize: vertical;
-}
-
-/* Desfechos terminais: a unidade saiu do estoque por um dos dois caminhos. */
-.resultado-descarte {
-  border-left-color: #7c3aed;
-}
-
-.resultado-override {
-  border-left-color: var(--cor-erro);
-}
-
-/* Desfecho bom precisa de cor própria: `.erro` e `.aviso` são ambos vermelhos,
-   e um descarte concluído exibido em vermelho lê-se como falha. */
-.nota-sucesso {
-  margin: 0.5rem 0 0;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.375rem;
-  background: #ecfdf5;
-  color: var(--cor-primaria-escura);
-  font-size: 0.875rem;
-}
-
-/* Fila de descarte pendente (RF11, T13). Lista longa, lida em pé na
-   prateleira: cada unidade é um cartão inteiro, não uma linha de tabela. */
-.tela-descartes h2 {
-  margin: 0 0 0.25rem;
-}
-
-.tela-descartes > .subtitulo {
-  margin: 0 0 1rem;
-}
-
-.resumo-fila {
-  margin: 0 0 0.75rem;
+/* ==========================================================================
+   Fila de descarte pendente (RF11, T13) e alertas (RF08, T19). Lista longa,
+   lida em pé na prateleira: cada unidade é um cartão inteiro, não uma linha de
+   tabela. A faixa lateral é a do tom (vencido na fila, atenção no alerta).
+   ========================================================================== */
+.resumo-fila,
+.resumo-alertas {
+  margin: 0 0 var(--espaco-3);
   color: var(--cor-texto-suave);
-  font-size: 0.875rem;
+  font-size: var(--tamanho-apoio);
 }
 
-.fila-descarte {
+.fila-descarte,
+.lista-alertas {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
 }
 
-.pendente {
-  border: 1px solid var(--cor-borda);
-  /* A mesma cor de `.resultado-vencido`: é a mesma unidade vencida, vista
-     do painel do gestor em vez do balcão. */
-  border-left: 4px solid #7c3aed;
-  border-radius: 0.5rem;
-  padding: 0.875rem 1rem;
-  background: #fff;
-}
-
-.pendente h3 {
+.fila-descarte > .cartao,
+.lista-alertas > .cartao {
   margin: 0;
-  font-size: 1rem;
 }
 
-.pendente > .dados-pendente > .subtitulo {
-  margin: 0.125rem 0 0.5rem;
+.pendente h3,
+.alerta h3 {
+  margin: 0;
 }
 
-/* O alvo de toque precisa dar conta de uma mão só, com o frasco na outra. */
+.dados-pendente > .subtitulo,
+.dados-alerta > .subtitulo {
+  margin: 0 0 var(--espaco-2);
+}
+
 .pendente > button {
-  margin-top: 0.75rem;
-  min-height: 2.75rem;
+  margin-top: var(--espaco-3);
 }
 
-/* Folha de etiquetas para impressão (RF04, T15). É a única parte do sistema
-   dimensionada em milímetros: o resto é tela, aqui é papel — e o milímetro é
-   o que decide se a câmera lê o símbolo colado no frasco (RNF08). */
-.tela-etiquetas h2 {
-  margin: 0 0 0.25rem;
+.filtro-alertas {
+  margin: 0 0 var(--espaco-3);
 }
 
-.controles-etiquetas > .subtitulo {
-  margin: 0 0 1rem;
+.alerta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--espaco-3);
 }
 
+.alerta.lido {
+  background: var(--cor-superficie-suave);
+}
+
+.nota-vencida {
+  margin: var(--espaco-2) 0 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.marca-lido {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+/* ==========================================================================
+   Folha de etiquetas para impressão (RF04, T15). É a única parte do sistema
+   dimensionada em milímetros, e por isso fora da escala de espaçamento e de
+   tamanhos: o resto é tela, aqui é papel — e o milímetro é o que decide se a
+   câmera lê o símbolo colado no frasco (RNF08).
+   ========================================================================== */
 .resumo-folha {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
-  margin: 0 0 1rem;
-  font-size: 0.9375rem;
+  gap: var(--espaco-3);
+  margin: 0 0 var(--espaco-4);
 }
 
 .opcoes-impressao {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: var(--espaco-4);
+  margin-bottom: var(--espaco-4);
 }
 
 .tamanhos {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: var(--espaco-2) var(--espaco-3);
   border: 1px solid var(--cor-borda);
-  border-radius: 0.5rem;
-  background: #fff;
+  border-radius: var(--raio-medio);
+  background: var(--cor-superficie);
 }
 
 .tamanhos legend {
-  padding: 0 0.25rem;
-  font-size: 0.8125rem;
+  padding: 0 var(--espaco-1);
+  font-size: var(--tamanho-apoio);
   color: var(--cor-texto-suave);
 }
 
 .tamanhos label {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.9375rem;
+  gap: var(--espaco-1);
+  min-height: var(--alvo-toque);
 }
 
 /* A grade se organiza pela largura da etiqueta: trocar o tamanho do símbolo
@@ -1080,7 +1520,7 @@ textarea {
   padding: 1mm;
   border: 1px dashed var(--cor-borda);
   border-radius: 1mm;
-  background: #fff;
+  background: var(--cor-papel);
   text-align: center;
   /* Papel comum, recortado à mão — a etiqueta não pode nascer partida entre
      duas páginas. */
@@ -1110,21 +1550,23 @@ textarea {
 
 .codigo-etiqueta {
   margin: 0.5mm 0 0;
-  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+  font-family: var(--fonte-mono);
   font-size: 2.6mm;
+  line-height: 1.2;
   letter-spacing: 0.02em;
 }
 
 .validade-etiqueta {
   margin: 0;
   font-size: 2.4mm;
+  line-height: 1.2;
   color: var(--cor-texto);
 }
 
 .rodape-folha {
-  margin-top: 0.75rem;
+  margin-top: var(--espaco-3);
   color: var(--cor-texto-suave);
-  font-size: 0.75rem;
+  font-size: var(--tamanho-legenda);
 }
 
 /* O que vai ao papel é a folha, e só ela. Navegação, seletores e botões são
@@ -1135,7 +1577,7 @@ textarea {
   }
 
   body {
-    background: #fff;
+    background: var(--cor-papel);
   }
 
   .barra-topo,
@@ -1155,40 +1597,22 @@ textarea {
     /* Fundo colorido não ajuda a câmera e gasta tinta; a guia de corte fica,
        porque é ela que orienta a tesoura. */
     background: transparent;
-    border-color: #999;
+    border-color: var(--cor-impressao-guia);
   }
 
   .rodape-folha {
     /* Sai impresso de propósito: T16 precisa saber de qual tamanho é a folha
        que aprovou ou reprovou (RNF08). */
-    color: #000;
+    color: var(--cor-impressao-texto);
   }
 }
 
-/* Configuração da janela de antecedência (RF08, T17). Tela de parâmetro, não
-   de frasco: formulário mais denso que as de balcão, ainda em alvo de toque de
-   celular — a gestora usa o mesmo aparelho. */
-.tela-configuracao-alerta h2 {
-  margin: 0 0 0.25rem;
-  font-size: 1.125rem;
-}
-
-.tela-configuracao-alerta > .subtitulo {
-  margin: 0 0 1rem;
-}
-
-/* Informação neutra, e é por isso que não usa `.aviso`: ele é vermelho como o
-   `.erro` (ver `.nota-sucesso`), e "o job ainda não existe" não é falha da
-   ação que o gestor acabou de fazer. */
-.nota-informativa {
-  margin: 0 0 1rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.375rem;
-  border-left: 3px solid var(--cor-borda);
-  background: #f9fafb;
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
+/* ==========================================================================
+   Configuração da janela de antecedência (RF08, T17) e notificações do
+   aparelho (T19b). Tela de parâmetro, não de frasco: formulário mais denso que
+   as de balcão, ainda em alvo de toque de celular — a gestora usa o mesmo
+   aparelho.
+   ========================================================================== */
 
 /* A linha em edição ocupa a largura da tabela: são dois campos e dois botões,
    e espremê-los nas colunas da linha normal encolheria o alvo de toque. */
@@ -1196,176 +1620,35 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem;
+  gap: var(--espaco-3);
 }
 
-/* Alertas proativos entregues ao gestor (RF08, T19). Mesma anatomia de cartão
-   da fila de descarte: é a mesma leitura em pé, com o frasco na mão. */
-.tela-alertas h2 {
-  margin: 0 0 0.25rem;
+.edicao-configuracao button + button {
+  margin-left: 0;
 }
 
-.tela-alertas > .subtitulo {
-  margin: 0 0 1rem;
-}
-
-.filtro-alertas {
-  margin: 0 0 0.75rem;
-  font-size: 0.9375rem;
-}
-
-.filtro-alertas label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  /* Alvo de toque: o alternador é caixa de seleção pequena, e o rótulo
-     inteiro precisa valer como área de clique. */
-  min-height: 2.75rem;
-}
-
-.resumo-alertas {
-  margin: 0 0 0.75rem;
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
-
-.lista-alertas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.alerta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  border: 1px solid var(--cor-borda);
-  /* Âmbar: ainda dá tempo. É a cor do "decida agora", distinta do roxo do
-     vencido, que é perda consumada. */
-  border-left: 4px solid #d97706;
-  border-radius: 0.5rem;
-  padding: 0.875rem 1rem;
-  background: #fff;
-}
-
-/* Reconhecido: continua na lista, mas para de disputar atenção. */
-.alerta.lido {
-  border-left-color: var(--cor-borda);
-  background: var(--cor-fundo);
-}
-
-/* O aviso que não funcionou — a unidade venceu depois de emitido. Mesma cor
-   da fila de descarte (T13) e do resultado vencido do balcão: é a mesma
-   unidade, vista de mais um lugar. */
-.alerta.vencido {
-  border-left-color: #7c3aed;
-}
-
-.alerta h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.alerta > .dados-alerta > .subtitulo {
-  margin: 0.125rem 0 0.5rem;
-}
-
-.nota-vencida {
-  margin: 0.5rem 0 0;
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
-
-.acoes-alerta > button {
-  min-height: 2.75rem;
-}
-
-.marca-lido {
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
-
-/* Contador de não lidos na navegação. Pequeno e ao lado do rótulo: é sinal de
-   que há algo a ver, não um segundo rótulo. */
-.distintivo {
-  margin-left: 0.375rem;
-  padding: 0 0.375rem;
-  min-width: 1.25rem;
-  border-radius: 999px;
-  background: #d97706;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.25rem;
-  text-align: center;
-}
-
-/* Bloco "Neste aparelho" da configuração de alertas (T19b). Separado do resto
-   da tela por borda, e não por cor: o que está acima vale para a loja inteira,
-   e o que está aqui vale só para o navegador que está na mão de quem lê. */
+/* O bloco "Neste aparelho" é outro cartão, e não outra cor: o que está acima
+   vale para a loja inteira, e o que está aqui vale só para o navegador que
+   está na mão de quem lê. */
 .notificacoes-do-aparelho {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.5rem;
+  margin: var(--espaco-5) 0;
 }
 
-.notificacoes-do-aparelho h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-}
-
-.notificacoes-do-aparelho > button {
-  /* Alvo de toque no celular, como os botões da tela de alertas. */
-  min-height: 2.75rem;
-}
-
-/* Dashboard (RF13, T21). O painel é leitura, não operação: nenhum controle
+/* ==========================================================================
+   Dashboard (RF13, T21). O painel é leitura, não operação: nenhum controle
    aqui muda o estoque, e por isso ele é o lugar mais sóbrio do sistema — sem
-   cor de urgência além da que já distingue vencida do resto. */
-.tela-dashboard h2 {
-  margin-top: 0;
-}
-
-/* O período vale para os dois blocos de uma vez, e por isso fica acima deles,
-   e não dentro de nenhum. */
-.seletor-periodo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: flex-end;
-}
-
-.seletor-periodo .campo {
-  margin: 0;
-}
-
+   cor de urgência além da que já distingue vencida do resto.
+   ========================================================================== */
 .bloco-painel {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: 0.5rem;
-}
-
-.bloco-painel h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
+  margin: var(--espaco-5) 0;
 }
 
 .bloco-painel > .subtitulo {
   margin-top: 0;
 }
 
-.indicador-destaque {
-  font-size: 1rem;
-}
-
 .indicador-destaque strong {
-  font-size: 2rem;
+  font-size: var(--tamanho-destaque);
   line-height: 1.2;
 }
 
@@ -1373,7 +1656,7 @@ textarea {
    as cinco linhas fiquem alinhadas mesmo com nomes de comprimentos diferentes. */
 .grafico-faixas {
   list-style: none;
-  margin: 1rem 0;
+  margin: var(--espaco-4) 0;
   padding: 0;
 }
 
@@ -1381,8 +1664,8 @@ textarea {
   display: grid;
   grid-template-columns: minmax(10rem, 14rem) 1fr auto;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0;
+  gap: var(--espaco-3);
+  padding: var(--espaco-1) 0;
 }
 
 .rotulo-faixa {
@@ -1392,18 +1675,18 @@ textarea {
 .barra-faixa {
   display: block;
   height: 1.25rem;
-  border-radius: 0.25rem;
+  border-radius: var(--espaco-1);
   background: var(--cor-primaria);
 }
 
 /* A única faixa com cor própria: é a que representa prejuízo já consumado. */
 .faixa-vencida .barra-faixa {
-  background: var(--cor-erro);
+  background: var(--tom-forte);
 }
 
 .valor-faixa {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--peso-forte);
   min-width: 3ch;
   text-align: right;
 }
@@ -1417,33 +1700,38 @@ textarea {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
-  margin: 1rem 0;
+  gap: var(--espaco-5);
+  margin: var(--espaco-4) 0;
   padding: 0;
 }
 
-.indicador {
+.indicador,
+.lado-confronto {
   display: flex;
   flex-direction: column;
+}
+
+.indicador {
   min-width: 10rem;
 }
 
 .valor-indicador {
-  font-size: 1.75rem;
-  font-weight: 600;
+  font-size: var(--tamanho-destaque);
+  font-weight: var(--peso-forte);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
-.rotulo-indicador {
+.rotulo-indicador,
+.versus {
   color: var(--cor-texto-suave);
 }
 
 /* A ressalva do indicador fica colada nele, e não num rodapé: quem lê a taxa
    precisa ler a limitação junto (T20, `docs/notas-para-artigo.md`). */
 .nota-indicador {
-  margin-top: 0.25rem;
-  font-size: 0.8125rem;
+  margin-top: var(--espaco-1);
+  font-size: var(--tamanho-apoio);
   color: var(--cor-texto-suave);
 }
 
@@ -1452,41 +1740,18 @@ textarea {
 .confronto-fifo {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding-top: 1rem;
+  gap: var(--espaco-5);
+  padding-top: var(--espaco-4);
   border-top: 1px solid var(--cor-borda);
 }
 
-.lado-confronto {
-  display: flex;
-  flex-direction: column;
-}
-
-.versus {
-  color: var(--cor-texto-suave);
-}
-
 .filtro-historico {
-  margin: 0.5rem 0 1rem;
-}
-
-/* Mesmo alvo de toque do filtro da tela de alertas: a caixa de seleção é
-   pequena, e o rótulo inteiro precisa valer como área de clique. */
-.filtro-historico label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-}
-
-.filtro-historico input {
-  width: 1rem;
-  height: 1rem;
-  min-height: auto;
+  margin: var(--espaco-2) 0 var(--espaco-2);
 }
 
 .resumo-historico {
   color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
 }
 
 .lista-saidas {
@@ -1496,31 +1761,33 @@ textarea {
 }
 
 .saida {
-  padding: 0.75rem 0;
+  padding: var(--espaco-3) 0;
   border-top: 1px solid var(--cor-borda);
 }
 
 .saida h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--tamanho-corpo);
 }
 
 .marca-fifo {
   color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
 }
 
 /* A venda autorizada de unidade vencida é a exceção do sistema (PRD 6.1) e
    aparece marcada no histórico — é o que dá corpo ao item "overrides
    autorizados" da RF13. */
 .marca-override {
-  padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--cor-erro);
-  background: var(--cor-erro-fundo);
-  border-radius: 0.25rem;
+  margin-top: var(--espaco-2);
+  padding: var(--espaco-2) var(--espaco-3);
+  border-left: 3px solid var(--tom-forte);
+  border-radius: var(--espaco-1);
+  background: var(--tom-fundo);
 }
 
 .marca-override p {
-  margin: 0.25rem 0;
+  margin: var(--espaco-1) 0;
 }
 
 .marca-override .justificativa {
@@ -1529,43 +1796,4 @@ textarea {
 
 .marca-override .autorizador {
   color: var(--cor-texto-suave);
-}
-
-/* Diálogo modal (T30, reaproveitado em T39). O `<dialog>` nativo já centraliza
-   e fica acima de tudo; aqui só cartão, fundo escurecido e largura de celular. */
-.dialogo {
-  width: calc(100% - 2rem);
-  max-width: 24rem;
-  /* O espaço interno fica no `.dialogo-conteudo`: assim o clique no próprio
-     `<dialog>` é sempre clique no fundo (T39). */
-  padding: 0;
-  border: none;
-  border-radius: 0.75rem;
-  color: var(--cor-texto);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 25%);
-}
-
-.dialogo-conteudo {
-  padding: 1.5rem;
-}
-
-.dialogo::backdrop {
-  background: rgb(0 0 0 / 45%);
-}
-
-.dialogo h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.125rem;
-}
-
-.dialogo p {
-  margin: 0;
-}
-
-.dialogo-acoes {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
 }

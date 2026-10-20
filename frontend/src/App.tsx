@@ -352,7 +352,11 @@ function Aplicacao() {
   return (
     <div className="aplicacao">
       <header className="barra-topo">
-        <h1>Controle de Estoque FIFO por Validade</h1>
+        {/* O nome curto do manifest do PWA (T35). O nome inteiro fica na tela
+            de login e no título da aba. */}
+        <h1>
+          Estoque <span>FIFO</span>
+        </h1>
         <div className="identidade">
           <span>
             {usuario.nome} — {rotuloPapel(usuario.papel)}

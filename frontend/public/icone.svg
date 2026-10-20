@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ícone do app (T35). Fundo em sangria total, na cor da barra do topo
+       (token cor-barra de estilos.css), para servir também de ícone maskable:
+       o desenho fica dentro do círculo central de 80% que o Android preserva
+       ao recortar. Três frascos na prateleira; o primeiro, no acento (token
+       cor-acento), é o que vence primeiro e por isso sai primeiro. -->
+  <rect width="512" height="512" fill="#115e59"/>
+  <g fill="#5eead4">
+    <rect x="144" y="160" width="32" height="48" rx="6"/>
+    <rect x="124" y="196" width="72" height="170" rx="14"/>
+  </g>
+  <g fill="#ffffff">
+    <rect x="240" y="160" width="32" height="48" rx="6"/>
+    <rect x="220" y="196" width="72" height="170" rx="14"/>
+    <rect x="336" y="160" width="32" height="48" rx="6"/>
+    <rect x="316" y="196" width="72" height="170" rx="14"/>
+  </g>
+</svg>

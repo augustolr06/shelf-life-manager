@@ -174,10 +174,10 @@ export function TelaUsuarios({ usuario }: Props) {
   }
 
   return (
-    <section className="tela-usuarios">
+    <section className="tela tela-usuarios">
       <h2>Contas de acesso</h2>
 
-      <form className="formulario-usuario" onSubmit={cadastrar}>
+      <form className="cartao formulario-coluna" onSubmit={cadastrar}>
         <h3>Criar conta</h3>
 
         <div className="campo">
@@ -238,7 +238,7 @@ export function TelaUsuarios({ usuario }: Props) {
           />
         </div>
 
-        <button type="submit" disabled={salvando}>
+        <button type="submit" aria-busy={salvando} disabled={salvando}>
           {salvando ? 'Criando…' : 'Criar conta'}
         </button>
       </form>
@@ -332,7 +332,7 @@ export function TelaUsuarios({ usuario }: Props) {
       )}
 
       {redefinindo && (
-        <form className="formulario-senha" onSubmit={confirmarRedefinicao}>
+        <form className="cartao formulario-coluna" onSubmit={confirmarRedefinicao}>
           <h3>Redefinir senha de {contas.find((c) => c.id === redefinindo)?.nome}</h3>
 
           <div className="campo">
@@ -348,10 +348,12 @@ export function TelaUsuarios({ usuario }: Props) {
             />
           </div>
 
-          <button type="submit">Salvar senha</button>
-          <button type="button" onClick={() => setRedefinindo(null)}>
-            Cancelar
-          </button>
+          <div className="acoes-formulario">
+            <button type="submit">Salvar senha</button>
+            <button type="button" className="secundario" onClick={() => setRedefinindo(null)}>
+              Cancelar
+            </button>
+          </div>
         </form>
       )}
     </section>

@@ -195,7 +195,7 @@ export function PainelExcecaoVencido({
               onChange={(evento) => setNovaValidade(evento.target.value)}
             />
           </div>
-          <button type="submit" disabled={enviando}>
+          <button type="submit" aria-busy={enviando} disabled={enviando}>
             {enviando ? 'Enviando…' : 'Corrigir validade'}
           </button>
         </form>
@@ -223,7 +223,12 @@ export function PainelExcecaoVencido({
             onChange={(evento) => setMotivo(evento.target.value)}
           />
         </div>
-        <button type="button" disabled={enviando} onClick={() => void descartar()}>
+        <button
+          type="button"
+          aria-busy={enviando}
+          disabled={enviando}
+          onClick={() => void descartar()}
+        >
           {enviando ? 'Enviando…' : 'Registrar descarte'}
         </button>
       </div>
@@ -262,7 +267,7 @@ export function PainelExcecaoVencido({
                   </small>
                 )}
               </div>
-              <button type="submit" disabled={enviando || faltam > 0}>
+              <button type="submit" aria-busy={enviando} disabled={enviando || faltam > 0}>
                 {enviando ? 'Enviando…' : 'Autorizar venda'}
               </button>
               <button

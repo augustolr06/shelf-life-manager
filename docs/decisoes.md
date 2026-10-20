@@ -2376,3 +2376,72 @@ navegador com o `playwright-cli`, como atendente, pela entrada manual: unidade v
 destaque, unidade vendida, código inexistente substituindo o cartão anterior, e
 `network-state-set offline` levando ao portão e apagando o cartão ao reconectar. Console sem
 erro além do 404 esperado do código inexistente.
+
+## 2026-10-20 — Fundação visual: tokens, tipografia e componentes base (T35)
+
+**Decisões do arquivo da tarefa:**
+
+1. **CSS próprio com variáveis, sem framework.** O projeto já era CSS próprio, não há build a
+   reconfigurar, e trocar para Tailwind no meio não é o assunto do trabalho. `estilos.css`
+   continua um arquivo só, agora em seções: tokens, tons semânticos, base, componentes base,
+   estrutura, e as telas.
+2. **Tokens nomeados por papel** (`--cor-fundo`, `--cor-texto-suave`, `--cor-barra`), não por
+   tom. Modo escuro continua fora de escopo; se vier, redefine só o bloco `:root`.
+
+**Decisões tomadas na implementação:**
+
+3. **Tons semânticos como três variáveis** (`--tom-fundo`, `--tom-texto`, `--tom-forte`). Uma
+   classe de tom (`tom-sucesso`, `tom-atencao`, `tom-perigo`, `tom-inativo`, `tom-vencido`) só
+   troca as três; o componente decide onde usar cada uma (fundo de aviso, faixa lateral do
+   cartão, fundo de distintivo). As classes de domínio que já existiam (`resultado-bloqueio`,
+   `pendente`, `alerta.vencido`, `linha-inativa`…) entram na lista do tom que representam, então
+   o significado de cada cor está escrito num lugar só e nenhum teste precisou mudar de classe.
+   T38 aplica `tom-*` onde faltar destaque.
+4. **Um quinto tom, `vencido`** (roxo), além dos quatro do escopo. É a cor que o sistema já usava
+   para a unidade vencida em três telas; virou token para não ficar como valor solto. Quando e
+   onde aparece continua sendo de T38.
+5. **Dois pares reprovados no AA, corrigidos.** O texto suave `#6b7280` sobre o fundo da página
+   dava 4,39:1, e é a cor de todo `.subtitulo` — virou `#4b5563` (6,87:1). O distintivo de
+   alertas tinha texto branco sobre `#d97706` (3,19:1) — passou para `#b45309` (5,02:1). A
+   tabela de contraste de cada tom está no topo de `estilos.css`. Também a borda de campo, que
+   era `#d1d5db` (1,5:1 sobre branco), passou a `#6b7280` (4,83:1).
+6. **Componentes base como classes, aplicadas no JSX:** `cartao` (a superfície de tudo que
+   agrupa), `formulario-linha` e `formulario-coluna`, `acoes-formulario`, `nota-sucesso`/
+   `nota-atencao`/`nota-informativa`/`erro`, `distintivo-*`, e botão `secundario`/`perigo`/
+   `fantasma`. As duas telas que não tinham estilo nenhum (Contas de acesso e Minha senha)
+   ganharam cartão e formulário em coluna. `perigo` nasce sem uso: aplicá-lo às ações
+   destrutivas é T38.
+7. **Estado carregando = `aria-busy`.** As 16 ações que já trocavam o rótulo ("Salvando…")
+   ganharam `aria-busy`, que desenha o indicador girando (parado com
+   `prefers-reduced-motion`) e avisa o leitor de tela. Nenhum estado novo nos componentes.
+8. **Alvo de toque de 44 px para todo botão**, inclusive os de linha de tabela, que tinham
+   36 px. As tabelas ficaram mais altas.
+9. **Foco visível único**, `:focus-visible` com anel de 3 px em `--cor-foco`, sob `:where` para
+   ficar com especificidade zero. Na barra escura o anel fica branco; nas abas e no × da busca,
+   por dentro, para não cobrir o vizinho.
+10. **Toasts nos tokens** sobrescrevendo as variáveis da `sonner` com `:root [data-sonner-toaster]
+    [data-sonner-theme]`: a biblioteca injeta o CSS dela em tempo de execução, e a
+    especificidade maior ganha sem depender da ordem de injeção.
+11. **Controles de formulário herdam a fonte** (`font: inherit`). Antes, botões e campos saíam na
+    fonte padrão do navegador, diferente do texto em volta — visível em todas as capturas de
+    "antes".
+12. **Identidade mínima.** A barra do topo passa a ter a cor da marca (`--cor-barra`, `#115e59`)
+    e o nome curto do manifest, "Estoque FIFO"; o nome inteiro fica no login e no título da aba.
+    `theme_color` do manifest e `<meta name="theme-color">` usam a mesma cor, para a barra de
+    status do celular emendar na do app; `background_color` passou ao fundo da página. O ícone
+    "EF" de T01 virou três frascos, o primeiro no acento: o que vence primeiro sai primeiro. A
+    fonte é `public/icone.svg` (usada também como favicon SVG), e os PNGs saem dela com
+    ImageMagick: `magick -density 300 -background none icone.svg -resize 192x192 pwa-192x192.png`
+    (idem para 512, 180 e 32). O desenho fica no círculo central de 80%, porque o 512 também é o
+    ícone `maskable`.
+13. **Exceções à escala, documentadas no CSS:** a folha de etiquetas continua em milímetros
+    (papel, não tela), e as cores do manifest repetem os tokens porque JSON não lê variável CSS.
+14. **Layout de celular não foi mexido**, com uma exceção: o `formulario-coluna` não deixa o
+    `.campo` crescer, o que eliminou o vão de 10rem embaixo do seletor de produto no Recebimento.
+    As abas continuam quebrando em duas linhas a 1280 px; resolver isso é T36.
+
+**Verificação.** Frontend: 283 casos verdes, sem mudar nenhum teste; typecheck limpo.
+`playwright-cli` como gestor, a 1280×900: captura de página inteira das 12 telas antes e depois
+em `docs/redesign/T35/`, mais o veredito de unidade vencida na Venda, o diálogo de confirmação e
+um toast de erro (senha atual errada). Foco por teclado conferido nas abas e nos campos. Console
+sem erro além do 401 esperado da senha errada.

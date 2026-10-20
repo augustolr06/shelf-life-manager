@@ -39,13 +39,13 @@ tarefas do incremento usam.
 
 ## Critério de aceite
 
-- [ ] Tokens definidos e documentados no topo de `estilos.css`
-- [ ] Componentes base aplicados em todas as telas
-- [ ] Contraste AA conferido para texto sobre cada cor semântica
-- [ ] Foco visível em todos os elementos interativos
-- [ ] Testes de Vitest continuam verdes (mudança de classe não deve quebrar consultas por
+- [x] Tokens definidos e documentados no topo de `estilos.css`
+- [x] Componentes base aplicados em todas as telas
+- [x] Contraste AA conferido para texto sobre cada cor semântica
+- [x] Foco visível em todos os elementos interativos
+- [x] Testes de Vitest continuam verdes (mudança de classe não deve quebrar consultas por
       papel/rótulo; se quebrar, é sinal de teste acoplado a CSS)
-- [ ] Conferência no navegador com o `playwright-cli`: `screenshot` de cada tela antes e
+- [x] Conferência no navegador com o `playwright-cli`: `screenshot` de cada tela antes e
       depois, anexado na descrição do commit ou em `docs/`
 
 ## Fora de escopo

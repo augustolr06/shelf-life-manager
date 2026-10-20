@@ -1847,3 +1847,24 @@ de consulta abriria a chance de as duas divergirem.
 **Tarefa relacionada:** T32, RF05, RF12, RNF03
 
 **Data:** 2026-10-20
+
+## Legibilidade no balcão: contraste medido, não presumido
+
+**Contexto do problema:** o sistema é lido em pé, com o celular numa mão e o frasco na outra,
+sob a luz da loja. Até o redesign, as cores tinham sido escolhidas a olho, tela a tela.
+
+**Solução adotada:** uma paleta única, com a razão de contraste de cada par de texto e fundo
+calculada pela fórmula da WCAG e registrada junto das cores. O cálculo reprovou duas escolhas
+que pareciam boas na tela do computador: o cinza de todos os textos explicativos (4,39:1, abaixo
+do mínimo de 4,5:1) e o número branco do contador de alertas sobre laranja (3,19:1). As bordas
+dos campos, quase invisíveis (1,5:1), também foram escurecidas.
+
+**Por que importa / trade-offs:** a WCAG é pensada para tela em ambiente de escritório; a
+medição garante o mínimo, não que a leitura seja boa no balcão. Isso precisa ser dito como
+limitação: o contraste foi conferido por cálculo e em navegador de computador, não em celular
+sob a iluminação da loja. A verificação física de T16 (legibilidade do QR impresso) é o momento
+natural de conferir também a tela.
+
+**Tarefa relacionada:** T35, RNF08
+
+**Data:** 2026-10-20

@@ -400,7 +400,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
   const ocupada = lendo || confirmandoVenda
 
   return (
-    <section className="tela-leitura">
+    <section className="tela tela-leitura">
       <h2>Venda</h2>
       <p className="subtitulo">
         Leia o código de cada frasco. O sistema confere se é a unidade que sai primeiro e, se for,
@@ -418,7 +418,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
         </PortaoOffline>
       ) : (
         <>
-          <div className="atendimento">
+          <div className="cartao atendimento">
             <p>
               {sessaoVendaId ? (
                 <>
@@ -442,7 +442,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
             )}
           </div>
 
-          <div className="camera">
+          <div className="cartao camera">
             {cameraLigada ? (
               <>
                 <LeitorCamera modo="unica" aoLer={lerPelaCamera} aoFalhar={falhaDaCamera} />
@@ -466,7 +466,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
           {/* Sempre visível, não escondido atrás da falha da câmera: é o
               caminho da etiqueta riscada, molhada ou apagada, e essa leitura é
               dado da pesquisa (RF12). */}
-          <form className="entrada-manual" onSubmit={lerDigitado}>
+          <form className="cartao entrada-manual" onSubmit={lerDigitado}>
             <div className="campo">
               <label htmlFor="codigo-qr">Ou digite o código impresso na etiqueta</label>
               <input
@@ -479,7 +479,11 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
                 placeholder="PRF-XXXXXX"
               />
             </div>
-            <button type="submit" disabled={ocupada || codigoDigitado.trim() === ''}>
+            <button
+              type="submit"
+              aria-busy={lendo}
+              disabled={ocupada || codigoDigitado.trim() === ''}
+            >
               {lendo ? 'Lendo…' : 'Ler código'}
             </button>
           </form>
@@ -562,7 +566,7 @@ function Carrinho({
   aoEsvaziar: () => void
 }) {
   return (
-    <section className="carrinho" aria-labelledby="titulo-carrinho">
+    <section className="cartao carrinho" aria-labelledby="titulo-carrinho">
       <h3 id="titulo-carrinho">
         Carrinho {itens.length > 0 && <span className="contagem">({itens.length})</span>}
       </h3>
@@ -593,7 +597,12 @@ function Carrinho({
           </ul>
 
           <div className="acoes-carrinho">
-            <button type="button" disabled={!podeConfirmar} onClick={aoConfirmar}>
+            <button
+              type="button"
+              aria-busy={confirmando}
+              disabled={!podeConfirmar}
+              onClick={aoConfirmar}
+            >
               {confirmando ? 'Confirmando…' : 'Confirmar venda'}
             </button>
             <button
@@ -655,7 +664,13 @@ function DesfechoDaVenda({ desfecho }: { desfecho: DesfechoVenda }) {
         : 'Venda registrada em parte'
 
   return (
-    <section className={vendidas.length > 0 ? 'resultado resultado-confirmar' : 'resultado resultado-bloqueio'}>
+    <section
+      className={
+        vendidas.length > 0
+          ? 'cartao resultado resultado-confirmar'
+          : 'cartao resultado resultado-bloqueio'
+      }
+    >
       <h3>{titulo}</h3>
       {vendidas.length > 0 && (
         <ul className="vendidas">
@@ -692,7 +707,7 @@ function Resultado({
   switch (resposta.veredito) {
     case 'CONFIRMAR':
       return (
-        <section className="resultado resultado-confirmar">
+        <section className="cartao resultado resultado-confirmar">
           <h3>No carrinho</h3>
           <p>{resposta.mensagem}</p>
           <DadosDaUnidade unidade={resposta.unidade} />
@@ -703,7 +718,7 @@ function Resultado({
 
     case 'BLOQUEAR_FIFO':
       return (
-        <section className="resultado resultado-bloqueio">
+        <section className="cartao resultado resultado-bloqueio">
           <h3>Não é esta unidade</h3>
           <p>{resposta.mensagem}</p>
 
@@ -730,7 +745,7 @@ function Resultado({
 
     case 'EXCECAO_VENCIDO':
       return (
-        <section className="resultado resultado-vencido">
+        <section className="cartao resultado resultado-vencido">
           <h3>Unidade vencida</h3>
           <p>{resposta.mensagem}</p>
           <DadosDaUnidade unidade={resposta.unidade} />
@@ -742,7 +757,7 @@ function Resultado({
 
     case 'ERRO':
       return (
-        <section className="resultado resultado-erro">
+        <section className="cartao resultado resultado-erro">
           <h3>
             {resposta.motivo === 'QR_NAO_ENCONTRADO'
               ? 'Código não encontrado'
@@ -768,7 +783,11 @@ function ResolucaoDaExcecao({ resolucao }: { resolucao: Resolucao }) {
   const descarte = resolucao.resultado === 'DESCARTE_REGISTRADO'
 
   return (
-    <section className={descarte ? 'resultado resultado-descarte' : 'resultado resultado-override'}>
+    <section
+      className={
+        descarte ? 'cartao resultado resultado-descarte' : 'cartao resultado resultado-override'
+      }
+    >
       <h3>{descarte ? 'Descarte registrado' : 'Venda autorizada'}</h3>
       <p>{resolucao.mensagem}</p>
       {/* O override vende na hora (T33b, Decisão 3): sem esta frase, quem tem

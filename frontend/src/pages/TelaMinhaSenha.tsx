@@ -46,10 +46,10 @@ export function TelaMinhaSenha() {
   }
 
   return (
-    <section className="tela-minha-senha">
+    <section className="tela tela-minha-senha">
       <h2>Minha senha</h2>
 
-      <form className="formulario-senha" onSubmit={enviar}>
+      <form className="cartao formulario-coluna" onSubmit={enviar}>
         {(
           [
             ['senhaAtual', 'Senha atual', senhaAtual, setSenhaAtual],
@@ -77,7 +77,7 @@ export function TelaMinhaSenha() {
           </p>
         )}
 
-        <button type="submit" disabled={salvando}>
+        <button type="submit" aria-busy={salvando} disabled={salvando}>
           {salvando ? 'Trocando…' : 'Trocar senha'}
         </button>
       </form>

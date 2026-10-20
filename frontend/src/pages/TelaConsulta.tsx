@@ -108,7 +108,7 @@ export function TelaConsulta() {
   }
 
   return (
-    <section className="tela-leitura">
+    <section className="tela tela-leitura">
       <h2>Consultar produto</h2>
       <p className="subtitulo">
         Leia o código de um frasco para ver o produto e a validade dele.{' '}
@@ -123,7 +123,7 @@ export function TelaConsulta() {
         </PortaoOffline>
       ) : (
         <>
-          <div className="camera">
+          <div className="cartao camera">
             {cameraLigada ? (
               <>
                 <LeitorCamera modo="continua" aoLer={lerPelaCamera} aoFalhar={falhaDaCamera} />
@@ -144,7 +144,7 @@ export function TelaConsulta() {
             )}
           </div>
 
-          <form className="entrada-manual" onSubmit={lerDigitado}>
+          <form className="cartao entrada-manual" onSubmit={lerDigitado}>
             <div className="campo">
               <label htmlFor="codigo-consulta">Ou digite o código impresso na etiqueta</label>
               <input
@@ -156,7 +156,11 @@ export function TelaConsulta() {
                 placeholder="PRF-XXXXXX"
               />
             </div>
-            <button type="submit" disabled={consultando || codigoDigitado.trim() === ''}>
+            <button
+              type="submit"
+              aria-busy={consultando}
+              disabled={consultando || codigoDigitado.trim() === ''}
+            >
               {consultando ? 'Consultando…' : 'Consultar'}
             </button>
           </form>
@@ -188,7 +192,7 @@ function ResultadoDaConsulta({ consulta }: { consulta: ConsultaUnidade }) {
   return (
     // A cor de perigo que já existe para unidade vencida; o destaque
     // definitivo de estado é de T38.
-    <section className={vencida ? 'resultado resultado-vencido' : 'resultado'}>
+    <section className={vencida ? 'cartao resultado resultado-vencido' : 'cartao resultado'}>
       <h3>{unidade.produto.nome}</h3>
 
       {vencida && (

@@ -61,7 +61,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
   const totalPaginas = Math.max(1, Math.ceil(total / tamanhoPagina))
 
   return (
-    <section className="tela-descartes">
+    <section className="tela tela-descartes">
       <h2>Fila de descarte pendente</h2>
       <p className="subtitulo">
         Unidades que já venceram e continuam no estoque. Elas não saem pelo fluxo normal de
@@ -87,7 +87,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
 
           <ul className="fila-descarte">
             {unidades.map((unidade) => (
-              <li key={unidade.id} className="pendente">
+              <li key={unidade.id} className="cartao pendente">
                 <div className="dados-pendente">
                   <h3>{unidade.produto.nome}</h3>
                   <p className="subtitulo">

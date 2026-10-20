@@ -244,10 +244,16 @@ em qualquer ordem.
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T35 | Fundação visual: tokens, tipografia e componentes base | pendente | T29, T34 | `tasks/T35-fundacao-visual.md` |
+| T35 | Fundação visual: tokens, tipografia e componentes base | concluída | T29, T34 | `tasks/T35-fundacao-visual.md` |
 | T36 | Responsividade para celular e tablet | pendente | T35 | `tasks/T36-responsividade.md` |
 | T37 | Revisão de copies (textos da interface e mensagens do servidor) | pendente | T35 | `tasks/T37-revisao-copies.md` |
 | T38 | Destaque de estado: vencidos, inativos e ações destrutivas | pendente | T35, T39 | `tasks/T38-destaques-de-estado.md` |
+
+**Estado de T35 (2026-10-20).** Concluída. Tokens por papel e tabela de contraste no topo de
+`frontend/src/estilos.css`; tons semânticos (`tom-sucesso`, `-atencao`, `-perigo`, `-inativo`,
+`-vencido`) que T38 aplica; botão `perigo` criado sem uso, para T38. Barra com a cor da marca,
+nome curto "Estoque FIFO" e ícone novo. Capturas antes/depois em `docs/redesign/T35/`. Decisões
+em `docs/decisoes.md` (T35).
 
 **Ordem sugerida dentro dos três incrementos:** T31 primeiro, por ser o risco real em
 produção (a câmera aberta vende o que ler) e pequena → T33 → T33b → T34 (o carrinho fecha o

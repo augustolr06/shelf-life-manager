@@ -93,7 +93,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
   const totalPaginas = Math.max(1, Math.ceil(total / tamanhoPagina))
 
   return (
-    <section className="tela-alertas">
+    <section className="tela tela-alertas">
       <h2>Alertas de vencimento</h2>
       <p className="subtitulo">
         Unidades que entraram na janela de antecedência configurada. Ainda dá tempo de decidir
@@ -107,7 +107,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
       )}
 
       <div className="filtro-alertas">
-        <label>
+        <label className="caixa-selecao">
           <input
             type="checkbox"
             checked={apenasNaoLidos}
@@ -143,10 +143,10 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
                 key={alerta.id}
                 className={
                   alerta.situacao === 'VENCIDA'
-                    ? 'alerta vencido'
+                    ? 'cartao alerta vencido'
                     : alerta.lidoEm
-                      ? 'alerta lido'
-                      : 'alerta'
+                      ? 'cartao alerta lido'
+                      : 'cartao alerta'
                 }
               >
                 <div className="dados-alerta">
@@ -185,6 +185,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
                     <span className="marca-lido">Lido</span>
                   ) : (
                     <button
+                      aria-busy={marcando === alerta.id}
                       type="button"
                       disabled={marcando === alerta.id}
                       onClick={() => void marcarComoLido(alerta)}

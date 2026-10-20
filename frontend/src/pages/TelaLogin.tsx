@@ -34,7 +34,7 @@ export function TelaLogin({ aoAutenticar }: Props) {
 
   return (
     <main className="tela-login">
-      <form className="cartao" onSubmit={submeter}>
+      <form className="cartao cartao-login" onSubmit={submeter}>
         <h1>Controle de Estoque FIFO por Validade</h1>
         <p className="subtitulo">Entre com suas credenciais para continuar.</p>
 
@@ -68,7 +68,7 @@ export function TelaLogin({ aoAutenticar }: Props) {
           </p>
         )}
 
-        <button type="submit" disabled={enviando}>
+        <button type="submit" aria-busy={enviando} disabled={enviando}>
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
       </form>

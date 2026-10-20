@@ -155,14 +155,14 @@ export function TelaDashboard() {
     : 1
 
   return (
-    <section className="tela-dashboard">
+    <section className="tela tela-dashboard">
       <h2>Dashboard</h2>
       <p className="subtitulo">
         A consolidação do que o sistema registrou. Os números do estoque são de agora; os de
         movimento são do período selecionado.
       </p>
 
-      <form className="filtros seletor-periodo" onSubmit={aplicarPeriodo}>
+      <form className="cartao formulario-linha" onSubmit={aplicarPeriodo}>
         <div className="campo">
           <label htmlFor="periodo-de">De</label>
           <input
@@ -194,7 +194,7 @@ export function TelaDashboard() {
         <p role="status">Carregando painel…</p>
       ) : painel ? (
         <>
-          <section className="bloco-painel">
+          <section className="cartao bloco-painel">
             <h3>Estoque agora</h3>
             <p className="subtitulo">
               Fotografia do momento: não muda com o período selecionado.
@@ -233,7 +233,7 @@ export function TelaDashboard() {
             </p>
           </section>
 
-          <section className="bloco-painel">
+          <section className="cartao bloco-painel">
             <h3>
               No período — {formatarData(painel.periodo.de)} a {formatarData(painel.periodo.ate)}
             </h3>
@@ -299,11 +299,11 @@ export function TelaDashboard() {
         </>
       ) : null}
 
-      <section className="bloco-painel historico-saidas">
+      <section className="cartao bloco-painel historico-saidas">
         <h3>Histórico de saídas</h3>
 
         <div className="filtro-historico">
-          <label>
+          <label className="caixa-selecao">
             <input
               type="checkbox"
               checked={apenasOverrides}

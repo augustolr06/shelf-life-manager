@@ -14,8 +14,8 @@ export const ROTULO_AVISOS = 'Avisos'
  * celular a biblioteca estica o toast na largura da tela, na mesma borda de
  * baixo, ao alcance do polegar.
  *
- * O estilo é o padrão da biblioteca, com as cores por tipo; o definitivo vem
- * com os tokens do redesign (T35).
+ * As cores por tipo (`richColors`) vêm dos tokens semânticos de
+ * `estilos.css`, que sobrescrevem as variáveis da biblioteca (T35).
  */
 export function Avisos() {
   return (

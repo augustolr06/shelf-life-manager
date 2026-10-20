@@ -246,11 +246,11 @@ export function TelaProdutos({ usuario }: Props) {
   const totalPaginas = Math.max(1, Math.ceil(total / tamanhoPagina))
 
   return (
-    <section className="tela-produtos">
+    <section className="tela tela-produtos">
       <h2>Catálogo de produtos</h2>
 
       {podeEditar && (
-        <form className="formulario-produto cadastro-produto" onSubmit={cadastrar}>
+        <form className="cartao formulario-linha cadastro-produto" onSubmit={cadastrar}>
           <h3>Cadastrar produto</h3>
 
           {CAMPOS_DO_FORMULARIO.map(({ campo, rotulo, foiCortado }) => {
@@ -297,7 +297,7 @@ export function TelaProdutos({ usuario }: Props) {
             )
           })}
 
-          <button type="submit" disabled={salvando}>
+          <button type="submit" aria-busy={salvando} disabled={salvando}>
             {salvando ? 'Cadastrando…' : 'Cadastrar'}
           </button>
         </form>
@@ -307,7 +307,7 @@ export function TelaProdutos({ usuario }: Props) {
 
       {/* A busca reage à digitação (T26). O formulário continua existindo só
           para o Enter no campo não recarregar a página. */}
-      <form className="filtros" onSubmit={(evento) => evento.preventDefault()}>
+      <form className="cartao formulario-linha" onSubmit={(evento) => evento.preventDefault()}>
         <div className="campo">
           {/* O indicador fica na linha do rótulo: ao lado da caixa, aparecer e
               sumir a cada busca mudaria a largura dela. */}

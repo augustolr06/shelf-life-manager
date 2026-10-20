@@ -129,7 +129,7 @@ export function TelaEtiquetas() {
   const totalPaginas = folha ? Math.max(1, Math.ceil(folha.total / folha.tamanhoPagina)) : 1
 
   return (
-    <section className="tela-etiquetas">
+    <section className="tela tela-etiquetas">
       {/* Tudo o que é controle sai da folha impressa: ver `@media print`. */}
       <div className="controles-etiquetas">
         <h2>Etiquetas para impressão</h2>
@@ -155,7 +155,7 @@ export function TelaEtiquetas() {
             </button>
           </p>
         ) : (
-          <form className="filtros" onSubmit={pedirReimpressao}>
+          <form className="cartao formulario-linha" onSubmit={pedirReimpressao}>
             <SeletorProduto valor={produto} aoEscolher={setProduto} />
             {/* Nada é carregado sozinho na reimpressão: reimprimir etiqueta de
                 frasco que já tem uma é como se duplicam identificadores. */}
