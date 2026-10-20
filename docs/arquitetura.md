@@ -203,9 +203,20 @@ async function validarSaidaFifo(
   codigoQr: string,
   usuarioId: string,
   tx: PrismaTransactionClient,
-  sessaoVendaId?: string | null   // agrupador opcional de relatório (T09)
+  sessaoVendaId: string | null,   // agrupador opcional de relatório (T09)
+  opcoes: {
+    modo: 'AVALIAR' | 'EFETIVAR',  // leitura ou confirmação do carrinho (T33b)
+    noCarrinho?: string[]          // ids já liberados no atendimento (só na leitura)
+  }
 ): Promise<Veredito>
 ```
+
+**Dois modos, uma decisão (T33b).** Desde o incremento 10, ler o QR não vende. `AVALIAR` é a
+leitura do balcão (`/saidas/ler` e a revalidação de `/excecao-vencido/corrigir`): decide e
+**não baixa**, e `CONFIRMAR` quer dizer "pode ser vendida". `EFETIVAR` é a confirmação de um
+item do carrinho (`/saidas/finalizar`): decide de novo, sob lock, e no ramo 5 vende. Os ramos
+1 a 4 são idênticos nos dois modos. O modo é parâmetro, e não uma segunda função, para que a
+decisão não tenha duas versões (RNF03).
 
 Executada **inteiramente dentro de uma transação Prisma (`prisma.$transaction`)**, com a unidade lida bloqueada via `SELECT ... FOR UPDATE` (query raw dentro da transação) — cumpre RNF02.
 
@@ -214,8 +225,16 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 1. QR existe? → não: `ERRO / QR_NAO_ENCONTRADO`
 2. `status = EM_ESTOQUE`? → não: `ERRO / UNIDADE_JA_BAIXADA`
 3. `dataValidade < hoje`? → sim: `EXCECAO_VENCIDO` (não passa pelo FIFO)
-4. É a prioritária do pool não-vencido (`MIN(dataValidade) WHERE produtoId = X AND status = EM_ESTOQUE AND dataValidade >= hoje`)? → não: `BLOQUEAR_FIFO`, incrementa tentativas, grava evento `ALERTA_FIFO_DISPARADO`
-5. Sim → `CONFIRMAR`: cria `Saida`, `status → VENDIDA`, grava evento `SAIDA_CONFIRMADA`
+4. É a prioritária do pool não-vencido (`MIN(dataValidade) WHERE produtoId = X AND status = EM_ESTOQUE AND dataValidade >= hoje AND id NOT IN noCarrinho`)? → não: `BLOQUEAR_FIFO`, incrementa tentativas, grava evento `ALERTA_FIFO_DISPARADO`
+5. Sim → `CONFIRMAR`. Em `AVALIAR`, nada é escrito: a unidade continua `EM_ESTOQUE`. Em `EFETIVAR`: cria `Saida`, `status → VENDIDA`, grava evento `SAIDA_CONFIRMADA`
+
+**`noCarrinho`** tira do pool do passo 4 as unidades já liberadas no mesmo atendimento, que
+continuam `EM_ESTOQUE` até a confirmação. Sem isso, a segunda unidade do mesmo produto seria
+barrada pela primeira. A própria unidade lida nunca sai do pool (reler o que já está no
+carrinho libera, em vez de esvaziar o pool), e id inexistente ou já baixado não tem efeito: a
+lista só tira do pool o que o filtro de status deixaria entrar, e a confirmação revalida tudo.
+Não há reserva no servidor (PRD 6.2): duas atendentes podem liberar o mesmo frasco, e quem
+confirmar primeiro vende.
 
 **Empate de validade.** O passo 4 compara **valores**, não identidade: havendo mais de uma unidade com a menor `dataValidade` do pool, todas são prioritárias e ler qualquer uma delas confirma. Apontar uma única vencedora arbitrária faria o sistema pedir um frasco fisicamente indistinguível do que está na mão da atendente — laço sem saída. Decidido em T06 (`docs/decisoes.md`, 2026-09-07).
 
@@ -223,10 +242,16 @@ Ordem das verificações (idêntica à seção 7 do PRD — não reordenar):
 
 | Evento | Quando | `unidadeId` |
 |---|---|---|
-| `LEITURA_QR_SAIDA` | **toda** chamada, nos cinco ramos | a unidade lida, ou `null` no ramo 1 (código no `payload`) |
-| `TENTATIVA_VENDA_UNIDADE_VENCIDA` | ramo 3 | a unidade vencida |
-| `ALERTA_FIFO_DISPARADO` | ramo 4 | a unidade **lida**; a correta vai no `payload` como `unidadeCorretaId` |
-| `SAIDA_CONFIRMADA` | ramo 5 | a unidade baixada |
+| `LEITURA_QR_SAIDA` | **toda** chamada em `AVALIAR`, nos cinco ramos; **nunca** em `EFETIVAR` | a unidade lida, ou `null` no ramo 1 (código no `payload`) |
+| `TENTATIVA_VENDA_UNIDADE_VENCIDA` | ramo 3, nos dois modos | a unidade vencida |
+| `ALERTA_FIFO_DISPARADO` | ramo 4, nos dois modos | a unidade **lida**; a correta vai no `payload` como `unidadeCorretaId` |
+| `SAIDA_CONFIRMADA` | ramo 5, só em `EFETIVAR` | a unidade baixada |
+
+A confirmação não grava `LEITURA_QR_SAIDA` porque não houve leitura: a daquela unidade já foi
+registrada quando ela entrou no carrinho, e gravar de novo dobraria o denominador da RF12. Os
+ramos 3 e 4 gravam o mesmo evento na confirmação porque, ali, uma unidade que venceu desde a
+leitura ou uma de validade menor que entrou depois dela também é tentativa de venda fora da
+regra (T33).
 
 Fora do fluxo de saída, o cadastro de unidades grava `UNIDADE_CADASTRADA` (um evento por
 unidade, dentro da transação do lote), pelo mesmo módulo. A imutabilidade da tabela
@@ -237,16 +262,21 @@ o que mantém o reset das suítes funcionando.
 
 Sem `LEITURA_QR_SAIDA` em toda leitura não há denominador para a taxa de acerto na primeira leitura, que é indicador do TCC (RF12).
 
-**`tentativas` é derivado, não persistido.** Não há contador em `UnidadeProduto`, e a seção 6.2 do PRD proíbe estado intermediário no servidor. O número é a contagem de `ALERTA_FIFO_DISPARADO` do mesmo `produtoId` e mesmo `usuarioId` desde a última `SAIDA_CONFIRMADA` daquele par, incluindo o bloqueio da chamada corrente — o primeiro bloqueio devolve `tentativas: 1`. `Saida.tentativasAteAcerto` recebe esse total no momento da confirmação, e `Saida.alertaFifoDisparado` é `true` sempre que ele for maior que zero.
+**`tentativas` é derivado, não persistido.** Não há contador em `UnidadeProduto`, e a seção 6.2 do PRD proíbe estado intermediário no servidor. O número é a contagem de `ALERTA_FIFO_DISPARADO` do mesmo `produtoId` e mesmo `usuarioId` desde a última `SAIDA_CONFIRMADA` daquele par, incluindo o bloqueio da chamada corrente — o primeiro bloqueio devolve `tentativas: 1`. `Saida.tentativasAteAcerto` recebe esse total no momento da confirmação, e `Saida.alertaFifoDisparado` é `true` sempre que ele for maior que zero. Desde T33b, a fronteira do ciclo é a confirmação do carrinho: liberar para o carrinho não fecha o ciclo. Com o carrinho confirmado em ordem de validade, o bloqueio do ciclo fica com a unidade de menor validade do SKU, e as outras saem com 0.
 
 **O lock é da unidade lida, não do SKU.** Duas atendentes vendendo unidades diferentes do mesmo produto não podem esperar uma pela outra. Desde T11 o `SELECT ... FOR UPDATE` mora em `src/modules/unidade/travarUnidade.ts`, nas duas chaves de que o sistema precisa (`codigoQr` para a leitura, `id` para os caminhos da exceção) — a decisão continua toda aqui, o lock é que passou a ser compartilhado.
 
 **A função tem um segundo chamador desde T11**, e continua sendo a única a decidir: a
 correção de validade (`POST /excecao-vencido/corrigir`) revalida o FIFO chamando esta mesma
-função, dentro da transação em que corrigiu a data. Ela grava o `LEITURA_QR_SAIDA` da
-revalidação como em qualquer outra passagem — são dois eventos para uma resolução de
-unidade vencida (o da leitura original e o da revalidação), que é também o que uma releitura
-manual produziria.
+função, em modo `AVALIAR`, dentro da transação em que corrigiu a data. Ela grava o
+`LEITURA_QR_SAIDA` da revalidação como em qualquer outra passagem — são dois eventos para uma
+resolução de unidade vencida (o da leitura original e o da revalidação), que é também o que
+uma releitura manual produziria. Desde T33b, a revalidação que confirma **não vende**: a
+unidade corrigida vai para o carrinho, como uma leitura.
+
+**O terceiro chamador é a confirmação do carrinho** (`POST /saidas/finalizar`, T33b), em modo
+`EFETIVAR`, uma transação por item. A rota recebe ids e a função trava por código: a rota
+traduz um no outro na mesma consulta que ordena a fila por validade.
 
 ## 5. Contratos de API (principais endpoints)
 
@@ -259,7 +289,8 @@ manual produziria.
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
-| POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo`, retorna veredito (RF05, RF06) e, no ramo `CONFIRMAR`, **efetiva a saída** (RF07) |
+| POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo` em modo `AVALIAR` e retorna o veredito (RF05, RF06). **Não baixa**: `CONFIRMAR` quer dizer que a unidade pode ir para o carrinho (T33b) |
+| POST | `/saidas/finalizar` | ATENDENTE, GESTOR | Confirma o carrinho: revalida e vende cada unidade (RF07, T33b) — ver abaixo |
 | POST | `/excecao-vencido/corrigir` | GESTOR | Caminho 1 da seção 6.1 do PRD |
 | POST | `/excecao-vencido/descartar` | ATENDENTE, GESTOR | Caminho 2 da seção 6.1 do PRD |
 | POST | `/excecao-vencido/override` | GESTOR | Caminho 3 da seção 6.1 do PRD — exige justificativa |
@@ -274,14 +305,36 @@ manual produziria.
 | GET | `/dashboard` | GESTOR | Os agregados da RF13, no recorte de período pedido |
 | GET | `/dashboard/saidas` | GESTOR | Histórico de saídas, paginado — o único item da RF13 que é lista |
 
-**Não existe `POST /saidas/confirmar`.** Uma versão anterior desta tabela listava um
-endpoint separado de confirmação para o RF07, o que contradizia a seção 4 acima — o ramo 5
-de `validarSaidaFifo` cria a `Saida` e muda o status dentro da própria transação da
-leitura, que é também o que a seção 7 do PRD descreve. Um segundo passo honesto exigiria
-revalidar o FIFO inteiro (aceitar o veredito afirmado pelo cliente violaria a RNF04) ou
-manter reserva no servidor (proibido pela seção 6.2 do PRD). Removido em T09
-(`docs/decisoes.md`, 2026-09-08): quando `/saidas/ler` responde `CONFIRMAR`, a venda já
-aconteceu.
+**A venda é um segundo passo desde T33b.** Até T33b, o ramo 5 de `validarSaidaFifo` vendia na
+própria transação da leitura, e um endpoint separado de confirmação tinha sido removido em
+T09: um segundo passo honesto exigiria revalidar o FIFO inteiro (aceitar o veredito afirmado
+pelo cliente violaria a RNF04) ou manter reserva no servidor (proibido pela seção 6.2 do PRD).
+O incremento 10 escolheu a primeira saída: com a câmera aberta, ler era vender, e um segundo
+QR lido sem querer vendia o frasco errado. Agora a leitura libera para um carrinho que existe
+**só no navegador**, e `POST /saidas/finalizar` revalida cada item do zero. Nenhuma reserva,
+nenhuma tabela nova (`docs/decisoes.md`, T33 e T33b).
+
+**`POST /saidas/ler`** aceita, além de `codigoQr` e `sessaoVendaId`, a lista opcional
+`noCarrinho` (ids `uuid`, até 50): as unidades já liberadas no atendimento, que saem do pool
+do FIFO (seção 4). O formato da resposta não mudou.
+
+**`POST /saidas/finalizar`** recebe `{ unidadeIds, sessaoVendaId? }`, com 1 a 50 ids `uuid`
+sem repetição (senão 400 `CORPO_INVALIDO`). Id que não é de unidade nenhuma recusa o carrinho
+inteiro com 404 `UNIDADE_NAO_ENCONTRADA`, antes de processar qualquer item. O servidor
+processa as unidades por `dataValidade` crescente, com desempate por `codigoQr`, para que o
+carrinho não bloqueie a si mesmo (a de fevereiro não é barrada pela de janeiro do mesmo
+carrinho). Cada item roda **na sua própria transação**, com lock (RNF02), chamando
+`validarSaidaFifo` em modo `EFETIVAR`, e um item barrado não desfaz os outros. Responde 200
+mesmo com itens barrados, no mesmo raciocínio da leitura:
+
+```json
+{ "itens": [ { "unidadeId": "...", "veredito": "CONFIRMAR", "codigoQr": "...", "unidade": { }, "mensagem": "Venda registrada: ..." },
+             { "unidadeId": "...", "veredito": "ERRO", "motivo": "UNIDADE_JA_BAIXADA", "codigoQr": "...", "mensagem": "..." } ] }
+```
+
+Cada item tem o formato da resposta de `/saidas/ler`, mais `unidadeId`, na ordem do corpo.
+Reenviar o mesmo carrinho não vende duas vezes: o item já vendido volta como
+`UNIDADE_JA_BAIXADA`.
 
 **`POST /produtos/importar`** (T24) recebe `{ conteudo }`, o texto do arquivo CSV como
 está. O navegador só o lê do disco, tratando o Windows-1252 que o Excel grava. Quem
@@ -304,9 +357,9 @@ vencida (senão 409 `UNIDADE_NAO_VENCIDA`).
 
 | Rota | Corpo além de `unidadeId` | Sucesso | Efeito |
 |---|---|---|---|
-| `corrigir` | `dataValidade` (`AAAA-MM-DD`) | 200 `{ correcao, revalidacao }` | Atualiza a validade, grava `VALIDADE_CORRIGIDA` com o valor anterior e **revalida o FIFO na mesma transação**, chamando `validarSaidaFifo`. `revalidacao` é o mesmo contrato de `/saidas/ler` — se o veredito for `CONFIRMAR`, a venda já aconteceu. Data igual à atual → 400 `VALIDADE_INALTERADA`; data no passado é aceita e revalida como `EXCECAO_VENCIDO` |
+| `corrigir` | `dataValidade` (`AAAA-MM-DD`), `noCarrinho` (opcional, como em `/saidas/ler`) | 200 `{ correcao, revalidacao }` | Atualiza a validade, grava `VALIDADE_CORRIGIDA` com o valor anterior e **revalida o FIFO na mesma transação**, chamando `validarSaidaFifo` em modo `AVALIAR`. `revalidacao` é o mesmo contrato de `/saidas/ler`. Desde T33b, `CONFIRMAR` **não vende**: a unidade vai para o carrinho. Data igual à atual → 400 `VALIDADE_INALTERADA`; data no passado é aceita e revalida como `EXCECAO_VENCIDO` |
 | `descartar` | `motivo` (opcional, ≤280) | 201 | Cria `Descarte`, status → `DESCARTADA`, grava `DESCARTE_REGISTRADO`. Sem `motivo`, grava texto padrão: a fricção da seção 6.1 é do override, não deste caminho |
-| `override` | `justificativa` (10–500, obrigatória) | 201 | Cria `Saida` com `vendaDeUnidadeVencida = true`, `justificativaOverride` e `autorizadoPorId`, status → `VENDIDA`, grava `VENDA_VENCIDA_AUTORIZADA`. `tentativasAteAcerto = 0`: não passou pelo laço do FIFO. Não chama `validarSaidaFifo` |
+| `override` | `justificativa` (10–500, obrigatória) | 201 | Cria `Saida` com `vendaDeUnidadeVencida = true`, `justificativaOverride` e `autorizadoPorId`, status → `VENDIDA`, grava `VENDA_VENCIDA_AUTORIZADA`. `tentativasAteAcerto = 0`: não passou pelo laço do FIFO. Não chama `validarSaidaFifo`. **Continua vendendo na hora, fora do carrinho** (T33b): ele já é uma confirmação explícita, de GESTOR e com justificativa |
 
 A pré-condição de vencimento é o que impede o override de virar um contorno do bloqueio de
 FIFO: ele é escape do bloqueio de **validade**, e só dele. Falha de pré-condição é 4xx e

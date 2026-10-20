@@ -31,6 +31,35 @@ export type Veredito =
   | { tipo: 'CONFIRMAR'; unidade: UnidadeProduto }
 
 /**
+ * Os dois momentos em que a função é chamada (T33b). A decisão é a mesma nos
+ * dois; o que muda é o que ela grava.
+ *
+ * - `AVALIAR` é a leitura do QR no balcão. Decide, grava `LEITURA_QR_SAIDA` e
+ *   os eventos dos ramos 3 e 4, e **não baixa**: `CONFIRMAR` quer dizer "pode
+ *   ser vendida", e a unidade vai para o carrinho da tela.
+ * - `EFETIVAR` é a confirmação de um item do carrinho (`POST
+ *   /saidas/finalizar`). Decide de novo, sob o lock, e no ramo 5 cria a
+ *   `Saida`. Não grava `LEITURA_QR_SAIDA`: não houve leitura, e gravar dobraria
+ *   o denominador da taxa de acerto na primeira leitura (RF12).
+ *
+ * O modo é parâmetro, e não uma segunda função, porque a decisão não pode ter
+ * duas versões (RNF03).
+ */
+export type ModoDeSaida = 'AVALIAR' | 'EFETIVAR'
+
+export type OpcoesDeSaida = {
+  modo: ModoDeSaida
+  /**
+   * Ids das unidades já liberadas no mesmo atendimento. Elas continuam
+   * `EM_ESTOQUE` até a confirmação, e saem do pool do passo 4 para que a
+   * segunda unidade do mesmo produto não seja barrada pela primeira. Só faz
+   * sentido em `AVALIAR`: na confirmação, as do carrinho já foram baixadas na
+   * ordem de validade.
+   */
+  noCarrinho?: readonly string[]
+}
+
+/**
  * Precisa rodar **inteiramente dentro** de uma transação, com a unidade lida
  * bloqueada por `SELECT ... FOR UPDATE` (RNF02) — por isso recebe o `tx` em
  * vez de abrir a transação por conta própria: quem chama é que delimita o
@@ -40,13 +69,18 @@ export async function validarSaidaFifo(
   codigoQr: string,
   usuarioId: string,
   tx: ClienteDeTransacao,
-  sessaoVendaId?: string | null,
+  sessaoVendaId: string | null,
+  opcoes: OpcoesDeSaida,
 ): Promise<Veredito> {
   // O lock da RNF02 vem de `unidade/travarUnidade.ts`, que é o único lugar do
   // sistema com o `SELECT ... FOR UPDATE` — os três caminhos da unidade
   // vencida (T11) precisam do mesmo lock, pela outra chave.
   const unidade = await travarUnidadePorCodigo(tx, codigoQr)
-  const veredito = await decidir(codigoQr, usuarioId, unidade, tx, sessaoVendaId ?? null)
+  const veredito = await decidir(codigoQr, usuarioId, unidade, tx, sessaoVendaId, opcoes)
+
+  // A confirmação do carrinho não é leitura: a leitura daquela unidade já foi
+  // registrada quando ela entrou no carrinho (RF12).
+  if (opcoes.modo === 'EFETIVAR') return veredito
 
   // Depois de decidir, e não antes, para que o registro carregue o veredito:
   // é a única forma de o EventoLog responder "quantas leituras acertaram de
@@ -68,6 +102,10 @@ export async function validarSaidaFifo(
 /**
  * Os cinco ramos da seção 7 do PRD, **nesta ordem**. Cada ramo grava o evento
  * que lhe é próprio; o `LEITURA_QR_SAIDA` comum a todos fica com quem chama.
+ *
+ * Os ramos 3 e 4 gravam o mesmo evento nos dois modos: na confirmação, uma
+ * unidade que venceu desde a leitura ou uma de validade menor que entrou
+ * depois dela é, de fato, uma tentativa de venda fora da regra (T33).
  */
 async function decidir(
   codigoQr: string,
@@ -75,6 +113,7 @@ async function decidir(
   unidade: UnidadeProduto | null,
   tx: ClienteDeTransacao,
   sessaoVendaId: string | null,
+  { modo, noCarrinho = [] }: OpcoesDeSaida,
 ): Promise<Veredito> {
   // 1. Código desconhecido: etiqueta danificada, item de outra loja, ou
   // unidade que nunca foi cadastrada. Nada a bloquear, nada a baixar.
@@ -101,7 +140,10 @@ async function decidir(
     return { tipo: 'EXCECAO_VENCIDO', unidade }
   }
 
-  const prioritaria = await unidadePrioritaria(tx, unidade.produtoId, hoje)
+  // A própria unidade lida nunca sai do pool: reler o que já está no carrinho
+  // o esvaziaria, e o pool vazio estouraria no `findFirstOrThrow`.
+  const foraDoPool = noCarrinho.filter((id) => id !== unidade.id)
+  const prioritaria = await unidadePrioritaria(tx, unidade.produtoId, hoje, foraDoPool)
 
   // 4. Comparação por **valor** de validade, não por identidade: havendo
   // empate, todas as unidades da menor validade são prioritárias, e ler
@@ -125,7 +167,13 @@ async function decidir(
     return { tipo: 'BLOQUEAR_FIFO', unidadeCorreta: prioritaria, tentativas }
   }
 
-  // 5. Confirmação. O ciclo fecha aqui, e é aqui que o total de tentativas
+  // 5. Liberada. Na leitura, a resposta para aqui: nada é baixado, e a
+  // unidade vai para o carrinho da tela (T33). Sem reserva — outra atendente
+  // pode ler e liberar o mesmo frasco, e quem confirmar primeiro vende
+  // (PRD 6.2).
+  if (modo === 'AVALIAR') return { tipo: 'CONFIRMAR', unidade }
+
+  // Na confirmação, o ciclo fecha aqui, e é aqui que o total de tentativas
   // vira dado permanente na `Saida`.
   const tentativasAteAcerto = await contarBloqueiosDoCiclo(tx, unidade.produtoId, usuarioId)
 
@@ -172,17 +220,24 @@ async function decidir(
  * empatadas são igualmente prioritárias e qualquer uma confirma. Ele existe
  * só para que a unidade sugerida na tela seja estável entre duas leituras
  * iguais, em vez de variar conforme a ordem que o Postgres devolver.
+ *
+ * `foraDoPool` são as unidades do carrinho (T33). A lista vem do cliente, mas
+ * não é veredito afirmado por ele: só tira do pool o que o próprio filtro de
+ * status ainda deixaria entrar, e um id inexistente ou já baixado não tem
+ * efeito nenhum. A confirmação revalida tudo de novo.
  */
 function unidadePrioritaria(
   tx: ClienteDeTransacao,
   produtoId: string,
   hoje: Date,
+  foraDoPool: readonly string[],
 ): Promise<UnidadeProduto> {
   return tx.unidadeProduto.findFirstOrThrow({
     where: {
       produtoId,
       status: StatusUnidade.EM_ESTOQUE,
       dataValidade: { gte: hoje },
+      ...(foraDoPool.length > 0 ? { id: { notIn: [...foraDoPool] } } : {}),
     },
     orderBy: [{ dataValidade: 'asc' }, { dataEntrada: 'asc' }, { id: 'asc' }],
   })

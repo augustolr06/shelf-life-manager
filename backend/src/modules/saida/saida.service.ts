@@ -6,7 +6,7 @@ import {
   comProdutoJaLido,
   type UnidadeNaResposta,
 } from '../unidade/unidadeNaResposta.js'
-import { validarSaidaFifo, type Veredito } from './validarSaidaFifo.js'
+import { validarSaidaFifo, type ModoDeSaida, type Veredito } from './validarSaidaFifo.js'
 
 /**
  * A camada entre a rota HTTP e o núcleo do sistema (RF05, RF06).
@@ -44,21 +44,92 @@ export type RespostaLeitura =
     }
   | { veredito: 'CONFIRMAR'; codigoQr: string; unidade: UnidadeNaResposta; mensagem: string }
 
+/**
+ * Um item da confirmação do carrinho: o mesmo formato de `/saidas/ler`, mais o
+ * id que a tela usou para pedir a venda (T33b). A tela lê o veredito de cada
+ * item, e não um resumo do carrinho (RNF04).
+ */
+export type ItemFinalizado = RespostaLeitura & { unidadeId: string }
+
+export type ResultadoFinalizacao =
+  | { ok: true; itens: ItemFinalizado[] }
+  | { ok: false; motivo: 'UNIDADE_NAO_ENCONTRADA' }
+
+/**
+ * A leitura do balcão: valida e **não baixa** (T33b). `CONFIRMAR` quer dizer
+ * que a unidade pode ser vendida, e ela vai para o carrinho da tela. A venda é
+ * `finalizarCarrinho`.
+ */
 export async function lerCodigoQr(
   codigoDigitado: string,
   usuarioId: string,
   sessaoVendaId?: string,
+  noCarrinho?: string[],
 ): Promise<RespostaLeitura> {
   const codigoQr = normalizarCodigoQr(codigoDigitado)
 
-  // A transação cobre a decisão e a baixa, e nada além disso: nenhuma consulta
-  // de apresentação, nenhuma espera pela atendente. A janela de concorrência é
-  // o tempo da decisão, não o tempo de caminhar até a prateleira (PRD 6.2).
+  // A transação cobre a decisão, e nada além disso: nenhuma consulta de
+  // apresentação, nenhuma espera pela atendente. A janela de concorrência é o
+  // tempo da decisão, não o tempo de caminhar até a prateleira (PRD 6.2).
   const veredito = await prisma.$transaction((tx) =>
-    validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId ?? null),
+    validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId ?? null, {
+      modo: 'AVALIAR',
+      ...(noCarrinho ? { noCarrinho } : {}),
+    }),
   )
 
-  return montarRespostaDeLeitura(codigoQr, veredito)
+  return montarRespostaDeLeitura(codigoQr, veredito, 'AVALIAR')
+}
+
+/**
+ * A confirmação do carrinho (`POST /saidas/finalizar`, T33b): revalida e baixa
+ * cada unidade, uma transação por item.
+ *
+ * **Sem tudo-ou-nada.** Cada item é um ciclo independente (PRD 6.2): um item
+ * barrado, porque outra atendente o vendeu ou porque entrou uma unidade de
+ * validade menor desde a leitura, não desfaz a venda dos outros. Uma transação
+ * só para o carrinho inteiro também seguraria o lock de todas as unidades até
+ * a última, que é a espera que a 6.2 quer evitar.
+ *
+ * **A ordem da fila é por validade crescente**, desempate por código, e é
+ * decidida aqui, não pelo corpo. Processadas na ordem do corpo, a de fevereiro
+ * seria barrada pela de janeiro do mesmo carrinho, ainda `EM_ESTOQUE`. Ordenar
+ * não é decidir veredito (RNF03): o veredito de cada item continua saindo de
+ * `validarSaidaFifo`, sob o lock daquela unidade, e a ordem só garante que a
+ * pergunta seja feita na sequência em que o próprio FIFO a responderia. A
+ * consulta da ordem é sem lock, e uma validade corrigida entre ela e o item
+ * pode no máximo mudar a sequência, nunca o veredito.
+ *
+ * O carrinho guarda ids (o que a leitura devolveu), e a função trava por
+ * código. A mesma consulta que ordena traduz um no outro. Id que não é de
+ * unidade nenhuma recusa o carrinho inteiro, antes de qualquer item: unidade
+ * não é apagada, então ele só vem de cliente quebrado.
+ */
+export async function finalizarCarrinho(
+  unidadeIds: string[],
+  usuarioId: string,
+  sessaoVendaId?: string,
+): Promise<ResultadoFinalizacao> {
+  const fila = await prisma.unidadeProduto.findMany({
+    where: { id: { in: unidadeIds } },
+    select: { id: true, codigoQr: true },
+    orderBy: [{ dataValidade: 'asc' }, { codigoQr: 'asc' }],
+  })
+
+  // O schema da rota já recusou ids repetidos, então contar basta.
+  if (fila.length !== unidadeIds.length) return { ok: false, motivo: 'UNIDADE_NAO_ENCONTRADA' }
+
+  const porId = new Map<string, ItemFinalizado>()
+
+  for (const { id, codigoQr } of fila) {
+    const veredito = await prisma.$transaction((tx) =>
+      validarSaidaFifo(codigoQr, usuarioId, tx, sessaoVendaId ?? null, { modo: 'EFETIVAR' }),
+    )
+    porId.set(id, { unidadeId: id, ...(await montarRespostaDeLeitura(codigoQr, veredito, 'EFETIVAR')) })
+  }
+
+  // A resposta volta na ordem do corpo, que é a ordem do carrinho na tela.
+  return { ok: true, itens: unidadeIds.map((id) => porId.get(id)!) }
 }
 
 /**
@@ -73,8 +144,15 @@ export async function lerCodigoQr(
  * FIFO e precisa devolver o veredito novo **no mesmo contrato** desta rota. Uma
  * segunda tradução do mesmo `Veredito` seria uma segunda versão da resposta que
  * a tela lê (RNF04).
+ *
+ * O `modo` só muda a mensagem de `CONFIRMAR` (T33b): na leitura a unidade foi
+ * liberada, na confirmação do carrinho ela foi vendida.
  */
-export async function montarRespostaDeLeitura(codigoQr: string, veredito: Veredito): Promise<RespostaLeitura> {
+export async function montarRespostaDeLeitura(
+  codigoQr: string,
+  veredito: Veredito,
+  modo: ModoDeSaida,
+): Promise<RespostaLeitura> {
   switch (veredito.tipo) {
     case 'ERRO':
       return {
@@ -128,16 +206,21 @@ export async function montarRespostaDeLeitura(codigoQr: string, veredito: Veredi
         veredito: 'CONFIRMAR',
         codigoQr,
         unidade,
-        // Fato consumado, não convite: a `Saida` já foi criada e o status já é
-        // VENDIDA, dentro da transação que acabou de comitar (arquitetura
-        // seção 4, ramo 5). A mensagem não pode sugerir que falta um passo.
+        // Na leitura, a mensagem não pode dizer que a venda aconteceu: a
+        // atendente que lê "registrada" não confirma o carrinho (T33). Na
+        // confirmação, é fato consumado — a `Saida` já existe.
         mensagem:
-          `Saída registrada: ${unidade.produto.nome} (${unidade.produto.marca}), ` +
+          `${MENSAGEM_DE_CONFIRMAR[modo]}: ${unidade.produto.nome} (${unidade.produto.marca}), ` +
           `validade ${comoDataDeTela(unidade.dataValidade)}.`,
       }
     }
   }
 }
+
+const MENSAGEM_DE_CONFIRMAR = {
+  AVALIAR: 'Pode ser vendida',
+  EFETIVAR: 'Venda registrada',
+} as const
 
 const MENSAGEM_DE_ERRO = {
   QR_NAO_ENCONTRADO:

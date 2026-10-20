@@ -1,6 +1,7 @@
 import { Papel } from '@prisma/client'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { autenticar, exigirPapel } from '../auth/auth.middleware.js'
+import { listaNoCarrinho } from '../saida/saida.routes.js'
 import {
   autorizarVendaVencida,
   corrigirValidade,
@@ -48,6 +49,9 @@ const corpoCorrecao = {
     // `AAAA-MM-DD`: data de calendário, sem hora (RNF01).
     dataValidade: { type: 'string', format: 'date' },
     sessaoVendaId: agrupador,
+    // A revalidação é uma leitura, e a unidade corrigida não pode ser barrada
+    // pelas que já estão no carrinho do atendimento (T33).
+    noCarrinho: listaNoCarrinho,
   },
 } as const
 
@@ -77,7 +81,12 @@ const corpoOverride = {
   },
 } as const
 
-type CorpoCorrecao = { unidadeId: string; dataValidade: string; sessaoVendaId?: string }
+type CorpoCorrecao = {
+  unidadeId: string
+  dataValidade: string
+  sessaoVendaId?: string
+  noCarrinho?: string[]
+}
 type CorpoDescarte = { unidadeId: string; motivo?: string; sessaoVendaId?: string }
 type CorpoOverride = { unidadeId: string; justificativa: string; sessaoVendaId?: string }
 
@@ -95,6 +104,7 @@ export async function rotasExcecaoVencido(app: FastifyInstance): Promise<void> {
         request.body.dataValidade,
         request.usuario.id,
         request.body.sessaoVendaId,
+        request.body.noCarrinho,
       )
 
       if (!resultado.ok) return recusar(reply, resultado.motivo)

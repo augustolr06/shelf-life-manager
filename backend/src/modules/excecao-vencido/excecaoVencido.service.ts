@@ -89,16 +89,17 @@ export type ResultadoOverride =
  * fim — entre corrigir e revalidar não existe instante em que outra atendente
  * veja o estoque pela metade.
  *
- * A consequência é que esta chamada pode terminar com a unidade **vendida**, se
- * a data corrigida a tornar a prioritária do pool. É coerente com o resto do
- * sistema: não existe `POST /saidas/confirmar` desde T09, e o veredito
- * `CONFIRMAR` já é a venda feita.
+ * A revalidação é uma leitura (modo `AVALIAR`, T33b): se a data corrigida
+ * tornar a unidade a prioritária do pool, o veredito é `CONFIRMAR` e ela vai
+ * para o carrinho, **sem** ser vendida. Até T33b esta chamada vendia, porque a
+ * leitura vendia. `noCarrinho` tem o mesmo papel que na leitura.
  */
 export async function corrigirValidade(
   unidadeId: string,
   novaValidade: string,
   usuarioId: string,
   sessaoVendaId?: string,
+  noCarrinho?: string[],
 ): Promise<ResultadoCorrecao> {
   const nova = dataDeString(novaValidade)
 
@@ -135,7 +136,10 @@ export async function corrigirValidade(
 
     // Do zero: a mesma função, o mesmo caminho de uma leitura nova de QR. O
     // `FOR UPDATE` dela reencontra o lock que esta transação já tem.
-    const veredito = await validarSaidaFifo(unidade.codigoQr, usuarioId, tx, sessaoVendaId ?? null)
+    const veredito = await validarSaidaFifo(unidade.codigoQr, usuarioId, tx, sessaoVendaId ?? null, {
+      modo: 'AVALIAR',
+      ...(noCarrinho ? { noCarrinho } : {}),
+    })
 
     return {
       ok: true as const,
@@ -154,7 +158,7 @@ export async function corrigirValidade(
       dataValidadeAnterior: resultado.dataValidadeAnterior,
       dataValidadeNova: resultado.dataValidadeNova,
     },
-    revalidacao: await montarRespostaDeLeitura(resultado.codigoQr, resultado.veredito),
+    revalidacao: await montarRespostaDeLeitura(resultado.codigoQr, resultado.veredito, 'AVALIAR'),
   }
 }
 

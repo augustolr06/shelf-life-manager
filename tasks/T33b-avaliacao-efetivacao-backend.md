@@ -58,15 +58,15 @@ decisões anteriores afetadas estão em `tasks/T33-testes-avaliacao-efetivacao.m
 
 ## Critério de aceite
 
-- [ ] Todos os testes de T33 verdes, sem editá-los (se algum caso se mostrar errado, voltar a
+- [x] Todos os testes de T33 verdes, sem editá-los (se algum caso se mostrar errado, voltar a
       T33, corrigir lá e registrar — como foi feito entre T06 e T07)
-- [ ] Demais suítes verdes; `npm run typecheck` limpo
-- [ ] Conferência por `curl`: leitura que libera sem baixar (conferir o status no banco), e
+- [x] Demais suítes verdes; `npm run typecheck` limpo
+- [x] Conferência por `curl`: leitura que libera sem baixar (conferir o status no banco), e
       confirmação que baixa
-- [ ] `docs/arquitetura.md`: seção 4 (contrato novo da função, eventos por modo) e seção 5
+- [x] `docs/arquitetura.md`: seção 4 (contrato novo da função, eventos por modo) e seção 5
       (`/saidas/ler` com o sentido novo, `/saidas/finalizar`, e a nota "Não existe
       `POST /saidas/confirmar`" reescrita)
-- [ ] `docs/decisoes.md` e `docs/notas-para-artigo.md`
+- [x] `docs/decisoes.md` e `docs/notas-para-artigo.md`
 
 ## Fora de escopo
 
@@ -74,3 +74,21 @@ decisões anteriores afetadas estão em `tasks/T33-testes-avaliacao-efetivacao.m
 - Frontend — T34. **Atenção:** entre T33b e T34, a tela atual mostra "Saída registrada" para
   uma leitura que não baixou nada. Fazer as duas em sequência, ou ajustar só o título da tela
   em T33b.
+
+## Resultado (2026-10-20)
+
+517 de 517 casos verdes, sem editar nenhum caso de T33. `npm run typecheck` limpo. Os 3 erros
+esperados de `tests/fifo` sumiram, medidos com o `exclude` corrigido numa configuração
+temporária. Os 77 já existentes continuam, como registrado no achado de T33.
+
+Conferência por `curl` no backend de desenvolvimento, com um produto novo (`T33B-CURL`) e duas
+unidades (jan e fev):
+- a leitura da de janeiro libera, "Pode ser vendida";
+- a de fevereiro sem carrinho é barrada, e com a de janeiro em `noCarrinho` é liberada;
+- as duas continuam `EM_ESTOQUE`, sem `Saida`;
+- `/saidas/finalizar` com o corpo `[fev, jan]` vende as duas, "Venda registrada", e janeiro
+  fica com `tentativasAteAcerto = 1`;
+- reenviar o mesmo carrinho dá `UNIDADE_JA_BAIXADA`, e id desconhecido dá 404.
+
+Decisão 3: o override **continua imediato**, fora do carrinho. Frontend não alterado: a tela
+de leitura não vende nada até T34 (decisão 10 em `docs/decisoes.md`, T33b).

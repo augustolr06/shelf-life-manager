@@ -1757,3 +1757,30 @@ ficou mais frequente. Mudar a regra muda o indicador, e ficou como decisão em a
 T31, RF06, RF12, PRD 6.2
 
 **Data:** 2026-10-20
+
+---
+
+## Desistência no balcão: um dado novo, que só se conta por unidade e por atendimento
+
+**Contexto do problema:** no processo manual, o frasco que o cliente desistiu de levar volta à
+prateleira sem deixar rastro, e ninguém sabe quantas vezes isso acontece. Com o carrinho, a
+leitura que libera uma unidade fica registrada no log, e a venda só nasce na confirmação. A
+distância entre as duas é a desistência, sem tipo de evento novo.
+
+**Solução adotada:** nenhum evento de desistência. O dado é derivado: uma unidade liberada
+(leitura com veredito `CONFIRMAR`) num atendimento, sem venda confirmada daquela unidade depois,
+foi devolvida.
+
+**Por que importa / trade-offs:** contar exige cuidado, e o cuidado diz algo sobre o problema.
+Contar leituras liberadas sem venda **infla** o número: o carrinho não proíbe reler um frasco
+que já está nele, e a correção de uma validade digitada errado também produz uma leitura
+liberada. A conta honesta é por **unidade distinta dentro do atendimento**. E o atendimento
+depende do agrupador gerado no navegador, que só existe em conexão segura (HTTPS). Sem ele, a
+desistência só pode ser estimada por janela de tempo. Uma unidade liberada por uma atendente e
+vendida por outra também não é desistência do ponto de vista do estoque, mas é desistência do
+primeiro atendimento. A pergunta "quantos frascos o cliente devolveu" precisa dizer de qual dos
+dois pontos de vista ela fala.
+
+**Tarefa relacionada:** T33b, T33, T34, RF12, PRD 6.2
+
+**Data:** 2026-10-20

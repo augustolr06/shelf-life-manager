@@ -2167,3 +2167,65 @@ desde então. Medido com uma configuração temporária que corrige o `exclude`:
 já existentes nas suítes, nenhum nos arquivos tocados por T33, mais os 3 esperados da
 assinatura nova em `tests/fifo` (`Expected 3-4 arguments, but got 5`), que somem com T33b. A
 correção não entrou aqui por estar fora do escopo. Registrada no backlog como achado.
+
+## 2026-10-20 — Leitura sem baixa e confirmação da venda (T33b)
+
+**Contexto.** Implementação do contrato que T33 fixou nos testes. `validarSaidaFifo` ganhou o
+modo `AVALIAR | EFETIVAR` e a lista `noCarrinho`; `POST /saidas/ler` e a revalidação de
+`POST /excecao-vencido/corrigir` passam a avaliar sem baixar; `POST /saidas/finalizar` é a
+venda. Os 49 casos vermelhos de T33 passaram sem que nenhum fosse editado. Suíte inteira em 517
+de 517.
+
+**Decisões do arquivo da tarefa:**
+
+1. **O carrinho não existe no servidor.** Nenhuma tabela, nenhuma reserva, nenhum timeout (PRD
+   6.2). Carrinho abandonado não deixa nada a limpar, e duas atendentes podem liberar o mesmo
+   frasco: vende quem confirmar primeiro, e a outra recebe `UNIDADE_JA_BAIXADA` naquele item.
+2. **Desistência não grava evento.** Uma leitura `CONFIRMAR` sem `SAIDA_CONFIRMADA` posterior
+   da mesma unidade já é a desistência, derivável do log. Como contá-la sem inflar está em
+   `docs/notas-para-artigo.md`.
+3. **O override de venda vencida continua imediato, fora do carrinho.** Ele já é uma
+   confirmação explícita: exige GESTOR, exige justificativa, e a tela de T12 passa pelo diálogo
+   de T39 antes de chamá-lo. Pôr a unidade no carrinho exigiria levar justificativa e
+   autorizador até `/saidas/finalizar`, e um carrinho com itens de dois regimes (um que
+   revalida FIFO, outro que por definição não passa por ele). A alternativa foi descartada.
+   **Efeito sobre T11:** nenhuma mudança de comportamento no override. **Efeito sobre T34:** a
+   tela precisa deixar claro que o override vende na hora, enquanto o resto do carrinho espera
+   a confirmação.
+4. **`tentativasAteAcerto`** segue a regra fixada em T33 (item 5 daquela entrada), e quem a
+   faz valer é a ordem da fila (item 6 abaixo).
+
+**Decisões tomadas na implementação:**
+
+5. **As opções são obrigatórias, sem modo padrão.** `sessaoVendaId` passou de opcional para
+   `string | null`, porque um parâmetro obrigatório não pode vir depois de um opcional. Sem
+   padrão, todo chamador diz se está lendo ou vendendo, e nenhum chamador novo vende por
+   omissão.
+6. **A fila da confirmação é ordenada por `dataValidade` crescente, com desempate por
+   `codigoQr`, e isso não viola a RNF03.** Ordenar não decide veredito: cada item continua
+   recebendo o veredito de `validarSaidaFifo`, sob o lock da própria unidade. A ordem só faz a
+   pergunta na sequência em que o FIFO a responderia, e com isso a de fevereiro não é barrada
+   pela de janeiro do mesmo carrinho. A consulta que ordena é feita sem lock, e é a mesma que
+   traduz ids em códigos. Uma validade corrigida entre essa consulta e o item pode, no máximo,
+   mudar a sequência, nunca o veredito.
+7. **Uma transação por item, sem tudo-ou-nada.** Um item barrado não desfaz os outros (mesma
+   semântica de "cada item é um ciclo independente" da 6.2). Uma transação para o carrinho
+   inteiro seguraria o lock de todas as unidades até a última, que é a espera que a 6.2 evita.
+   A consequência para a tela (T34) é que a resposta pode ser parcial, e ela precisa mostrar o
+   veredito de cada item.
+8. **`montarRespostaDeLeitura` recebe o modo, e ele só muda a mensagem de `CONFIRMAR`.** Na
+   leitura e na revalidação: "Pode ser vendida: …". Na confirmação: "Venda registrada: …". Os
+   outros ramos têm a mesma mensagem nos dois modos. O tipo da resposta não mudou.
+9. **O schema de `noCarrinho` mora em `saida.routes.ts`** (`listaNoCarrinho`, com o teto
+   `MAXIMO_ITENS_DO_CARRINHO = 50`) e a rota da correção o importa, para que as duas listas não
+   divirjam. Repetição em `noCarrinho` é aceita (não muda o resultado); em `unidadeIds`, é
+   recusada, como fixou T33.
+10. **O frontend não mudou, e a T34 precisa vir em seguida.** O arquivo da tarefa oferecia
+    trocar só o título da tela de leitura. Não troquei: com T33b sozinha, a tela de leitura
+    **não vende nada**, porque nenhuma tela chama `/saidas/finalizar`, e corrigir o título não
+    resolve isso. **T33b não pode ir para produção sem T34.** O mesmo vale para a fila de
+    descarte pendente (T13): a correção que revalida como `CONFIRMAR` agora devolve a unidade
+    ao estoque em vez de vendê-la, o que é o comportamento certo no painel do gestor (não há
+    cliente no balcão). Mas os comentários de `TelaDescartesPendentes.tsx` e de
+    `services/excecaoVencido.ts` ainda dizem que ela "foi vendida", e corrigi-los fica para
+    T34.
