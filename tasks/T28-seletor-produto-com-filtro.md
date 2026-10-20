@@ -45,14 +45,14 @@ digitado.
 
 ## Critério de aceite
 
-- [ ] Componente `frontend/src/components/SeletorProduto.tsx`, com
+- [x] Componente `frontend/src/components/SeletorProduto.tsx`, com
       `{ valor: Produto | null, aoEscolher: (p: Produto | null) => void }`
-- [ ] Recebimento e Etiquetas usam o seletor; o par campo + `<select>` + botão Buscar some
-- [ ] Texto digitado sem escolha nunca chega a `cadastrarUnidades` nem a `listarEtiquetas`
-- [ ] Testes de componente: filtrar, escolher por clique e por teclado, editar desfaz a
+- [x] Recebimento e Etiquetas usam o seletor; o par campo + `<select>` + botão Buscar some
+- [x] Texto digitado sem escolha nunca chega a `cadastrarUnidades` nem a `listarEtiquetas`
+- [x] Testes de componente: filtrar, escolher por clique e por teclado, editar desfaz a
       escolha, estados vazio e de erro
-- [ ] Testes de `TelaRecebimento.test.tsx` e `TelaEtiquetas.test.tsx` atualizados
-- [ ] Conferência no navegador com o `playwright-cli` nas duas telas
+- [x] Testes de `TelaRecebimento.test.tsx` e `TelaEtiquetas.test.tsx` atualizados
+- [x] Conferência no navegador com o `playwright-cli` nas duas telas
 
 ## Fora de escopo
 

@@ -1799,3 +1799,55 @@ Reavaliar se a gestora pedir.
   2. O `GET /produtos` foi simulado com 692 itens por `page.route` do `playwright-cli`, sem
   gravar nada no banco. A 360 px a paginação cabe. A página tem rolagem horizontal nessa
   largura por causa da tabela e das abas, que já eram assim antes (escopo de T36).
+
+## 2026-10-20 — Seletor de produto com filtro (T28)
+
+**Contexto.** Recebimento e Etiquetas escolhiam o produto em dois controles: um campo de busca
+com botão **Buscar** e um `<select>` com o resultado. Os dois viraram um combobox só,
+`frontend/src/components/SeletorProduto.tsx`, com `{ valor: Produto | null, aoEscolher }`. O
+valor é sempre um produto escolhido da lista, nunca o texto digitado.
+
+**Decisões da tarefa.**
+
+1. **`downshift` (`useCombobox`), versão 9.4.0**, e não componente próprio. Headless, sem CSS:
+   o padrão WAI-ARIA de combobox (`role="combobox"`, `aria-expanded`,
+   `aria-activedescendant`, setas, Enter, Esc) vem pronto, e o visual continua do projeto.
+   Confirmado pelo orientando.
+2. **Só produtos ativos**, o padrão de `GET /produtos`: o backend já recusa receber unidade de
+   produto inativo.
+3. **Valor inicial.** O seletor aceita um produto já escolhido (`valor` na montagem preenche o
+   campo), mas Etiquetas não o usa: vindo do Recebimento, a folha abre direto como antes, e
+   "Escolher outro produto" mostra o seletor vazio. Decisão do orientando.
+
+**Decisões do orientando.**
+
+- **Campo vazio abre a lista com a primeira página do catálogo** ao receber o foco, como o
+  `<select>` fazia; digitar filtra no servidor com o atraso de T26.
+- **Sair do campo sem escolher apaga o texto.** Deixa claro que não há produto escolhido.
+
+**Detalhes de implementação.**
+
+- **Sair do campo não escolhe o item destacado.** O padrão do downshift escolhe ao perder o
+  foco o item destacado, e um item fica destacado só por o mouse passar por cima dele. Escolher
+  é clique, toque ou Enter (`stateReducer`, caso `InputBlur`).
+- **O texto da caixa não é controlado pela tela.** No downshift 9 os callbacks `on*Change`
+  rodam num efeito, depois da renderização. Com o texto em `useState` do componente, a
+  renderização depois de cada tecla repunha o valor anterior na caixa, e digitando rápido uma
+  tecla em cada duas se perdia ("perf" virava "pef"). O jsdom não reproduz, porque
+  `fireEvent.change` troca o valor inteiro de uma vez; apareceu na conferência com o
+  `playwright-cli`. O texto ficou com o downshift (`initialInputValue`, `setInputValue`).
+- **Desfazer a escolha não apaga o texto editado.** Quando `valor` vira `null`, o downshift
+  troca o texto pelo nome de "nenhum produto", que é vazio; o `stateReducer` mantém o texto
+  nesse caso, porque a escolha é desfeita justamente por alguém estar editando.
+- **Escolher não dispara busca pelo nome escolhido.** O termo da busca é o que foi digitado, e
+  não o que está na caixa.
+- **Erro de rede** aparece embaixo da caixa, com "Tentar de novo", que repete o mesmo termo sem
+  tirar o foco do campo (senão o texto seria apagado). Com erro, a lista anterior sai de vista:
+  ela é de outro termo, e embaixo do texto novo passaria por resultado dele.
+- **A lista se ancora na caixa de texto, e não no `.campo`.** No Recebimento o `.campo` fica
+  dentro de um formulário em coluna e herda `flex: 1 1 10rem`, ficando mais alto que o
+  conteúdo; ancorada nele, a lista abria longe da caixa. O espaço vazio embaixo do campo já
+  existia com o `<select>` e ficou como está (escopo de T35/T36).
+- **Recebimento guarda o produto junto do resultado.** "Imprimir etiquetas destas unidades"
+  passa a usar o produto do recebimento feito, e não o que estiver no seletor no momento.
+  Antes, trocar o `<select>` depois de registrar mandaria à folha o `produtoId` errado.

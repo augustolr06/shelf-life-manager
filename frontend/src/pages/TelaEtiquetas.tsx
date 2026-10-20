@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Paginacao } from '../components/Paginacao'
+import { SeletorProduto } from '../components/SeletorProduto'
 import { ErroApi } from '../services/api'
 import { formatarData } from '../services/datas'
 import { listarEtiquetas, type FolhaDeEtiquetas } from '../services/etiquetas'
-import { listarProdutos, type Produto } from '../services/produtos'
+import type { Produto } from '../services/produtos'
 
 /**
  * A folha de etiquetas imprimíveis (RF04).
@@ -90,31 +91,8 @@ export function TelaEtiquetas() {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  const [produtos, setProdutos] = useState<Produto[]>([])
-  const [totalProdutos, setTotalProdutos] = useState(0)
-  const [termo, setTermo] = useState('')
-  const [produtoId, setProdutoId] = useState('')
-  const [carregandoCatalogo, setCarregandoCatalogo] = useState(false)
-
-  const buscarCatalogo = useCallback(async (busca: string) => {
-    setCarregandoCatalogo(true)
-    setErro(null)
-    try {
-      const resultado = await listarProdutos({ busca })
-      setProdutos(resultado.produtos)
-      setTotalProdutos(resultado.total)
-    } catch (falha) {
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível carregar o catálogo.')
-    } finally {
-      setCarregandoCatalogo(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Chegando do recebimento não há catálogo a carregar: o produto já veio.
-    if (pedido) return
-    void buscarCatalogo('')
-  }, [pedido, buscarCatalogo])
+  // O produto escolhido no seletor (T28): nunca o texto digitado.
+  const [produto, setProduto] = useState<Produto | null>(null)
 
   const carregarFolha = useCallback(async () => {
     if (!pedido) return
@@ -136,23 +114,16 @@ export function TelaEtiquetas() {
 
   function pedirReimpressao(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    const escolhido = produtos.find((produto) => produto.id === produtoId)
-    if (!escolhido) return
+    if (!produto) return
     setPagina(1)
-    setPedido({ produtoId: escolhido.id, produtoNome: escolhido.nome })
-  }
-
-  function filtrar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    setProdutoId('')
-    void buscarCatalogo(termo.trim())
+    setPedido({ produtoId: produto.id, produtoNome: produto.nome })
   }
 
   function voltarAoSeletor() {
     setPedido(null)
     setFolha(null)
     setPagina(1)
-    setProdutoId('')
+    setProduto(null)
   }
 
   const totalPaginas = folha ? Math.max(1, Math.ceil(folha.total / folha.tamanhoPagina)) : 1
@@ -184,54 +155,14 @@ export function TelaEtiquetas() {
             </button>
           </p>
         ) : (
-          <>
-            <form className="filtros" onSubmit={filtrar}>
-              <div className="campo">
-                <label htmlFor="busca-produto-etiqueta">Buscar produto por nome ou código</label>
-                <input
-                  id="busca-produto-etiqueta"
-                  name="busca-produto-etiqueta"
-                  value={termo}
-                  onChange={(evento) => setTermo(evento.target.value)}
-                />
-              </div>
-              <button type="submit">Buscar</button>
-            </form>
-
-            <form className="filtros" onSubmit={pedirReimpressao}>
-              <div className="campo">
-                <label htmlFor="produto-etiqueta">Produto</label>
-                <select
-                  id="produto-etiqueta"
-                  name="produto-etiqueta"
-                  required
-                  value={produtoId}
-                  onChange={(evento) => setProdutoId(evento.target.value)}
-                  disabled={carregandoCatalogo}
-                >
-                  <option value="">
-                    {carregandoCatalogo ? 'Carregando catálogo…' : 'Selecione o produto'}
-                  </option>
-                  {produtos.map((produto) => (
-                    <option key={produto.id} value={produto.id}>
-                      {produto.codigoInterno} — {produto.nome} ({produto.marca})
-                    </option>
-                  ))}
-                </select>
-                {!carregandoCatalogo && totalProdutos > produtos.length && (
-                  <small>
-                    Mostrando {produtos.length} de {totalProdutos} produtos. Refine a busca para
-                    achar os demais.
-                  </small>
-                )}
-              </div>
-              {/* Nada é carregado sozinho na reimpressão: reimprimir etiqueta de
-                  frasco que já tem uma é como se duplicam identificadores. */}
-              <button type="submit" disabled={produtoId === ''}>
-                Carregar etiquetas
-              </button>
-            </form>
-          </>
+          <form className="filtros" onSubmit={pedirReimpressao}>
+            <SeletorProduto valor={produto} aoEscolher={setProduto} />
+            {/* Nada é carregado sozinho na reimpressão: reimprimir etiqueta de
+                frasco que já tem uma é como se duplicam identificadores. */}
+            <button type="submit" disabled={produto === null}>
+              Carregar etiquetas
+            </button>
+          </form>
         )}
 
         {folha && folha.etiquetas.length > 0 && (

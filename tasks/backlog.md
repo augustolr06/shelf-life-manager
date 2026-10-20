@@ -146,7 +146,7 @@ começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras i
 | T25 | Mensagem clara para o limite de 120 caracteres no cadastro de produto | concluída | T04 | `tasks/T25-limite-caracteres-produto.md` |
 | T26 | Busca em tempo real no Catálogo de produtos | concluída | T04 | `tasks/T26-busca-tempo-real-catalogo.md` |
 | T27 | Componente de paginação completo, compartilhado pelas telas paginadas | concluída | — | `tasks/T27-paginacao-completa.md` |
-| T28 | Seletor de produto com filtro (busca e escolha num campo só) | pendente | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
+| T28 | Seletor de produto com filtro (busca e escolha num campo só) | concluída | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
 | T29 | Mensagens de sucesso e erro de ação em toasts | pendente | — | `tasks/T29-toasts.md` |
 | T30 | Aviso de sessão expirada em modal que leva ao login | pendente | — | `tasks/T30-sessao-expirada.md` |
 

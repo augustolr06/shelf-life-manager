@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SeletorProduto } from '../components/SeletorProduto'
 import { ErroApi } from '../services/api'
 import { formatarData } from '../services/datas'
-import { listarProdutos, type Produto } from '../services/produtos'
+import type { Produto } from '../services/produtos'
 import {
   cadastrarUnidades,
   type ItemLote,
@@ -21,42 +22,18 @@ const LINHA_VAZIA: ItemLote = { dataValidade: '', quantidade: 1 }
 
 export function TelaRecebimento() {
   const navegar = useNavigate()
-  const [produtos, setProdutos] = useState<Produto[]>([])
-  const [totalProdutos, setTotalProdutos] = useState(0)
-  const [termo, setTermo] = useState('')
-  const [produtoId, setProdutoId] = useState('')
-  const [carregandoCatalogo, setCarregandoCatalogo] = useState(true)
+  // O produto escolhido no seletor (T28): nunca o texto digitado.
+  const [produto, setProduto] = useState<Produto | null>(null)
 
   const [linhas, setLinhas] = useState<ItemLote[]>([{ ...LINHA_VAZIA }])
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [recebido, setRecebido] = useState<ResultadoRecebimento | null>(null)
-
-  useEffect(() => {
-    void buscarCatalogo('')
-  }, [])
-
-  async function buscarCatalogo(busca: string) {
-    setCarregandoCatalogo(true)
-    setErro(null)
-    try {
-      // Só produtos ativos: o backend recusa receber unidade de produto
-      // inativo, e oferecê-lo na lista só levaria ao 409.
-      const resultado = await listarProdutos({ busca })
-      setProdutos(resultado.produtos)
-      setTotalProdutos(resultado.total)
-    } catch (falha) {
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível carregar o catálogo.')
-    } finally {
-      setCarregandoCatalogo(false)
-    }
-  }
-
-  function filtrar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
-    setProdutoId('')
-    void buscarCatalogo(termo.trim())
-  }
+  // O produto vai junto do resultado: as etiquetas são das unidades que
+  // chegaram, mesmo que o seletor já mostre outro produto.
+  const [recebido, setRecebido] = useState<{
+    resultado: ResultadoRecebimento
+    produto: Produto
+  } | null>(null)
 
   function alterarLinha(indice: number, alteracao: Partial<ItemLote>) {
     setLinhas((atuais) =>
@@ -76,11 +53,12 @@ export function TelaRecebimento() {
     evento.preventDefault()
     setErro(null)
     setRecebido(null)
+    if (!produto) return
     setEnviando(true)
 
     try {
-      const resultado = await cadastrarUnidades(produtoId, linhas)
-      setRecebido(resultado)
+      const resultado = await cadastrarUnidades(produto.id, linhas)
+      setRecebido({ resultado, produto })
       // O formulário volta ao zero: o próximo recebimento é outro evento, e
       // reenviar o mesmo lote por engano geraria etiquetas duplicadas.
       setLinhas([{ ...LINHA_VAZIA }])
@@ -104,11 +82,16 @@ export function TelaRecebimento() {
    * levar o endereço para outra aba ou outro aparelho, não — e lá a folha cai
    * no seletor em vez de abrir sozinha o estoque inteiro do SKU.
    */
-  function imprimirEtiquetas(resultado: ResultadoRecebimento) {
-    const escolhido = produtos.find((produto) => produto.id === produtoId)
+  function imprimirEtiquetas({
+    resultado,
+    produto,
+  }: {
+    resultado: ResultadoRecebimento
+    produto: Produto
+  }) {
     const pedido: ImpressaoPedida = {
-      produtoId,
-      produtoNome: escolhido?.nome ?? '',
+      produtoId: produto.id,
+      produtoNome: produto.nome,
       unidadeIds: resultado.unidades.map((unidade) => unidade.id),
     }
     navegar('/etiquetas', { state: pedido })
@@ -116,7 +99,7 @@ export function TelaRecebimento() {
 
   const totalUnidades = linhas.reduce((soma, linha) => soma + (linha.quantidade || 0), 0)
   const podeEnviar =
-    produtoId !== '' && linhas.length > 0 && linhas.every((linha) => linha.dataValidade !== '')
+    produto !== null && linhas.length > 0 && linhas.every((linha) => linha.dataValidade !== '')
 
   return (
     <section className="tela-recebimento">
@@ -126,19 +109,6 @@ export function TelaRecebimento() {
         diferentes — adicione uma linha por validade.
       </p>
 
-      <form className="filtros" onSubmit={filtrar}>
-        <div className="campo">
-          <label htmlFor="busca-produto">Buscar produto por nome ou código</label>
-          <input
-            id="busca-produto"
-            name="busca-produto"
-            value={termo}
-            onChange={(evento) => setTermo(evento.target.value)}
-          />
-        </div>
-        <button type="submit">Buscar</button>
-      </form>
-
       {erro && (
         <p className="erro" role="alert">
           {erro}
@@ -146,35 +116,7 @@ export function TelaRecebimento() {
       )}
 
       <form className="formulario-recebimento" onSubmit={registrar}>
-        <div className="campo">
-          <label htmlFor="produto">Produto</label>
-          <select
-            id="produto"
-            name="produto"
-            required
-            value={produtoId}
-            onChange={(evento) => setProdutoId(evento.target.value)}
-            disabled={carregandoCatalogo}
-          >
-            <option value="">
-              {carregandoCatalogo ? 'Carregando catálogo…' : 'Selecione o produto'}
-            </option>
-            {produtos.map((produto) => (
-              <option key={produto.id} value={produto.id}>
-                {produto.codigoInterno} — {produto.nome} ({produto.marca})
-              </option>
-            ))}
-          </select>
-          {!carregandoCatalogo && totalProdutos > produtos.length && (
-            <small>
-              Mostrando {produtos.length} de {totalProdutos} produtos. Refine a busca para achar os
-              demais.
-            </small>
-          )}
-          {!carregandoCatalogo && totalProdutos === 0 && (
-            <small>Nenhum produto ativo encontrado. Cadastre-o antes em Catálogo de produtos.</small>
-          )}
-        </div>
+        <SeletorProduto valor={produto} aoEscolher={setProduto} />
 
         <fieldset className="validades">
           <legend>Validades recebidas</legend>
@@ -233,9 +175,9 @@ export function TelaRecebimento() {
 
       {recebido && (
         <section className="resultado-recebimento" aria-live="polite">
-          <h3>{recebido.unidades.length} unidade(s) cadastrada(s)</h3>
+          <h3>{recebido.resultado.unidades.length} unidade(s) cadastrada(s)</h3>
 
-          {recebido.avisos.map((aviso) => (
+          {recebido.resultado.avisos.map((aviso) => (
             <p className="erro" role="alert" key={`${aviso.codigo}-${aviso.dataValidade}`}>
               {aviso.mensagem}
             </p>
@@ -259,7 +201,7 @@ export function TelaRecebimento() {
               </tr>
             </thead>
             <tbody>
-              {recebido.unidades.map((unidade) => (
+              {recebido.resultado.unidades.map((unidade) => (
                 <tr key={unidade.id}>
                   <td>{unidade.codigoQr}</td>
                   <td>{formatarData(unidade.dataValidade)}</td>

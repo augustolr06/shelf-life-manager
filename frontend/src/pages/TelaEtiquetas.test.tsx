@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaEtiquetas, type ImpressaoPedida } from './TelaEtiquetas'
@@ -157,9 +157,8 @@ describe('TelaEtiquetas (RF04)', () => {
     expect(screen.queryByRole('list', { name: 'Etiquetas para impressão' })).toBeNull()
 
     buscar.mockResolvedValueOnce(folha([PRIMEIRA]))
-    const seletor = await screen.findByLabelText('Produto')
-    await waitFor(() => expect(within(seletor).getAllByRole('option')).toHaveLength(2))
-    fireEvent.change(seletor, { target: { value: ID_PRODUTO } })
+    act(() => screen.getByRole('combobox', { name: 'Produto' }).focus())
+    fireEvent.click(await screen.findByRole('option', { name: /Eau de Parfum 50ml/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Carregar etiquetas' }))
 
     expect(await screen.findByText('PRF-8K2M4Q')).toBeInTheDocument()
@@ -167,6 +166,35 @@ describe('TelaEtiquetas (RF04)', () => {
     expect(urlsChamadas()[1]).toBe(
       `http://localhost:3333/produtos/${ID_PRODUTO}/unidades/etiquetas`,
     )
+  })
+
+  it('na reimpressão, texto digitado sem escolher um produto não carrega folha', async () => {
+    buscar.mockResolvedValue(catalogo())
+
+    renderizar()
+    await waitFor(() => expect(buscar).toHaveBeenCalledTimes(1))
+
+    const campo = screen.getByRole('combobox', { name: 'Produto' })
+    fireEvent.change(campo, { target: { value: 'Eau de Parfum 50ml' } })
+
+    // O nome certo digitado por inteiro continua não sendo uma escolha (T28).
+    const carregar = screen.getByRole('button', { name: 'Carregar etiquetas' })
+    expect(carregar).toBeDisabled()
+    fireEvent.submit(campo.closest('form') as HTMLFormElement)
+    await act(async () => {})
+    expect(urlsChamadas().some((url) => url.includes('/etiquetas'))).toBe(false)
+  })
+
+  it('"Escolher outro produto" volta ao seletor vazio', async () => {
+    buscar.mockResolvedValueOnce(folha([PRIMEIRA])).mockResolvedValueOnce(catalogo())
+
+    renderizar(VINDO_DO_RECEBIMENTO)
+    await screen.findByText('PRF-8K2M4Q')
+    fireEvent.click(screen.getByRole('button', { name: 'Escolher outro produto' }))
+
+    expect(screen.getByRole('combobox', { name: 'Produto' })).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Carregar etiquetas' })).toBeDisabled()
+    await waitFor(() => expect(urlsChamadas()[1]).toBe('http://localhost:3333/produtos'))
   })
 
   it('aplica à folha o tamanho de símbolo escolhido', async () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaRecebimento } from './TelaRecebimento'
@@ -65,10 +65,19 @@ function preencherLinha(indice: number, validade: string, quantidade?: number) {
   }
 }
 
+function campoProduto() {
+  return screen.getByRole('combobox', { name: 'Produto' })
+}
+
+/** Abre o seletor de produto (T28) e escolhe o perfume na lista. */
 async function selecionarProduto() {
-  const seletor = await screen.findByLabelText('Produto')
-  await waitFor(() => expect(within(seletor).getAllByRole('option')).toHaveLength(2))
-  fireEvent.change(seletor, { target: { value: ID_PRODUTO } })
+  act(() => campoProduto().focus())
+  fireEvent.click(await screen.findByRole('option', { name: /Eau de Parfum 50ml/ }))
+}
+
+/** Espera a primeira página do catálogo, que o seletor pede ao montar. */
+async function esperarCatalogo() {
+  await waitFor(() => expect(buscar).toHaveBeenCalledTimes(1))
 }
 
 /** Corpo JSON da última chamada ao backend. */
@@ -91,6 +100,7 @@ describe('TelaRecebimento (RF03)', () => {
     buscar.mockResolvedValueOnce(catalogo())
 
     renderizarRecebimento()
+    act(() => campoProduto().focus())
 
     expect(await screen.findByRole('option', { name: /PRF-001/ })).toBeInTheDocument()
     // Sem `incluirInativos`: o backend recusa receber unidade de produto
@@ -200,7 +210,7 @@ describe('TelaRecebimento (RF03)', () => {
     buscar.mockResolvedValueOnce(catalogo())
 
     renderizarRecebimento()
-    await screen.findByRole('option', { name: /PRF-001/ })
+    await esperarCatalogo()
 
     const enviar = screen.getByRole('button', { name: /^registrar recebimento$/i })
     expect(enviar).toBeDisabled()
@@ -210,6 +220,25 @@ describe('TelaRecebimento (RF03)', () => {
 
     preencherLinha(0, '2027-03-01')
     expect(enviar).toBeEnabled()
+  })
+
+  it('texto digitado sem escolher um produto não vira recebimento', async () => {
+    buscar.mockResolvedValue(catalogo())
+
+    renderizarRecebimento()
+    await selecionarProduto()
+    preencherLinha(0, '2027-03-01')
+    expect(screen.getByRole('button', { name: /^registrar recebimento$/i })).toBeEnabled()
+
+    // Editar o nome escolhido desfaz a escolha (T28): o texto que sobra na
+    // caixa não é um produto.
+    fireEvent.change(campoProduto(), { target: { value: 'Eau de Parfum' } })
+    expect(screen.getByRole('button', { name: /^registrar recebimento$/i })).toBeDisabled()
+
+    // Nem o Enter no campo, que submeteria o formulário, chega ao servidor.
+    fireEvent.submit(campoProduto().closest('form') as HTMLFormElement)
+    await act(async () => {})
+    expect(buscar.mock.calls.some(([url]) => String(url).includes('/unidades'))).toBe(false)
   })
 
   it('limpa as linhas depois do envio para não duplicar etiquetas', async () => {
@@ -260,7 +289,7 @@ describe('TelaRecebimento (RF03)', () => {
     buscar.mockResolvedValueOnce(catalogo())
 
     renderizarRecebimento()
-    await screen.findByRole('option', { name: /PRF-001/ })
+    await esperarCatalogo()
 
     expect(screen.getByRole('button', { name: /remover validade 1/i })).toBeDisabled()
 
