@@ -1818,3 +1818,32 @@ confirmada segue fora do escopo. O carrinho diminui a chance de precisar dele, n
 **Tarefa relacionada:** T34, T33b, T33, T31, T10, RF05, RF07, RNF07, PRD 6.1 e 6.2
 
 **Data:** 2026-10-20
+
+
+---
+
+## Consultar não é ler: a pergunta do cliente fica fora do indicador
+
+**Contexto do problema:** no processo manual, "este frasco ainda está bom?" se responde olhando
+a embalagem. Com o sistema, a pergunta tem uma resposta melhor (a validade cadastrada, se o
+frasco já consta como vendido ou descartado), mas o único caminho até ela era a tela de
+leitura, onde ler o QR é o primeiro passo de uma venda. Uma atendente que só quer responder a um
+cliente não deveria precisar entrar no fluxo de saída.
+
+**Solução adotada:** uma tela de consulta separada. Ela lê o QR (câmera ou código digitado) e
+mostra o produto, a validade, quantos dias faltam e a situação da unidade no estoque, sem
+registrar nada. A câmera fica ligada e cada frasco novo substitui o anterior, porque aqui ler o
+frasco errado não tem consequência.
+
+**Por que importa / trade-offs:** a separação protege o indicador da pesquisa. A taxa de acerto
+na primeira leitura (RF12) tem como denominador as leituras de saída, e consultas misturadas a
+elas fariam a taxa medir curiosidade junto com tentativa de venda. A contrapartida é uma
+limitação a declarar: **o sistema não sabe quantas consultas houve**. A frequência com que a
+loja consulta a validade de um frasco seria um dado interessante sobre a confiança da equipe nas
+etiquetas, e não é coletada. A consulta também não diz se o frasco é o próximo a sair pelo FIFO:
+essa resposta é a regra central do sistema e mora numa função só (RNF03), e duplicá-la numa tela
+de consulta abriria a chance de as duas divergirem.
+
+**Tarefa relacionada:** T32, RF05, RF12, RNF03
+
+**Data:** 2026-10-20

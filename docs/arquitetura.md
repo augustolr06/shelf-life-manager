@@ -289,6 +289,7 @@ traduz um no outro na mesma consulta que ordena a fila por validade.
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
+| GET | `/unidades/consulta/:codigoQr` | ATENDENTE, GESTOR | Consulta a unidade pelo QR, **sem registrar saída** (T32) — ver abaixo |
 | POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo` em modo `AVALIAR` e retorna o veredito (RF05, RF06). **Não baixa**: `CONFIRMAR` quer dizer que a unidade pode ir para o carrinho (T33b) |
 | POST | `/saidas/finalizar` | ATENDENTE, GESTOR | Confirma o carrinho: revalida e vende cada unidade (RF07, T33b) — ver abaixo |
 | POST | `/excecao-vencido/corrigir` | GESTOR | Caminho 1 da seção 6.1 do PRD |
@@ -393,6 +394,25 @@ devolve etiquetas (o frasco continua na prateleira, como na fila de T13); produt
 é 404, e produto sem nada a etiquetar é 200 com lista vazia. A rota não grava evento: gerar
 etiqueta é consulta, e a consequência — o sistema não sabe quantas reimpressões houve — está
 declarada como limitação em `docs/notas-para-artigo.md`.
+
+**`GET /unidades/consulta/:codigoQr`** (T32) responde "o que é este frasco?" sem vender. O
+código passa por `normalizarCodigoQr`, como na leitura de saída, e a resposta é a unidade com o
+`status` real (vendida e descartada também são encontradas) e o produto completo:
+
+```json
+{
+  "unidade": { "...UnidadeNaResposta": "...", "status": "EM_ESTOQUE", "dataEntrada": "2026-09-20T13:02:11.000Z",
+               "produto": { "...": "...", "categoria": "Perfumaria", "ativo": true } },
+  "situacao": "NO_PRAZO",
+  "diasParaVencer": 49
+}
+```
+
+`situacao` (`VENCIDA | NO_PRAZO`) e `diasParaVencer` são decididos no servidor contra
+`hojeComoData()`, com a borda do FIFO (vence hoje é `NO_PRAZO`). Código inexistente é 404
+`QR_NAO_ENCONTRADO`. A rota **não passa por `validarSaidaFifo`**: não trava a linha, não diz se a
+unidade é a próxima a sair (RNF03) e não grava `EventoLog`, para não contar consulta no
+denominador da RF12 (`docs/decisoes.md`, T32).
 
 **As quatro rotas de `/configuracao-alerta`** (T17) são o CRUD da janela de antecedência dos
 alertas proativos, todas `GESTOR`. A configuração é **coleção**, não valor único: uma janela
@@ -699,6 +719,8 @@ nenhum, e o `ResumoDaVarredura` ganhou `notificacoesEnviadas`.
 ## 6. Comportamento offline (RNF07)
 
 O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de venda (`/venda`, antes `/leitura`). Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local. O veredito em tela é apagado na queda; o carrinho (T34), não: ele não afirma nada sobre o estoque de agora, porque a confirmação revalida cada item sob lock. Ler e confirmar ficam bloqueados até a conexão voltar.
+
+A consulta de unidade (`/consulta`, T32) usa o mesmo portão, extraído para `hooks/useConexao.ts` e `components/PortaoOffline.tsx`: sem servidor não há consulta, e o cartão em tela é apagado na queda pelo mesmo motivo do veredito.
 
 Detalhado em T10, a partir da implementação:
 

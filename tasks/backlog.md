@@ -195,7 +195,7 @@ validade deixa de vender na revalidação).
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T31 | Leitura única: câmera desliga ao identificar o código e a tela mostra o resultado | concluída | T10 | `tasks/T31-leitura-unica-camera.md` |
-| T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | pendente | T10 | `tasks/T32-consulta-unidade-qr.md` |
+| T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | concluída | T10 | `tasks/T32-consulta-unidade-qr.md` |
 | T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | concluída | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
 | T33b | Backend: leitura sem baixa e confirmação da venda (`POST /saidas/finalizar`) | concluída | T33 | `tasks/T33b-avaliacao-efetivacao-backend.md` |
 | T34 | Frontend: carrinho na tela de venda | concluída | T31, T33b, T39 | `tasks/T34-carrinho-frontend.md` |
@@ -213,6 +213,11 @@ de leitura diz "Saída registrada" para uma unidade que não saiu do estoque. De
 **Estado de T34 (2026-10-20).** Concluída. A tela de leitura virou **Venda** (`/venda`, com
 `/leitura` redirecionando): ler põe no carrinho, e só **Confirmar venda** baixa. Com isso,
 T33b + T34 podem ir juntas para produção. Decisões em `docs/decisoes.md` (T34).
+
+**Estado de T32 (2026-10-20).** Concluída. `GET /unidades/consulta/:codigoQr` e a tela
+**Consultar produto** (`/consulta`, atendente e gestor), com câmera contínua. Não grava
+`EventoLog` nem diz se a unidade é a próxima do FIFO. O portão de offline saiu da tela de Venda
+para `hooks/useConexao.ts` e `components/PortaoOffline.tsx`. Decisões em `docs/decisoes.md` (T32).
 
 **Achado de T34 (2026-10-20), sem tarefa aberta.** Os roteiros manuais ainda descrevem a leitura
 que vendia: `docs/roteiro-testes-manuais.md` (seção 9 em diante) e `docs/roteiro-tutorial.md`

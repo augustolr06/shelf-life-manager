@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useConfirmacao } from '../components/DialogoConfirmacao'
 import { LeitorCamera } from '../components/LeitorCamera'
 import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
+import { PortaoOffline } from '../components/PortaoOffline'
+import { useConexao } from '../hooks/useConexao'
 import { ErroApi } from '../services/api'
 import type { Usuario } from '../services/auth'
 import { formatarData } from '../services/datas'
@@ -15,7 +17,6 @@ import {
   type RespostaLeitura,
   type UnidadeLida,
 } from '../services/saidas'
-import { verificarBackend } from '../services/saude'
 
 /**
  * Venda no balcão (RF05, RF06, RF07), com carrinho desde T34. É a tela onde o
@@ -34,8 +35,6 @@ import { verificarBackend } from '../services/saude'
  * identidade (o mesmo código, o mesmo id), para não ter o mesmo frasco duas
  * vezes.
  */
-
-type EstadoConexao = 'verificando' | 'online' | 'offline'
 
 /**
  * Uma unidade liberada pela leitura. `pendencia` é o veredito que a
@@ -409,7 +408,14 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
       </p>
 
       {!online ? (
-        <PortaoOffline estado={conexao} aoTentarDeNovo={verificar} />
+        // Não existe leitura nem venda offline: o veredito depende do estoque
+        // inteiro do produto naquele instante, e isso mora no servidor.
+        // Enfileirar a leitura para enviar depois só teria valor se alguém
+        // desse o veredito na hora — e ninguém no navegador pode dar.
+        <PortaoOffline estado={conexao} aoTentarDeNovo={verificar}>
+          Ler e confirmar a venda não funcionam offline: o sistema precisa consultar o estoque para
+          saber qual frasco sai primeiro. O carrinho continua aqui até a conexão voltar.
+        </PortaoOffline>
       ) : (
         <>
           <div className="atendimento">
@@ -786,72 +792,4 @@ function DadosDaUnidade({ unidade }: { unidade: UnidadeLida }) {
       <dd>{unidade.codigoQr}</dd>
     </dl>
   )
-}
-
-/**
- * Portão de offline (RNF07, `docs/arquitetura.md` seção 6). Não existe leitura
- * nem venda offline: o veredito depende do estoque inteiro do produto naquele
- * instante, e isso mora no servidor. Enfileirar a leitura para enviar depois só
- * teria valor se alguém desse o veredito na hora — e ninguém no navegador pode
- * dar.
- */
-function PortaoOffline({
-  estado,
-  aoTentarDeNovo,
-}: {
-  estado: EstadoConexao
-  aoTentarDeNovo: () => void
-}) {
-  if (estado === 'verificando') {
-    return <p role="status">Verificando conexão com o servidor…</p>
-  }
-
-  return (
-    <div className="bloqueio-offline" role="alert">
-      <h3>Sem conexão com o servidor</h3>
-      <p>
-        Ler e confirmar a venda não funcionam offline: o sistema precisa consultar o estoque para
-        saber qual frasco sai primeiro. O carrinho continua aqui até a conexão voltar.
-      </p>
-      <button type="button" onClick={aoTentarDeNovo}>
-        Tentar de novo
-      </button>
-    </div>
-  )
-}
-
-/**
- * Dois sinais, o barato primeiro: `navigator.onLine` descarta o caso óbvio sem
- * ida à rede, e `/health` confirma que existe caminho até o backend — porque
- * `onLine` só sabe que há uma rede, não que ela chega ao servidor.
- */
-function useConexao() {
-  const [conexao, setConexao] = useState<EstadoConexao>('verificando')
-
-  const verificar = useCallback(async () => {
-    setConexao('verificando')
-    if (!navigator.onLine) {
-      setConexao('offline')
-      return
-    }
-    setConexao((await verificarBackend()) ? 'online' : 'offline')
-  }, [])
-
-  useEffect(() => {
-    void verificar()
-
-    // Eventos do navegador, sem varredura periódica: sondar de tempos em
-    // tempos gastaria bateria e rede do celular do balcão sem informar mais.
-    const aoVoltar = () => void verificar()
-    const aoCair = () => setConexao('offline')
-    window.addEventListener('online', aoVoltar)
-    window.addEventListener('offline', aoCair)
-
-    return () => {
-      window.removeEventListener('online', aoVoltar)
-      window.removeEventListener('offline', aoCair)
-    }
-  }, [verificar])
-
-  return { conexao, verificar: () => void verificar() }
 }

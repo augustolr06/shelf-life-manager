@@ -67,15 +67,15 @@ e cada leitura mostra os dados daquela unidade — **sem registrar saída**.
 
 ## Critério de aceite
 
-- [ ] Rota com schema, testes com banco real: unidade em estoque, vencida, vendida,
+- [x] Rota com schema, testes com banco real: unidade em estoque, vencida, vendida,
       descartada, código inexistente, 401 sem sessão, e **nenhuma linha nova em `EventoLog`**
-- [ ] Conferência por `curl` no servidor local
-- [ ] Tela com câmera contínua, leitura nova substituindo a anterior
-- [ ] Nenhuma comparação de data no frontend
-- [ ] Testes de componente com o `LeitorCamera` substituído por dublê
-- [ ] Conferência no navegador com o `playwright-cli` pela entrada manual, incluindo
+- [x] Conferência por `curl` no servidor local
+- [x] Tela com câmera contínua, leitura nova substituindo a anterior
+- [x] Nenhuma comparação de data no frontend
+- [x] Testes de componente com o `LeitorCamera` substituído por dublê
+- [x] Conferência no navegador com o `playwright-cli` pela entrada manual, incluindo
       `network-state-set offline`
-- [ ] `docs/arquitetura.md` seção 5 com a rota nova
+- [x] `docs/arquitetura.md` seção 5 com a rota nova
 
 ## Fora de escopo
 

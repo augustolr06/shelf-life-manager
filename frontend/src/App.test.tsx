@@ -230,6 +230,20 @@ describe('App — guardião de sessão', () => {
       expect(screen.getByRole('link', { name: /^venda$/i })).toHaveAttribute('href', '/venda')
     })
 
+    it('oferece a consulta de produto à ATENDENTE (T32)', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+      montar('/consulta')
+
+      expect(
+        await screen.findByRole('heading', { name: /consultar produto/i }),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /consultar produto/i })).toHaveAttribute(
+        'href',
+        '/consulta',
+      )
+    })
+
     it('não oferece o recebimento à ATENDENTE, nem por link nem por URL', async () => {
       rotear({
         'GET /auth/me': SESSAO_ATENDENTE,

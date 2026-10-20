@@ -39,3 +39,40 @@ export async function cadastrarUnidades(
     body: JSON.stringify({ unidades: itens }),
   })
 }
+
+/**
+ * Espelha `GET /unidades/consulta/:codigoQr` (T32): a unidade pelo QR, sem
+ * registrar saída. `situacao` e `diasParaVencer` vêm prontos do servidor —
+ * a tela não compara datas (RNF01, RNF04), como em `/alertas` (T19).
+ */
+export type ConsultaUnidade = {
+  unidade: {
+    id: string
+    codigoQr: string
+    /** Data de calendário `AAAA-MM-DD` (RNF01). */
+    dataValidade: string
+    status: UnidadeCadastrada['status']
+    /** Instante do cadastro. */
+    dataEntrada: string
+    produto: {
+      id: string
+      codigoInterno: string
+      nome: string
+      marca: string
+      categoria: string
+      ativo: boolean
+    }
+  }
+  situacao: 'VENCIDA' | 'NO_PRAZO'
+  /** Negativo depois de vencida. */
+  diasParaVencer: number
+}
+
+/**
+ * O código vai como foi lido ou digitado, como na leitura de saída: quem
+ * normaliza é `codigoQr.ts`, no backend (T08). Código inexistente sobe como
+ * `ErroApi` 404 `QR_NAO_ENCONTRADO`, com a mensagem do servidor.
+ */
+export async function consultarUnidade(codigoQr: string): Promise<ConsultaUnidade> {
+  return requisitarApi<ConsultaUnidade>(`/unidades/consulta/${encodeURIComponent(codigoQr)}`)
+}

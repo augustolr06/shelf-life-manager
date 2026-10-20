@@ -27,6 +27,7 @@
     "test:excecao": "vitest run tests/excecao-vencido",
     "test:descarte": "vitest run tests/descarte",
     "test:etiquetas": "vitest run tests/etiquetas",
+    "test:consulta": "vitest run tests/consulta",
     "test:alerta": "vitest run tests/alerta",
     "test:push": "vitest run tests/push",
     "test:dashboard": "vitest run tests/dashboard",

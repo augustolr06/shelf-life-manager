@@ -7,9 +7,10 @@ import { finalizarCarrinho, lerCodigoQr } from './saida.service.js'
  * Comprimento máximo do texto aceito como código. Generoso em relação aos 10
  * caracteres do formato atual (`PRF-XXXXXX`), porque o formato é provisório
  * até a RNF08 (T16) — mas limitado, porque o campo é livre e vai direto para
- * uma consulta e para o `EventoLog`.
+ * uma consulta e para o `EventoLog`. Exportado para a consulta de unidade
+ * (T32), que recebe o mesmo texto da mesma etiqueta.
  */
-const MAXIMO_CODIGO = 64
+export const MAXIMO_CODIGO = 64
 
 /**
  * Teto de unidades num carrinho (T33). Folgado para um balcão de perfumaria e

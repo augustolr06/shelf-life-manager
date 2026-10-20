@@ -5,6 +5,7 @@ import { Dialogo } from './components/Dialogo'
 import { ProvedorConfirmacao } from './components/DialogoConfirmacao'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
+import { TelaConsulta } from './pages/TelaConsulta'
 import { TelaDashboard } from './pages/TelaDashboard'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
@@ -64,6 +65,15 @@ const TELAS: readonly Tela[] = [
     papeis: ['ATENDENTE', 'GESTOR'],
     // O papel decide quais dos três caminhos da unidade vencida aparecem (T12).
     elemento: (usuario) => <TelaVenda usuario={usuario} />,
+  },
+  {
+    caminho: '/consulta',
+    rotulo: 'Consultar produto',
+    // Mesma lista de `GET /unidades/consulta/:codigoQr`: conferir um frasco
+    // para responder a um cliente é pergunta de balcão (T32).
+    papeis: ['ATENDENTE', 'GESTOR'],
+    // Sem `usuario`: consultar não tem ramo por papel.
+    elemento: () => <TelaConsulta />,
   },
   {
     caminho: '/produtos',

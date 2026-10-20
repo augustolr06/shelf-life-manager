@@ -1,6 +1,8 @@
 import { Papel } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { autenticar, exigirPapel } from '../auth/auth.middleware.js'
+import { MAXIMO_CODIGO } from '../saida/saida.routes.js'
+import { consultarUnidade } from './consulta.service.js'
 import { listarEtiquetas } from './etiqueta.service.js'
 import { cadastrarUnidades, contarUnidades, type ItemLote } from './unidade.service.js'
 
@@ -79,6 +81,14 @@ const consultaEtiquetas = {
   },
 } as const
 
+const parametrosCodigo = {
+  type: 'object',
+  required: ['codigoQr'],
+  // Sem `pattern`: o código digitado à mão chega fora do formato e é
+  // normalizado no serviço, como na leitura de saída (T08).
+  properties: { codigoQr: { type: 'string', minLength: 1, maxLength: MAXIMO_CODIGO } },
+} as const
+
 type ConsultaEtiquetas = {
   pagina: number
   tamanhoPagina: number
@@ -144,6 +154,32 @@ export async function rotasUnidade(app: FastifyInstance): Promise<void> {
       return resultado.folha
     },
   )
+
+  /**
+   * O que é este frasco (T32): a unidade pelo QR, sem registrar saída. Das
+   * duas funções, como a leitura de saída — conferir a validade para responder
+   * a um cliente é pergunta de balcão.
+   *
+   * Não grava `EventoLog` nem diz se a unidade é a próxima a sair; os motivos
+   * estão em `consulta.service.ts`.
+   */
+  app.get<{ Params: { codigoQr: string } }>(
+    '/unidades/consulta/:codigoQr',
+    {
+      preHandler: [autenticar, exigirPapel(Papel.ATENDENTE, Papel.GESTOR)],
+      schema: { params: parametrosCodigo },
+    },
+    async (request, reply) => {
+      const resultado = await consultarUnidade(request.params.codigoQr)
+
+      // 404, e não um veredito em 200 como em `/saidas/ler`: aqui não há
+      // veredito, e "não existe unidade com este código" é a resposta comum de
+      // uma consulta que não achou nada.
+      if (!resultado.ok) return reply.code(STATUS[resultado.motivo]).send(FALHAS[resultado.motivo])
+
+      return resultado.consulta
+    },
+  )
 }
 
 const FALHAS = {
@@ -159,6 +195,10 @@ const FALHAS = {
     erro: 'CODIGO_QR_INDISPONIVEL',
     mensagem: 'Não foi possível gerar códigos únicos para o lote. Tente novamente.',
   },
+  QR_NAO_ENCONTRADO: {
+    erro: 'QR_NAO_ENCONTRADO',
+    mensagem: 'Código não cadastrado. Confira a etiqueta ou digite o código impresso abaixo do QR.',
+  },
 } as const
 
 const STATUS = {
@@ -167,4 +207,5 @@ const STATUS = {
   // 503, não 500: é uma falha transitória de geração, e repetir a requisição
   // tende a funcionar.
   CODIGO_QR_INDISPONIVEL: 503,
+  QR_NAO_ENCONTRADO: 404,
 } as const

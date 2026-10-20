@@ -2309,3 +2309,70 @@ barrada pela anterior; no banco, as três `EM_ESTOQUE` e sem `Saida`; remover a 
 confirmar mostra o diálogo com as duas restantes; depois da confirmação, jan e fev `VENDIDA` com
 uma `Saida` cada, mar continua `EM_ESTOQUE`. Console sem erro além dos 401 de `/auth/me` antes do
 login.
+
+## 2026-10-20 — Consulta de unidade por QR, sem registrar saída (T32)
+
+**Contexto.** Ler o QR na tela de Venda põe a unidade no carrinho. Para só conferir um frasco
+(a validade, para responder a um cliente; se ele já foi vendido), não havia caminho. A tarefa
+cria `GET /unidades/consulta/:codigoQr` e a tela **Consultar produto** (`/consulta`), das duas
+funções. Nenhuma decisão anterior é revista.
+
+**Decisões do arquivo da tarefa:**
+
+1. **A consulta não grava `EventoLog`.** `LEITURA_QR_SAIDA` é o denominador da taxa de acerto na
+   primeira leitura (RF12), e contar consulta ali falsearia o indicador. Também não ganha tipo
+   próprio: o log registra o que acontece com o estoque, e olhar um frasco não muda o estoque
+   (mesmo argumento das etiquetas, T14, e do catálogo, T24). A suíte prova que nenhuma linha
+   nova aparece, nem no acerto nem no 404. Consequência em `docs/notas-para-artigo.md`.
+2. **A consulta não diz se a unidade é a próxima a sair.** Isso é veredito FIFO, preso a
+   `validarSaidaFifo` pela RNF03. O serviço (`unidade/consulta.service.ts`) não chama a função,
+   não trava a linha e não lê o pool. Se um dia a tela quiser mostrar a ordem, o caminho é expor
+   a consulta do pool que a função usa, nunca reescrevê-la.
+3. **Câmera contínua** (modo `'continua'` de T31): nada é gravado, e ler o frasco seguinte sem
+   tocar na tela é o comportamento desejado.
+
+**Decisões tomadas na implementação:**
+
+4. **Código inexistente é 404 `QR_NAO_ENCONTRADO`, não veredito em 200** como em `/saidas/ler`.
+   Lá, 200 existe para a tela escolher layout pelo veredito, e não pelo status (RNF04); aqui não
+   há veredito. O corpo segue o formato de erro da seção 5.1, com a mesma mensagem da leitura de
+   saída.
+5. **Rota em `/unidades/...`, não em `/produtos/:id/...`.** Quem consulta tem o código, não o
+   produto. O schema aceita de 1 a 64 caracteres, o mesmo `MAXIMO_CODIGO` de `/saidas/ler`
+   (agora exportado de `saida.routes.ts`), sem `pattern`: o código digitado à mão é normalizado
+   por `codigoQr.ts`, como na leitura.
+6. **`situacao` é calculada também para unidade vendida ou descartada.** Ela fala da validade, e
+   o `status` diz se o frasco ainda está na loja. A borda é a do FIFO, da varredura e da fila de
+   descarte: o que vence hoje é `NO_PRAZO`, com `diasParaVencer` 0. A tela mostra o destaque de
+   vencida pelo `situacao` também numa unidade já vendida. Se isso confundir no uso, a
+   alternativa é a tela atenuar o destaque quando `status` não for `EM_ESTOQUE`, o que é escolha
+   de exibição e não veredito.
+7. **A resposta estende `UnidadeNaResposta`** com `status`, `dataEntrada`, `produto.categoria` e
+   `produto.ativo`, montando a base com `comProdutoJaLido`. Não alterei a forma comum: ela é a de
+   toda resposta do fluxo de saída, que não precisa desses campos.
+8. **Portão de offline extraído da tela de Venda** para `hooks/useConexao.ts` e
+   `components/PortaoOffline.tsx`. O texto que explica o bloqueio vem de cada tela (`children`),
+   porque o que cada uma não consegue fazer offline é diferente. Comportamento da Venda
+   inalterado (suíte dela verde sem mudança).
+9. **O que a câmera contínua ignora:** o código cujo resultado está na tela, inclusive o que
+   voltou 404 (senão o frasco parado na frente da câmera viraria uma rajada de 404), e qualquer
+   quadro enquanto uma consulta está no ar (descartado, não enfileirado: a câmera continua vendo
+   o frasco e entrega de novo). Digitar consulta de novo mesmo o código da tela, e religar a
+   câmera também, porque os dois são atos deliberados.
+10. **Digitar não desliga a câmera**, ao contrário da Venda (T31): lá, um frasco que passasse na
+    frente da câmera ia para o carrinho; aqui, só troca o cartão. O campo é limpo só no acerto:
+    no 404, o código continua lá para a correção do erro de digitação.
+11. **Destaque de vencida com as classes que já existem**: `resultado-vencido` no cartão (a cor
+    da unidade vencida no balcão e na fila de descarte) e `.erro` na linha "Vencida há N dias". O
+    destaque definitivo é de T38.
+
+**Verificação.** Backend: 13 casos novos em `tests/consulta/consultaUnidade.test.ts` (em
+estoque, vence hoje, vencida, vendida, descartada, produto inativo, normalização, gestor, 404,
+400 de comprimento, 401, nenhum `EventoLog`, nenhuma escrita na unidade), 530 no total, typecheck
+limpo. `curl` no servidor local com as quatro situações do banco de desenvolvimento, código em
+caixa baixa e código inexistente; `EventoLog` com 65 linhas antes e depois. Frontend: 18 casos
+em `TelaConsulta.test.tsx` e um em `App.test.tsx`, 283 no total, typecheck limpo. Conferência no
+navegador com o `playwright-cli`, como atendente, pela entrada manual: unidade vencida com
+destaque, unidade vendida, código inexistente substituindo o cartão anterior, e
+`network-state-set offline` levando ao portão e apagando o cartão ao reconectar. Console sem
+erro além do 404 esperado do código inexistente.
