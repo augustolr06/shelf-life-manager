@@ -12,29 +12,58 @@ import { respostaFalsa } from '../services/testes/respostaFalsa'
  * jsdom — é por isso que `LeitorCamera.tsx` faz uma coisa só, e é por isso que
  * o caminho da câmera precisa de conferência em celular real (T10, Decisão 3).
  *
- * O dublê expõe dois botões: um simula um quadro decodificado, o outro simula
- * a câmera indisponível.
+ * O dublê expõe três botões: um simula um quadro decodificado, respeitando o
+ * modo como o leitor real (no `'unica'`, só o primeiro quadro da montagem
+ * chega à tela); outro simula um leitor que falhou em parar e entrega a rajada
+ * inteira; o último simula a câmera indisponível.
  */
-const camera = vi.hoisted(() => ({ codigo: 'PRF-AAAAAA' }))
+const camera = vi.hoisted(() => ({ codigo: 'PRF-AAAAAA', modo: null as string | null }))
 
-vi.mock('../components/LeitorCamera', () => ({
-  LeitorCamera: ({
-    aoLer,
-    aoFalhar,
-  }: {
-    aoLer: (texto: string) => void
-    aoFalhar: (mensagem: string) => void
-  }) => (
-    <div data-testid="camera-dublada">
-      <button type="button" onClick={() => aoLer(camera.codigo)}>
-        simular quadro
-      </button>
-      <button type="button" onClick={() => aoFalhar('Permissão de câmera negada.')}>
-        simular falha de câmera
-      </button>
-    </div>
-  ),
-}))
+vi.mock('../components/LeitorCamera', async () => {
+  const { useRef } = await import('react')
+
+  return {
+    LeitorCamera: function LeitorCameraDublado({
+      aoLer,
+      aoFalhar,
+      modo = 'continua',
+    }: {
+      aoLer: (texto: string) => void
+      aoFalhar: (mensagem: string) => void
+      modo?: 'unica' | 'continua'
+    }) {
+      const jaLeu = useRef(false)
+      camera.modo = modo
+
+      function quadro() {
+        if (modo === 'unica' && jaLeu.current) return
+        jaLeu.current = true
+        aoLer(camera.codigo)
+      }
+
+      return (
+        <div data-testid="camera-dublada">
+          <button type="button" onClick={quadro}>
+            simular quadro
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              aoLer(camera.codigo)
+              aoLer(camera.codigo)
+              aoLer(camera.codigo)
+            }}
+          >
+            simular leitor que não parou
+          </button>
+          <button type="button" onClick={() => aoFalhar('Permissão de câmera negada.')}>
+            simular falha de câmera
+          </button>
+        </div>
+      )
+    },
+  }
+})
 
 const buscar = vi.fn<typeof fetch>()
 
@@ -261,6 +290,8 @@ describe('TelaLeituraQr (RF05, RF06, RNF07)', () => {
     buscar.mockReset()
     vi.stubGlobal('fetch', buscar)
     definirConexao(true)
+    camera.codigo = 'PRF-AAAAAA'
+    camera.modo = null
   })
 
   afterEach(() => {
@@ -397,21 +428,135 @@ describe('TelaLeituraQr (RF05, RF06, RNF07)', () => {
   })
 
   describe('câmera', () => {
-    it('não conta a rajada de quadros do mesmo frasco como leituras diferentes', async () => {
+    /** Liga a câmera e entrega um quadro com o código de `camera.codigo`. */
+    async function lerPelaCamera() {
+      fireEvent.click(await screen.findByRole('button', { name: /ligar câmera/i }))
+      fireEvent.click(screen.getByRole('button', { name: /simular quadro/i }))
+    }
+
+    it('liga o leitor em modo de leitura única', async () => {
       comLeituras(CONFIRMADO)
       montarTela()
 
       fireEvent.click(await screen.findByRole('button', { name: /ligar câmera/i }))
-      const quadro = screen.getByRole('button', { name: /simular quadro/i })
 
-      fireEvent.click(quadro)
+      expect(camera.modo).toBe('unica')
+    })
+
+    it('desliga a câmera ao ler um código e mostra o resultado no lugar (T31)', async () => {
+      comLeituras(CONFIRMADO)
+      montarTela()
+
+      await lerPelaCamera()
+
+      expect(await screen.findByRole('heading', { name: /saída registrada/i })).toBeInTheDocument()
+      // Sem câmera ligada, nenhum frasco que passe na frente vira leitura nova
+      // enquanto a atendente ainda olha o resultado.
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+      expect(screen.getByRole('button', { name: /ler próximo/i })).toBeInTheDocument()
+      expect(leiturasEnviadas()).toHaveLength(1)
+    })
+
+    it('religa a câmera e limpa o resultado em "Ler próximo"', async () => {
+      comLeituras(CONFIRMADO, BLOQUEADO)
+      montarTela()
+
+      await lerPelaCamera()
       await screen.findByRole('heading', { name: /saída registrada/i })
-      fireEvent.click(quadro)
-      fireEvent.click(quadro)
+      fireEvent.click(screen.getByRole('button', { name: /ler próximo/i }))
 
-      // Cada disparo viraria um `LEITURA_QR_SAIDA` e inflaria o denominador
-      // da taxa de acerto na primeira leitura (RF12).
-      await waitFor(() => expect(leiturasEnviadas()).toHaveLength(1))
+      expect(screen.getByTestId('camera-dublada')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: /saída registrada/i })).toBeNull()
+
+      // A câmera religada é uma montagem nova do leitor: lê de novo, e
+      // inclusive o mesmo frasco, se for ele que estiver em quadro.
+      fireEvent.click(screen.getByRole('button', { name: /simular quadro/i }))
+      expect(await screen.findByRole('heading', { name: /não é esta unidade/i })).toBeInTheDocument()
+      expect(leiturasEnviadas()).toHaveLength(2)
+    })
+
+    it('não liga a câmera sozinha na leitura digitada, nem em "Ler próximo" depois dela', async () => {
+      comLeituras(CONFIRMADO)
+      montarTela()
+
+      await digitarCodigo('PRF-AAAAAA')
+      await screen.findByRole('heading', { name: /saída registrada/i })
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: /ler próximo/i }))
+
+      // Quem digitou pode não ter câmera: o próximo código volta para o campo.
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+      expect(screen.getByLabelText(/digite o código/i)).toHaveFocus()
+    })
+
+    it('desliga a câmera ligada quando o código é digitado, e "Ler próximo" a religa', async () => {
+      comLeituras(CONFIRMADO)
+      montarTela()
+
+      fireEvent.click(await screen.findByRole('button', { name: /ligar câmera/i }))
+      await digitarCodigo('PRF-AAAAAA')
+
+      await screen.findByRole('heading', { name: /saída registrada/i })
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: /ler próximo/i }))
+      expect(screen.getByTestId('camera-dublada')).toBeInTheDocument()
+    })
+
+    it('mantém o bloqueio FIFO na tela até a atendente pedir o próximo', async () => {
+      camera.codigo = 'PRF-ZZZZZZ'
+      comLeituras(BLOQUEADO)
+      montarTela()
+
+      await lerPelaCamera()
+
+      expect(await screen.findByRole('heading', { name: /não é esta unidade/i })).toBeInTheDocument()
+      expect(screen.getByText('PRF-AAAAAA', { selector: '.codigo-correto' })).toBeInTheDocument()
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+    })
+
+    it('mantém o painel da unidade vencida na tela até a atendente pedir o próximo', async () => {
+      camera.codigo = 'PRF-VVVVVV'
+      comLeituras(VENCIDO)
+      montarTela()
+
+      await lerPelaCamera()
+
+      expect(await screen.findByRole('heading', { name: /unidade vencida/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /registrar descarte/i })).toBeInTheDocument()
+      expect(screen.queryByTestId('camera-dublada')).toBeNull()
+    })
+
+    it('oferece "Ler próximo" também depois de uma leitura que falhou', async () => {
+      buscar.mockImplementation(async (entrada) => {
+        const caminho = String(entrada).replace('http://localhost:3333', '')
+        if (caminho === '/health') return BACKEND_DE_PE()
+        return respostaFalsa(500, { erro: 'ERRO_INTERNO', mensagem: 'Falha no servidor.' })
+      })
+      montarTela()
+
+      await lerPelaCamera()
+
+      expect(await screen.findByText('Falha no servidor.')).toBeInTheDocument()
+      // A câmera desligou na leitura que falhou; este é o caminho de volta.
+      fireEvent.click(screen.getByRole('button', { name: /ler próximo/i }))
+      expect(screen.getByTestId('camera-dublada')).toBeInTheDocument()
+      expect(screen.queryByText('Falha no servidor.')).toBeNull()
+    })
+
+    it('não conta como leituras diferentes a rajada de um leitor que não parou', async () => {
+      comLeituras(CONFIRMADO)
+      montarTela()
+
+      fireEvent.click(await screen.findByRole('button', { name: /ligar câmera/i }))
+      fireEvent.click(screen.getByRole('button', { name: /simular leitor que não parou/i }))
+
+      // Defesa em profundidade (T31, Decisão 2): cada disparo viraria um
+      // `LEITURA_QR_SAIDA` e inflaria o denominador da taxa de acerto na
+      // primeira leitura (RF12).
+      await screen.findByRole('heading', { name: /saída registrada/i })
+      expect(leiturasEnviadas()).toHaveLength(1)
     })
 
     it('aponta o fallback manual quando a câmera não abre', async () => {

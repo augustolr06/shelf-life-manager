@@ -48,8 +48,17 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
   // rajada — dez quadros por segundo do mesmo frasco —, e cada disparo viraria
   // um `LEITURA_QR_SAIDA` no log, inflando o denominador da taxa de acerto na
   // primeira leitura (RF12).
+  // A câmera lê um código e para (T31), então essa proteção não deveria
+  // disparar. Ela fica como defesa em profundidade, para o caso de o leitor
+  // falhar em parar.
   const emVoo = useRef(false)
   const codigoJaProcessado = useRef<string | null>(null)
+
+  // Se a câmera estava ligada quando a última leitura partiu. "Ler próximo"
+  // religa a câmera só nesse caso: quem digitou o código talvez nem tenha
+  // câmera.
+  const religarCamera = useRef(false)
+  const campoCodigo = useRef<HTMLInputElement>(null)
 
   // Um veredito vale para o estoque de um instante só: enquanto a conexão
   // esteve fora, outra atendente pode ter vendido a unidade que esta tela
@@ -98,22 +107,46 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
     evento.preventDefault()
     // Digitação é ato deliberado: relê o mesmo código se a atendente insistir.
     codigoJaProcessado.current = null
+    // Uma câmera ligada leria o próximo frasco que passasse na frente dela
+    // enquanto a atendente ainda olha o resultado digitado.
+    religarCamera.current = cameraLigada
+    setCameraLigada(false)
     void enviarLeitura(codigoDigitado)
   }
 
   function lerPelaCamera(texto: string) {
-    // Mesmo frasco ainda em quadro, veredito já na tela: é a rajada, não uma
-    // leitura nova. Um código diferente passa na hora — é o que faz o laço do
-    // RF06 funcionar sem a atendente tocar na tela entre um frasco e outro.
+    // O leitor já parou sozinho ao emitir o código (modo `'unica'`); a tela só
+    // tira o vídeo de cena e põe o resultado no lugar.
+    religarCamera.current = true
+    setCameraLigada(false)
+    // Mesmo frasco, veredito já na tela: é rajada de um leitor que não parou,
+    // não uma leitura nova.
     if (codigoJaProcessado.current === texto.trim() && resultado !== null) return
     void enviarLeitura(texto)
   }
 
-  function lerOutraUnidade() {
+  function ligarCamera() {
+    // Ligar a câmera é ato deliberado, como digitar: o mesmo frasco pode ser
+    // lido de novo.
+    codigoJaProcessado.current = null
+    setAvisoCamera(null)
+    setCameraLigada(true)
+  }
+
+  function limparResultado() {
     setResultado(null)
     setResolucao(null)
     setErro(null)
     codigoJaProcessado.current = null
+  }
+
+  function lerProximo() {
+    limparResultado()
+    if (religarCamera.current) {
+      ligarCamera()
+    } else {
+      campoCodigo.current?.focus()
+    }
   }
 
   /**
@@ -156,7 +189,7 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
 
   function encerrarAtendimento() {
     setSessaoVendaId(criarSessaoVenda())
-    lerOutraUnidade()
+    limparResultado()
     setCodigoDigitado('')
   }
 
@@ -198,19 +231,13 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
           <div className="camera">
             {cameraLigada ? (
               <>
-                <LeitorCamera aoLer={lerPelaCamera} aoFalhar={falhaDaCamera} />
+                <LeitorCamera modo="unica" aoLer={lerPelaCamera} aoFalhar={falhaDaCamera} />
                 <button type="button" className="secundario" onClick={() => setCameraLigada(false)}>
                   Desligar câmera
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setAvisoCamera(null)
-                  setCameraLigada(true)
-                }}
-              >
+              <button type="button" onClick={ligarCamera}>
                 Ligar câmera
               </button>
             )}
@@ -229,6 +256,7 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
             <div className="campo">
               <label htmlFor="codigo-qr">Ou digite o código impresso na etiqueta</label>
               <input
+                ref={campoCodigo}
                 id="codigo-qr"
                 name="codigo-qr"
                 autoComplete="off"
@@ -249,22 +277,16 @@ export function TelaLeituraQr({ usuario }: { usuario: Usuario }) {
               </p>
             )}
 
-            {resultado && (
-              <>
-                <Resultado resposta={resultado} painelDaExcecao={painelDaExcecao} />
-                <button type="button" className="secundario" onClick={lerOutraUnidade}>
-                  Ler outra unidade
-                </button>
-              </>
-            )}
+            {resultado && <Resultado resposta={resultado} painelDaExcecao={painelDaExcecao} />}
 
-            {resolucao && (
-              <>
-                <ResolucaoDaExcecao resolucao={resolucao} />
-                <button type="button" className="secundario" onClick={lerOutraUnidade}>
-                  Ler outra unidade
-                </button>
-              </>
+            {resolucao && <ResolucaoDaExcecao resolucao={resolucao} />}
+
+            {/* Também depois de um erro: a câmera desligou na leitura que
+                falhou, e este é o caminho de volta para ela. */}
+            {(resultado || resolucao || erro) && (
+              <button type="button" className="secundario" onClick={lerProximo}>
+                Ler próximo
+              </button>
             )}
           </div>
         </>

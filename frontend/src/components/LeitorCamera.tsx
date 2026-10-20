@@ -15,25 +15,42 @@ import { useEffect, useRef } from 'react'
 
 const ID_CAIXA = 'leitor-camera'
 
+/**
+ * `'unica'`: emite o primeiro código decodificado e para a câmera (T31). Para
+ * ler outro, quem usa o componente o monta de novo.
+ * `'continua'`: emite cada quadro decodificado até ser desmontado.
+ */
+export type ModoLeitura = 'unica' | 'continua'
+
 type Props = {
-  /** Chamado a cada decodificação bem-sucedida. Pode repetir em rajada. */
+  /**
+   * Chamado a cada decodificação bem-sucedida. No modo `'continua'` pode
+   * repetir em rajada; no `'unica'`, é chamado uma vez por montagem.
+   */
   aoLer: (texto: string) => void
   /** Câmera indisponível: sem permissão, sem dispositivo, ou contexto inseguro. */
   aoFalhar: (mensagem: string) => void
+  modo?: ModoLeitura
 }
 
-export function LeitorCamera({ aoLer, aoFalhar }: Props) {
+export function LeitorCamera({ aoLer, aoFalhar, modo = 'continua' }: Props) {
   // Os callbacks ficam em ref para que trocar de handler não reinicie a
   // câmera: religar o vídeo no meio do atendimento pisca a tela e perde
   // quadros.
   const aoLerRef = useRef(aoLer)
   const aoFalharRef = useRef(aoFalhar)
+  const modoRef = useRef(modo)
   aoLerRef.current = aoLer
   aoFalharRef.current = aoFalhar
+  modoRef.current = modo
 
   useEffect(() => {
     let vivo = true
     let leitor: { stop: () => Promise<void>; clear: () => void } | null = null
+    // O `stop()` é assíncrono e a biblioteca continua entregando quadros até
+    // ele terminar. Na leitura única, esses quadros param aqui, e não em quem
+    // usa o componente.
+    let jaLeu = false
 
     async function iniciar() {
       try {
@@ -49,7 +66,14 @@ export function LeitorCamera({ aoLer, aoFalhar }: Props) {
         await instancia.start(
           { facingMode: 'environment' },
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          (texto) => aoLerRef.current(texto),
+          (texto) => {
+            if (jaLeu) return
+            if (modoRef.current === 'unica') {
+              jaLeu = true
+              void desligar(instancia)
+            }
+            aoLerRef.current(texto)
+          },
           // O callback de erro dispara a cada quadro sem QR à vista, que é o
           // estado normal enquanto a atendente mira. Silêncio proposital.
           () => {},

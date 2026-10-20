@@ -33,16 +33,16 @@ o próximo frasco, a atendente toca em **Ler próximo**, que religa a câmera.
 
 ## Critério de aceite
 
-- [ ] Ao decodificar, a câmera desliga e o vídeo some; o resultado aparece no lugar
-- [ ] Botão **Ler próximo** religa a câmera e limpa o resultado anterior
-- [ ] No modo `'unica'`, `aoLer` é chamado **uma** vez por ligação da câmera, mesmo com vários
+- [x] Ao decodificar, a câmera desliga e o vídeo some; o resultado aparece no lugar
+- [x] Botão **Ler próximo** religa a câmera e limpa o resultado anterior
+- [x] No modo `'unica'`, `aoLer` é chamado **uma** vez por ligação da câmera, mesmo com vários
       quadros decodificados em seguida
-- [ ] Entrada manual do código continua funcionando e não liga a câmera sozinha
-- [ ] O fluxo da exceção de unidade vencida (painel de T12) e o do bloqueio FIFO continuam
+- [x] Entrada manual do código continua funcionando e não liga a câmera sozinha
+- [x] O fluxo da exceção de unidade vencida (painel de T12) e o do bloqueio FIFO continuam
       iguais: o resultado fica na tela até a atendente pedir o próximo
-- [ ] Testes de `TelaLeituraQr.test.tsx` atualizados (o dublê do `LeitorCamera` precisa
+- [x] Testes de `TelaLeituraQr.test.tsx` atualizados (o dublê do `LeitorCamera` precisa
       respeitar o modo) e teste do `LeitorCamera` com a `html5-qrcode` substituída
-- [ ] Conferência no navegador com o `playwright-cli` pela entrada manual (o navegador
+- [x] Conferência no navegador com o `playwright-cli` pela entrada manual (o navegador
       automatizado não lê QR de câmera física — ver verificação manual de T10 no backlog);
       a leitura pela câmera fica para o teste em celular real
 

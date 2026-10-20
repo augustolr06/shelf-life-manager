@@ -1692,3 +1692,33 @@ servidor.
 **Tarefa relacionada:** T39, T22 (desativação de conta), T03 (sessão por JWT), RF01
 
 **Data:** 2026-10-20
+
+---
+
+## Um toque a mais por frasco: a câmera contínua virou risco de leitura involuntária
+
+**Contexto do problema:** a primeira versão da tela de leitura deixava a câmera ligada entre
+um frasco e outro. A ideia era tirar atrito do balcão: a atendente aponta o próximo frasco e o
+sistema já responde, sem toque na tela. No uso, a mesma propriedade apareceu como defeito. Com
+a câmera aberta, qualquer frasco que passa na frente dela vira leitura: o que a atendente
+pousou ao lado, o que o cliente está segurando. Nessa versão, ler era também dar baixa, e uma
+leitura involuntária virava venda do frasco errado, sem como desfazer.
+
+**Solução adotada:** a câmera lê um código e desliga. O resultado fica na tela até a atendente
+tocar em **Ler próximo**. A leitura digitada segue a mesma regra e também desliga a câmera que
+estiver aberta.
+
+**Por que importa / trade-offs:** é um custo de ergonomia aceito por segurança: um toque a
+mais por frasco, em troca de cada leitura ser intencional. Dois pontos interessam ao artigo.
+Primeiro, o ganho de fluidez que o PRD e a T10 buscavam pressupunha um balcão onde só o frasco
+certo aparece na frente da câmera, e o balcão real não é assim. Segundo, a leitura única
+reduz o risco mas não o elimina: a atendente ainda pode ler o frasco errado de propósito. A
+correção completa é separar ler de vender (carrinho com confirmação, T33b e T34). A
+mudança tem um efeito também no dado de pesquisa. A câmera contínua exigia um filtro na tela
+para a rajada de quadros do mesmo frasco não inflar o denominador da taxa de acerto (RF12).
+Com a leitura única, a rajada deixa de chegar à tela, e o filtro ficou só como defesa em
+profundidade.
+
+**Tarefa relacionada:** T31, T10 (câmera contínua), T33b e T34 (ler sem vender), RF05, RF12
+
+**Data:** 2026-10-20

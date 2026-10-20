@@ -2039,3 +2039,44 @@ toque perdido no fundo cai nele. Para distinguir clique no fundo de clique no ca
 clicavam e esperavam a chamada direta agora respondem ao diálogo. Os casos novos cobrem, por
 ação, o texto da consequência, o cancelamento sem chamada e a confirmação com uma chamada. No
 `Dialogo`, cobrem o clique no fundo e no cartão.
+
+## 2026-10-20 — Leitura única: a câmera desliga ao identificar o código (T31)
+
+**Contexto.** Revisa a escolha de T10 de manter a câmera ligada depois do veredito, para o laço
+do RF06 rodar sem toque na tela. No uso, a câmera aberta lia qualquer frasco que passasse na
+frente dela, e enquanto T33b não chega, ler é vender. Agora cada leitura é um ato: a câmera lê
+um código, desliga, e a atendente toca em **Ler próximo** para religá-la.
+
+**Decisões da tarefa** (as duas do arquivo da tarefa, confirmadas na implementação):
+
+1. **O modo é do `LeitorCamera`.** Prop `modo: 'unica' | 'continua'`, padrão `'continua'`
+   (para T32). No `'unica'`, o callback de decodificação emite o primeiro código, chama
+   `stop()` e descarta, numa variável local do efeito, os quadros que a `html5-qrcode` ainda
+   entrega enquanto o `stop()` assíncrono não termina. Religar é montar o componente de novo.
+2. **A proteção contra rajada de `TelaLeituraQr` continua** (`emVoo` e `codigoJaProcessado`),
+   como defesa em profundidade para o RF12. O teste dela usa um botão do dublê que simula um
+   leitor que não parou.
+
+**Decisões tomadas na implementação:**
+
+3. **A leitura digitada também desliga a câmera que estiver ligada.** Se não desligasse, a
+   câmera leria o próximo frasco que passasse por trás do resultado digitado, que é o mesmo
+   risco que a tarefa ataca.
+4. **"Ler próximo" religa a câmera só se ela estava ligada quando a leitura partiu**
+   (`religarCamera`). Depois de uma leitura digitada, o botão limpa o resultado e devolve o
+   foco ao campo. Ligar a câmera sozinho mostraria o aviso de câmera indisponível a quem não
+   tem câmera, a cada código.
+5. **"Ler próximo" aparece também depois de erro**, não só depois de veredito ou desfecho da
+   exceção. A câmera desliga na leitura que falhou, e o botão é o caminho de volta. Ele
+   substitui os dois botões "Ler outra unidade".
+6. **Ligar a câmera zera `codigoJaProcessado`**, como já fazia a digitação. O mesmo frasco
+   pode ser lido de novo de propósito, e a guarda do código repetido fica só para o leitor que
+   não parou.
+
+**Testes.** `components/LeitorCamera.test.tsx` (novo) substitui a `html5-qrcode` por um dublê
+que guarda o callback de decodificação. Ele cobre a emissão única com `stop()`, o descarte dos
+quadros com `stop()` pendente, a leitura de novo numa montagem nova, o modo contínuo e a falha
+de permissão. Em `TelaLeituraQr.test.tsx`, o dublê do leitor respeita o modo, e os casos novos
+cobrem a câmera desligando, "Ler próximo" nos dois caminhos, a leitura digitada com a câmera
+ligada, o bloqueio FIFO e a unidade vencida que ficam na tela, e o erro. A conferência no
+navegador foi feita pela entrada manual. A leitura pela câmera fica para o celular real.
