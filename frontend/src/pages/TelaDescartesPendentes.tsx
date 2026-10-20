@@ -124,10 +124,11 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
                     // relatório com atendimentos que nunca existiram.
                     sessaoVendaId={null}
                     // A correção revalidou o FIFO no servidor. A unidade pode ter
-                    // saído da fila (validade futura), continuado nela (outra
-                    // data no passado) ou sido vendida na revalidação — e é o
-                    // servidor quem sabe qual dos três. A fila é recarregada em
-                    // vez de a linha ser removida no palpite da tela.
+                    // saído da fila (validade futura) ou continuado nela (outra
+                    // data no passado), e é o servidor quem sabe qual. Desde
+                    // T33b, revalidar não vende: `CONFIRMAR` aqui é a unidade de
+                    // volta à prateleira. A fila é recarregada em vez de a linha
+                    // ser removida no palpite da tela.
                     //
                     // O desfecho vira toast (T29), e o tipo não é julgamento
                     // próprio: é a mesma escolha de *layout* por veredito que a

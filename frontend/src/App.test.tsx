@@ -121,7 +121,7 @@ describe('App — guardião de sessão', () => {
     // dublê recusa rota não simulada.
     rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
 
-    montar('/leitura')
+    montar('/venda')
     await screen.findByRole('button', { name: /sair/i })
 
     expect(screen.queryByRole('link', { name: /alertas/i })).not.toBeInTheDocument()
@@ -212,12 +212,22 @@ describe('App — guardião de sessão', () => {
       ).toBeInTheDocument()
     })
 
-    it('leva a ATENDENTE direto à leitura de QR, que é o que ela faz no sistema', async () => {
+    it('leva a ATENDENTE direto à venda, que é o que ela faz no sistema', async () => {
       rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
 
       montar('/')
 
-      expect(await screen.findByRole('heading', { name: /leitura de qr/i })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: /^venda$/i })).toBeInTheDocument()
+    })
+
+    it('leva o endereço antigo da leitura à tela de venda (T34)', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+      // Favorito e PWA instalado antes de T34 ainda abrem `/leitura`.
+      montar('/leitura')
+
+      expect(await screen.findByRole('heading', { name: /^venda$/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /^venda$/i })).toHaveAttribute('href', '/venda')
     })
 
     it('não oferece o recebimento à ATENDENTE, nem por link nem por URL', async () => {
@@ -232,7 +242,7 @@ describe('App — guardião de sessão', () => {
       // A URL digitada à mão cai na tela inicial do papel, e o link nem
       // aparece. Conveniência de interface: quem recusa de fato é o 403 do
       // backend (RF03), coberto por `backend/tests/unidade.test.ts`.
-      expect(await screen.findByRole('heading', { name: /leitura de qr/i })).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: /^venda$/i })).toBeInTheDocument()
       expect(
         screen.queryByRole('link', { name: /registrar recebimento/i }),
       ).not.toBeInTheDocument()
@@ -241,10 +251,10 @@ describe('App — guardião de sessão', () => {
     it('manda ao login quem chega numa rota interna sem sessão', async () => {
       rotear({ 'GET /auth/me': SEM_SESSAO })
 
-      montar('/leitura')
+      montar('/venda')
 
       expect(await screen.findByLabelText(/senha/i)).toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: /leitura de qr/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: /^venda$/i })).not.toBeInTheDocument()
     })
   })
 

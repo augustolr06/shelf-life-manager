@@ -54,18 +54,18 @@ pessoa no balcão confirma. O contexto e o contrato do backend estão em
 
 ## Critério de aceite
 
-- [ ] Nenhuma venda antes de **Confirmar venda** (conferir no banco durante a verificação)
-- [ ] Unidade liberada entra no carrinho; barrada mostra as opções de correção existentes
-- [ ] Remover item, esvaziar com confirmação, código repetido ignorado
-- [ ] `noCarrinho` enviado em toda leitura; segunda unidade do mesmo produto não é bloqueada
+- [x] Nenhuma venda antes de **Confirmar venda** (conferir no banco durante a verificação)
+- [x] Unidade liberada entra no carrinho; barrada mostra as opções de correção existentes
+- [x] Remover item, esvaziar com confirmação, código repetido ignorado
+- [x] `noCarrinho` enviado em toda leitura; segunda unidade do mesmo produto não é bloqueada
       pela primeira
-- [ ] Resultado parcial da confirmação apresentado item a item
-- [ ] Nenhuma comparação de data, status ou ordem no frontend (RNF04)
-- [ ] Testes de componente: os quatro vereditos na leitura, remover, repetido, esvaziar,
+- [x] Resultado parcial da confirmação apresentado item a item
+- [x] Nenhuma comparação de data, status ou ordem no frontend (RNF04)
+- [x] Testes de componente: os quatro vereditos na leitura, remover, repetido, esvaziar,
       confirmação total e parcial, offline com carrinho cheio
-- [ ] Conferência no navegador com o `playwright-cli` (entrada manual): carrinho com três
+- [x] Conferência no navegador com o `playwright-cli` (entrada manual): carrinho com três
       itens, remover um, confirmar, e conferir que só então as unidades saíram do estoque
-- [ ] `docs/notas-para-artigo.md`: a leitura que vendia sozinha como risco descoberto no uso
+- [x] `docs/notas-para-artigo.md`: a leitura que vendia sozinha como risco descoberto no uso
       real (leitura acidental de outro QR), e o carrinho como resposta
 
 ## Fora de escopo
@@ -73,3 +73,21 @@ pessoa no balcão confirma. O contexto e o contrato do backend estão em
 - Estorno de venda confirmada.
 - Preço, total, forma de pagamento — o sistema não é PDV.
 - Persistir o carrinho entre recarregamentos.
+
+## Resultado (2026-10-20)
+
+Frontend com 264 casos verdes (54 em `TelaVenda.test.tsx`, mais um em `App.test.tsx` para o
+redirecionamento) e typecheck limpo. Backend não mudou.
+
+Decisão 3: **`/leitura` vira `/venda`**, com redirecionamento. As outras decisões, inclusive as
+tomadas na implementação (item repetido, "Encerrar atendimento" só com o carrinho vazio, painel
+da unidade vencida na área de resultado, teto de 50 espelhado), estão em `docs/decisoes.md`
+(T34).
+
+Conferência no navegador (`playwright-cli`, atendente, produto `T34-CARRINHO` com unidades de
+jan, fev e mar): as três entram no carrinho; no banco, continuam `EM_ESTOQUE` e sem `Saida`;
+remover a de março e confirmar vende jan e fev (`VENDIDA`, uma `Saida` cada), e março fica
+`EM_ESTOQUE`.
+
+Os roteiros manuais (`docs/roteiro-testes-manuais.md`, `docs/roteiro-tutorial.md`) ainda
+descrevem a leitura que vendia. Ficaram registrados como achado no backlog.

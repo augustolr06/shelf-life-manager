@@ -67,17 +67,25 @@ export const MAXIMO_MOTIVO = 280
  * conversão no meio: `new Date()` num texto de data volta um dia atrás em fuso
  * negativo, como `services/datas.ts` documenta desde T05.
  *
- * A resposta pode trazer qualquer um dos quatro vereditos, inclusive
- * `CONFIRMAR` — e nesse caso a venda já aconteceu (T09, T11).
+ * A resposta pode trazer qualquer um dos quatro vereditos. Desde T33b,
+ * `CONFIRMAR` é o mesmo da leitura: a unidade **pode** ser vendida, e nada saiu
+ * do estoque. No balcão ela vai para o carrinho; na fila de descarte, volta à
+ * prateleira.
+ *
+ * `noCarrinho` tem o papel que tem na leitura (T33): a unidade corrigida para
+ * fevereiro não é barrada pela de janeiro que já está no carrinho. Fora do
+ * balcão não há carrinho, e o campo é omitido.
  */
 export async function corrigirValidade(
   unidadeId: string,
   dataValidade: string,
   sessaoVendaId: string | null,
+  noCarrinho?: readonly string[],
 ): Promise<ResultadoCorrecao> {
+  const campos = noCarrinho ? { unidadeId, dataValidade, noCarrinho } : { unidadeId, dataValidade }
   return requisitarApi<ResultadoCorrecao>('/excecao-vencido/corrigir', {
     method: 'POST',
-    body: corpo({ unidadeId, dataValidade }, sessaoVendaId),
+    body: corpo(campos, sessaoVendaId),
   })
 }
 
@@ -126,6 +134,6 @@ export async function autorizarVendaVencida(
  * de um frasco vencido por causa de um campo de relatório seria o pior dos
  * desfechos (T09).
  */
-function corpo(campos: Record<string, string>, sessaoVendaId: string | null): string {
+function corpo(campos: Record<string, unknown>, sessaoVendaId: string | null): string {
   return JSON.stringify(sessaoVendaId ? { ...campos, sessaoVendaId } : campos)
 }

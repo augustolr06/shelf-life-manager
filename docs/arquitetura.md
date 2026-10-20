@@ -698,7 +698,7 @@ nenhum, e o `ResumoDaVarredura` ganhou `notificacoesEnviadas`.
 
 ## 6. Comportamento offline (RNF07)
 
-O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de leitura de QR. Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local.
+O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de venda (`/venda`, antes `/leitura`). Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local. O veredito em tela é apagado na queda; o carrinho (T34), não: ele não afirma nada sobre o estoque de agora, porque a confirmação revalida cada item sob lock. Ler e confirmar ficam bloqueados até a conexão voltar.
 
 Detalhado em T10, a partir da implementação:
 

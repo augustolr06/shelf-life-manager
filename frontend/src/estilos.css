@@ -774,6 +774,80 @@ button.secundario:hover:not(:disabled) {
   font-size: 0.8125rem;
 }
 
+/* Carrinho do atendimento (T34). Fica abaixo do resultado, e também abaixo
+   do portão de offline: a queda de conexão não o apaga. */
+.aviso-carrinho {
+  margin: 0;
+  color: var(--cor-texto-suave);
+}
+
+.resultado .vendidas {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.carrinho {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--cor-borda);
+}
+
+.carrinho h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.0625rem;
+}
+
+.carrinho .contagem {
+  color: var(--cor-texto-suave);
+  font-weight: 400;
+}
+
+.itens-carrinho {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.item-carrinho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.item-carrinho .dados-unidade {
+  flex: 1 1 14rem;
+}
+
+/* O item que a confirmação não vendeu: mesma cor de aviso do bloqueio, porque
+   quase sempre é o FIFO mudando entre a leitura e a confirmação. */
+.item-com-pendencia {
+  padding: 0.75rem;
+  border-left: 4px solid #b45309;
+  background: #fffbeb;
+}
+
+.pendencia {
+  flex: 1 1 100%;
+  order: 1;
+  font-size: 0.875rem;
+}
+
+.pendencia p {
+  margin: 0 0 0.375rem;
+}
+
+.acoes-carrinho {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 /* Sem conexão não há leitura: o veredito depende do estoque inteiro do
    produto naquele instante, e isso mora no servidor (RNF07). */
 .bloqueio-offline {

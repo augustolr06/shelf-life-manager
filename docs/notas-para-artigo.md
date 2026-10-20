@@ -1784,3 +1784,37 @@ dois pontos de vista ela fala.
 **Tarefa relacionada:** T33b, T33, T34, RF12, PRD 6.2
 
 **Data:** 2026-10-20
+
+---
+
+## A leitura que vendia sozinha: o carrinho separa o que o sistema sabe do que a atendente quer
+
+**Contexto do problema:** no desenho original (PRD 6.2, "não há carrinho"), ler o QR era vender:
+o veredito de FIFO e a baixa aconteciam na mesma transação, e cada frasco era um ciclo fechado.
+O desenho é limpo do ponto de vista do estoque e apareceu como risco no uso real: com a câmera
+aberta, um segundo QR lido sem querer (o frasco pousado ao lado, o que o cliente segura) vendia o
+produto errado, e o sistema não tem estorno. A leitura única (T31) reduziu o risco, mas não
+separava o ato de **olhar** um frasco do ato de **vendê-lo**.
+
+**Solução adotada:** a tela de leitura virou tela de venda. Ler valida (vencimento e FIFO, na
+hora, como antes) e, se o servidor libera, a unidade entra num carrinho que existe só na tela.
+Dali ela pode sair com um toque (frasco errado, cliente desistiu). A venda acontece quando a
+atendente confirma o carrinho, depois de ver a lista inteira, e o servidor revalida cada item
+sob lock antes de baixar. O resultado volta item a item: o que mudou no estoque entre a leitura
+e a confirmação fica no carrinho com o motivo, e o resto é vendido.
+
+**Por que importa / trade-offs:** o carrinho separa duas coisas que o desenho original
+confundia: o que o sistema sabe (o veredito, que vale para o estoque de um instante) e o que a
+atendente quer (levar estes frascos). A diferença aparece na queda de conexão. O veredito em tela
+é apagado, porque ninguém pode afirmá-lo offline. O carrinho fica, porque não afirma nada sobre o
+estoque: ele é uma intenção, e a confirmação pergunta tudo de novo ao servidor. Os custos: um
+passo a mais por **atendimento** (não por frasco), e um carrinho que vive só na memória da tela,
+perdido se a página recarregar. Isso é aceitável porque nada fica reservado no servidor, mas
+deve ser dito. Uma exceção fica visível na tela: a venda autorizada de unidade vencida (PRD 6.1)
+continua imediata, fora do carrinho, porque ela já é uma confirmação explícita, e a tela precisa
+avisar isso para que a gestora não espere uma segunda confirmação que não virá. O estorno de venda
+confirmada segue fora do escopo. O carrinho diminui a chance de precisar dele, não a elimina.
+
+**Tarefa relacionada:** T34, T33b, T33, T31, T10, RF05, RF07, RNF07, PRD 6.1 e 6.2
+
+**Data:** 2026-10-20

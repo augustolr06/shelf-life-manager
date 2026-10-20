@@ -2229,3 +2229,83 @@ de 517.
     cliente no balcão). Mas os comentários de `TelaDescartesPendentes.tsx` e de
     `services/excecaoVencido.ts` ainda dizem que ela "foi vendida", e corrigi-los fica para
     T34.
+
+## 2026-10-20 — Carrinho na tela de venda (T34)
+
+**Contexto.** Fecha o incremento 10 do lado da tela. Desde T33b, ler valida sem baixar e a venda
+é `POST /saidas/finalizar`, mas nenhuma tela a chamava: a leitura dizia "Saída registrada" para
+uma unidade que continuava no estoque. A tela de leitura vira a tela de **Venda**, com carrinho.
+Backend não mudou.
+
+**Decisões anteriores revistas** (alerta do incremento 10, nenhuma bloqueia):
+
+- **T10, "um veredito vale um instante"**: continua valendo para o veredito em tela, que a queda
+  de conexão apaga. **Não vale para o carrinho**, que fica (decisão 2 abaixo).
+- **T10, nome da tela**: "Leitura de QR" vira "Venda", e o componente `TelaLeituraQr` vira
+  `TelaVenda` (renomeado com `git mv`, histórico preservado).
+- **T10, "Encerrar atendimento" sempre visível**: passa a aparecer só com o carrinho vazio
+  (decisão 5).
+
+**Decisões do arquivo da tarefa:**
+
+1. **O carrinho vive na memória da tela.** Recarregar a página o perde, e nada fica pendente no
+   servidor, que não sabe do carrinho (T33b, decisão 1). `sessionStorage` continua sendo a
+   alternativa, se a perda incomodar no uso.
+2. **A queda de conexão não apaga o carrinho.** O carrinho não afirma nada sobre o estoque de
+   agora: a confirmação revalida cada item sob lock antes de baixar. O portão de offline (RNF07)
+   substitui a leitura como antes, e o carrinho aparece abaixo dele com **Confirmar venda**
+   desabilitado. Remover e esvaziar continuam disponíveis offline, porque não vão ao servidor.
+3. **Rota: `/leitura` vira `/venda`, com redirecionamento.** Favorito, PWA instalado e os
+   roteiros de teste continuam abrindo a tela certa. O nome novo também evita a ambiguidade com a
+   consulta de T32, que também lê QR. O redirecionamento mora numa tabela `REDIRECIONAMENTOS` do
+   `App`, dentro do ramo autenticado (sem sessão, tudo leva ao login, e o retorno pós-login
+   passa pelo redirecionamento).
+
+**Decisões tomadas na implementação:**
+
+4. **Item repetido: duas camadas, nenhuma é veredito.** Antes de chamar o servidor, a tela
+   compara o texto lido com os códigos do carrinho, e o repetido vira o aviso "já está no
+   carrinho", sem leitura no log. A comparação é do texto como veio, sem normalizar, porque o
+   dono do formato do código é o servidor (T08). A variação de digitação que passar (`prf-…`
+   minúsculo) chega ao servidor, volta `CONFIRMAR` com o mesmo id, e a tela mostra o mesmo aviso
+   em vez de duplicar. Comparar identidade não é comparar validade, status ou ordem (RNF04).
+5. **"Encerrar atendimento" só com o carrinho vazio.** Com itens, o atendimento termina pela
+   confirmação (que troca o agrupador quando esvazia o carrinho) ou pelo esvaziamento. Encerrar
+   com itens deixaria o carrinho de um cliente no atendimento do próximo. **Esvaziar não troca o
+   agrupador**: pode ser o mesmo cliente recomeçando, e o arquivo da tarefa só pede que esvaziar
+   não venda.
+6. **Unidade vencida na confirmação: o painel abre na área de resultado, não dentro do item.** O
+   `PainelExcecaoVencido` tem `id`s fixos nos campos (`validade-corrigida`, `motivo-descarte`), e
+   dois painéis na tela (o da leitura e o de um item) duplicariam os ids e quebrariam os rótulos.
+   O primeiro item vencido abre sozinho; os outros têm "Ver o que fazer com esta unidade" no
+   próprio item. Os desfechos conciliam o carrinho pelo id: descarte, override e "outra pessoa já
+   resolveu" tiram a unidade do carrinho; correção que revalida `CONFIRMAR` limpa a pendência;
+   outro veredito vira a pendência nova.
+7. **A correção de validade leva `noCarrinho`**, pela mesma razão da leitura (T33, item 7).
+   O parâmetro é opcional no `PainelExcecaoVencido` e em `corrigirValidade`: a fila de descarte
+   (T13) não tem carrinho e o omite.
+8. **O override é avisado duas vezes como fora do carrinho:** no formulário, antes de autorizar
+   ("A venda é registrada na hora, fora do carrinho."), e no resultado ("Esta venda já foi
+   registrada e não faz parte do carrinho."). É o que T33b, decisão 3, pediu a esta tarefa.
+9. **Teto de 50 espelhado na tela** (`MAXIMO_ITENS_DO_CARRINHO` em `services/saidas.ts`). Com 50
+   itens, a tela não lê o 51º e pede para confirmar antes. Sem isso, a leitura passaria (o teto de
+   `noCarrinho` é 50) e a confirmação de 51 voltaria 400 com a mensagem genérica de corpo
+   inválido. Mesmo estatuto dos limites de texto de T12: conveniência, e quem recusa é o servidor.
+10. **Durante a confirmação, a leitura não parte e a câmera desliga.** A tela concilia a resposta
+    com o carrinho que foi enviado, e um item lido nesse meio tempo sumiria da conciliação.
+11. **A confirmação usa o diálogo de T39 com a lista inteira** (código e produto de cada item) e a
+    quantidade. É a última chance de ver o frasco que não devia estar ali, e a venda não tem
+    estorno. Remover item não pede confirmação (já previsto em T39: basta ler de novo).
+12. **Comentários de T13 corrigidos** (pendência de T33b, decisão 10): em
+    `TelaDescartesPendentes.tsx` e `services/excecaoVencido.ts`, a revalidação `CONFIRMAR` deixa
+    de ser descrita como venda. Na fila de descarte, ela é a unidade de volta à prateleira.
+
+**Verificação.** Frontend: 264 casos verdes (54 em `TelaVenda.test.tsx`, um novo em
+`App.test.tsx` para o redirecionamento), typecheck limpo. Os avisos de `act(...)` vindos do
+`PainelExcecaoVencido` já existiam antes da tarefa (16 na suíte de T31, medidos num worktree do
+commit anterior). Conferência no navegador com o `playwright-cli`, como atendente, com um produto
+novo (`T34-CARRINHO`) e três unidades (jan, fev, mar): as três entram no carrinho, nenhuma
+barrada pela anterior; no banco, as três `EM_ESTOQUE` e sem `Saida`; remover a de março e
+confirmar mostra o diálogo com as duas restantes; depois da confirmação, jan e fev `VENDIDA` com
+uma `Saida` cada, mar continua `EM_ESTOQUE`. Console sem erro além dos 401 de `/auth/me` antes do
+login.

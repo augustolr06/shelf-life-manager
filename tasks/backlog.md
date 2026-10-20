@@ -198,7 +198,7 @@ validade deixa de vender na revalidação).
 | T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | pendente | T10 | `tasks/T32-consulta-unidade-qr.md` |
 | T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | concluída | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
 | T33b | Backend: leitura sem baixa e confirmação da venda (`POST /saidas/finalizar`) | concluída | T33 | `tasks/T33b-avaliacao-efetivacao-backend.md` |
-| T34 | Frontend: carrinho na tela de venda | pendente | T31, T33b, T39 | `tasks/T34-carrinho-frontend.md` |
+| T34 | Frontend: carrinho na tela de venda | concluída | T31, T33b, T39 | `tasks/T34-carrinho-frontend.md` |
 
 **Estado de T33 (2026-10-20).** Concluída com a suíte **vermelha de propósito**, como T06:
 49 casos novos ou reescritos falham (por asserção ou por `/saidas/finalizar` ainda não existir)
@@ -209,6 +209,17 @@ a venda é `POST /saidas/finalizar`. O override de venda vencida continua imedia
 carrinho. **Não publicar sem T34:** até lá, nenhuma tela chama `/saidas/finalizar`, e a tela
 de leitura diz "Saída registrada" para uma unidade que não saiu do estoque. Detalhes em
 `docs/decisoes.md` (T33b).
+
+**Estado de T34 (2026-10-20).** Concluída. A tela de leitura virou **Venda** (`/venda`, com
+`/leitura` redirecionando): ler põe no carrinho, e só **Confirmar venda** baixa. Com isso,
+T33b + T34 podem ir juntas para produção. Decisões em `docs/decisoes.md` (T34).
+
+**Achado de T34 (2026-10-20), sem tarefa aberta.** Os roteiros manuais ainda descrevem a leitura
+que vendia: `docs/roteiro-testes-manuais.md` (seção 9 em diante) e `docs/roteiro-tutorial.md`
+(capítulo 4 em diante) esperam "Saída registrada" logo depois de ler, citam a aba "Leitura de
+QR", e mandam "Encerrar atendimento", que agora só aparece com o carrinho vazio. São 51
+referências. Os passos precisam ganhar a confirmação do carrinho, e devem ser reescritos
+executando-os, não só trocando o texto.
 
 **Achado de T33 (2026-10-20), sem tarefa aberta.** `npm run typecheck` não checa `tests/`:
 `tsconfig.tests.json` estende `tsconfig.json` sem redefinir `exclude`, e herda o `"tests"` de

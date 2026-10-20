@@ -8,10 +8,10 @@ import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDashboard } from './pages/TelaDashboard'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
-import { TelaLeituraQr } from './pages/TelaLeituraQr'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
 import { TelaUsuarios } from './pages/TelaUsuarios'
+import { TelaVenda } from './pages/TelaVenda'
 import { TelaMinhaSenha } from './pages/TelaMinhaSenha'
 import { TelaRecebimento } from './pages/TelaRecebimento'
 import { contarAlertasNaoLidos } from './services/alertas'
@@ -56,12 +56,14 @@ type Tela = {
 
 const TELAS: readonly Tela[] = [
   {
-    caminho: '/leitura',
-    rotulo: 'Leitura de QR',
-    // Mesma lista da rota `POST /saidas/ler` no backend.
+    // Era `/leitura` até T34, quando ler deixou de ser vender e a tela ganhou o
+    // carrinho. O caminho antigo redireciona para cá (`REDIRECIONAMENTOS`).
+    caminho: '/venda',
+    rotulo: 'Venda',
+    // Mesma lista das rotas `POST /saidas/ler` e `POST /saidas/finalizar`.
     papeis: ['ATENDENTE', 'GESTOR'],
     // O papel decide quais dos três caminhos da unidade vencida aparecem (T12).
-    elemento: (usuario) => <TelaLeituraQr usuario={usuario} />,
+    elemento: (usuario) => <TelaVenda usuario={usuario} />,
   },
   {
     caminho: '/produtos',
@@ -149,12 +151,20 @@ const TELAS: readonly Tela[] = [
 ]
 
 /**
- * Para onde `/` leva. A atendente cai na leitura porque é a única coisa que
+ * Caminhos que mudaram de nome, para o que eles viraram. Favorito, atalho do
+ * PWA instalado e roteiro impresso continuam chegando à tela certa.
+ */
+const REDIRECIONAMENTOS: Readonly<Record<string, string>> = {
+  '/leitura': '/venda',
+}
+
+/**
+ * Para onde `/` leva. A atendente cai na venda porque é a única coisa que
  * ela faz no sistema; o gestor cai no catálogo, que é de onde o trabalho dele
  * começa.
  */
 function rotaInicial(usuario: Usuario): string {
-  return usuario.papel === 'ATENDENTE' ? '/leitura' : '/produtos'
+  return usuario.papel === 'ATENDENTE' ? '/venda' : '/produtos'
 }
 
 /**
@@ -371,6 +381,9 @@ function Aplicacao() {
               path={tela.caminho}
               element={tela.elemento(usuario, { aoAtualizarNaoLidos: setAlertasNaoLidos })}
             />
+          ))}
+          {Object.entries(REDIRECIONAMENTOS).map(([antigo, novo]) => (
+            <Route key={antigo} path={antigo} element={<Navigate to={novo} replace />} />
           ))}
           {/* Rota de tela que o papel não alcança, `/login` já autenticado e
               URL desconhecida caem todas no mesmo lugar: a tela inicial do

@@ -49,6 +49,11 @@ type Props = {
   permitirOverride?: boolean
   /** O atendimento em curso acompanha os três caminhos, como acompanha as leituras. */
   sessaoVendaId: string | null
+  /**
+   * Ids do carrinho do balcão (T34), que a correção leva como a leitura leva.
+   * Ausente onde não há carrinho, como na fila de descarte.
+   */
+  noCarrinho?: readonly string[]
   /** A correção revalida o FIFO no servidor e devolve um veredito comum. */
   aoRevalidar: (revalidacao: RespostaLeitura) => void
   /** Descarte e override tiram a unidade do estoque: a resolução é terminal. */
@@ -64,6 +69,7 @@ export function PainelExcecaoVencido({
   papel,
   permitirOverride = true,
   sessaoVendaId,
+  noCarrinho,
   aoRevalidar,
   aoResolver,
   aoPerderUnidade,
@@ -125,7 +131,12 @@ export function PainelExcecaoVencido({
     // meio tempo. `VALIDADE_INALTERADA` é recusa do backend, sob lock (T12,
     // Decisão 3).
     void executar(async () => {
-      const { revalidacao } = await corrigirValidade(unidade.id, novaValidade, sessaoVendaId)
+      const { revalidacao } = await corrigirValidade(
+        unidade.id,
+        novaValidade,
+        sessaoVendaId,
+        noCarrinho,
+      )
       aoRevalidar(revalidacao)
     })
   }
@@ -227,6 +238,10 @@ export function PainelExcecaoVencido({
                 A venda de produto com validade expirada é vedada pela legislação de defesa do
                 consumidor. Esta autorização fica registrada de forma permanente, com seu nome.
               </p>
+              {/* O override é a exceção ao carrinho (T33b, Decisão 3): ele já é
+                  a confirmação, e a pessoa precisa saber que não haverá
+                  outra. */}
+              <p>A venda é registrada na hora, fora do carrinho.</p>
               <div className="campo">
                 <label htmlFor="justificativa-override">Justificativa</label>
                 <textarea
