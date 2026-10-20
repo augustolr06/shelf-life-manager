@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from 'react'
 import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
+import { Paginacao } from '../components/Paginacao'
 import { useValorComAtraso } from '../hooks/useValorComAtraso'
 import { camposRecusados, ErroApi } from '../services/api'
 import type { Usuario } from '../services/auth'
@@ -73,6 +74,7 @@ export function TelaProdutos({ usuario }: Props) {
   const [erro, setErro] = useState<string | null>(null)
   const campoBusca = useRef<HTMLInputElement>(null)
   const ultimaConsulta = useRef(0)
+  const inicioDaLista = useRef<HTMLTableElement>(null)
 
   // A busca vai ao servidor só depois de uma pausa na digitação (T26). Campo
   // vazio, ou só com espaços, vira busca vazia: a lista completa.
@@ -350,7 +352,7 @@ export function TelaProdutos({ usuario }: Props) {
       ) : produtos.length === 0 ? (
         <p>Nenhum produto encontrado.</p>
       ) : (
-        <table>
+        <table ref={inicioDaLista}>
           <caption>
             {total} produto(s) — página {pagina} de {totalPaginas}
           </caption>
@@ -385,20 +387,12 @@ export function TelaProdutos({ usuario }: Props) {
         </table>
       )}
 
-      {totalPaginas > 1 && (
-        <div className="paginacao">
-          <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={pagina >= totalPaginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            Próxima
-          </button>
-        </div>
-      )}
+      <Paginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        aoMudar={setPagina}
+        alvoRolagem={inicioDaLista}
+      />
     </section>
   )
 }

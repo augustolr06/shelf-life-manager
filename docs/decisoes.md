@@ -1747,3 +1747,55 @@ voltava à lista completa até um novo clique.
   é o único de texto do formulário, então o Enter submeteria e recarregaria a página.
 - **Testes.** O relógio falso do Vitest fica ligado só no trecho que digita e avança o atraso:
   o `findBy` do Testing Library usa `setTimeout` real para terminar e trava com o relógio falso.
+
+## 2026-10-20 — Componente de paginação compartilhado (T27)
+
+**Contexto.** Catálogo, Alertas, fila de descarte, Etiquetas e histórico de saídas do Dashboard
+repetiam o mesmo par **Anterior**/**Próxima**. Com 700 SKUs em páginas de 20, a página 30 do
+catálogo ficava a 29 cliques. As cinco telas passaram a usar
+`frontend/src/components/Paginacao.tsx`.
+
+**Decisão da tarefa.** **Sem campo "ir para a página N".** Com primeira, última e a janela de
+números, qualquer página fica a poucos cliques, e o campo só pesaria na tela do celular.
+Reavaliar se a gestora pedir.
+
+**Decisões do orientando.**
+
+- **Sem linha "Página X de Y · N itens" no componente.** A tarefa desenhava essa linha embaixo
+  dos botões, mas as cinco telas já têm um resumo no topo da lista com total e página, que
+  continua aparecendo quando há uma página só (caso em que o componente some). Os resumos
+  ficaram como estavam, e o componente não recebe `total` nem rótulo.
+- **Mudar de página rola até o início da lista, não até o topo da tela.** No Catálogo do gestor
+  há o formulário de cadastro e a importação acima da tabela, e no Dashboard os indicadores
+  ficam acima do histórico: rolar ao topo deixaria a lista fora da vista. Cada tela passa ao
+  componente uma referência (`alvoRolagem`) para o elemento que abre a lista: a tabela no
+  Catálogo, o parágrafo de resumo em Alertas, Descartes e Dashboard, e a folha em Etiquetas.
+
+**Detalhes de implementação.**
+
+- **`alvoRolagem` é obrigatório**, embora a tarefa listasse só `{ pagina, totalPaginas,
+  aoMudar }`. Opcional, uma tela nova que esquecesse a referência perderia a rolagem sem nada
+  avisar.
+- **Janela de duas páginas de cada lado**, sempre com a primeira e a última
+  (`paginasVisiveis`). Um salto de **uma** página só mostra o número em vez da reticência: a
+  reticência ocuparia o mesmo espaço e esconderia o número que substitui (`1 2 3 4 [5]`, não
+  `1 … 3 4 [5]`).
+- **A página atual não é botão.** É um `span` com `aria-current="page"` e o texto "Página "
+  visualmente oculto, porque `aria-label` em `span` genérico não vale pela especificação ARIA.
+  Os outros números são botões com rótulo "Ir para a página N". Os nomes acessíveis de
+  Anterior e Próxima continuam exatamente "Anterior" e "Próxima" (as setas são
+  `aria-hidden`), e por isso os testes das cinco telas passaram sem alteração.
+- **O modo compacto (‹ 6 / 35 ›) usa container query, não media query.** A `.paginacao` é o
+  contêiner, e o modo compacto entra quando **ela** tem menos de 50rem. O histórico do
+  Dashboard fica dentro de um `.bloco-painel` com padding e borda, mais estreito que as outras
+  listas na mesma tela. 50rem é a largura do layout completo no pior caso (página do meio,
+  nove números), medida no navegador em 790 px. `flex-wrap` continua como reserva para fonte
+  maior que a padrão.
+- **"Imprima uma página por vez."** (Etiquetas) ficava dentro do bloco `.paginacao` e saiu para
+  um parágrafo próprio (`.aviso-paginas`), escondido na impressão como a paginação.
+- **Testes.** O jsdom não implementa `scrollIntoView`; `setupTests.ts` define um vazio, e o
+  teste do componente confere a chamada com `vi.spyOn`.
+- **Conferência no navegador.** O banco local tem 5 produtos (uma página), e os fictícios dão
+  2. O `GET /produtos` foi simulado com 692 itens por `page.route` do `playwright-cli`, sem
+  gravar nada no banco. A 360 px a paginação cabe. A página tem rolagem horizontal nessa
+  largura por causa da tabela e das abas, que já eram assim antes (escopo de T36).

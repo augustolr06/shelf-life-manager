@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router-dom'
+import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
 import { formatarData } from '../services/datas'
 import { listarEtiquetas, type FolhaDeEtiquetas } from '../services/etiquetas'
@@ -85,6 +86,7 @@ export function TelaEtiquetas() {
 
   const [folha, setFolha] = useState<FolhaDeEtiquetas | null>(null)
   const [pagina, setPagina] = useState(1)
+  const inicioDaLista = useRef<HTMLUListElement>(null)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -269,6 +271,7 @@ export function TelaEtiquetas() {
       {!carregando && folha && folha.etiquetas.length > 0 && (
         <>
           <ul
+            ref={inicioDaLista}
             className="folha-etiquetas"
             aria-label="Etiquetas para impressão"
             // O milímetro chega ao CSS por atributo, e não por estilo em linha:
@@ -307,24 +310,16 @@ export function TelaEtiquetas() {
         </>
       )}
 
-      {totalPaginas > 1 && (
-        <div className="paginacao">
-          <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={pagina >= totalPaginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            Próxima
-          </button>
-          {/* Imprime-se a página carregada, e a tela diz isso: juntar páginas
-              numa folha só exigiria acumular várias requisições para um botão
-              de impressão, e imprimiria o que não está na tela. */}
-          <p className="subtitulo">Imprima uma página por vez.</p>
-        </div>
-      )}
+      <Paginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        aoMudar={setPagina}
+        alvoRolagem={inicioDaLista}
+      />
+      {/* Imprime-se a página carregada, e a tela diz isso: juntar páginas
+          numa folha só exigiria acumular várias requisições para um botão
+          de impressão, e imprimiria o que não está na tela. */}
+      {totalPaginas > 1 && <p className="subtitulo aviso-paginas">Imprima uma página por vez.</p>}
     </section>
   )
 }

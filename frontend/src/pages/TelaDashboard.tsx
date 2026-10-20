@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
 import {
   buscarDashboard,
@@ -71,6 +72,7 @@ export function TelaDashboard() {
   const [campoAte, setCampoAte] = useState('')
 
   const [pagina, setPagina] = useState(1)
+  const inicioDaLista = useRef<HTMLParagraphElement>(null)
   const [apenasOverrides, setApenasOverrides] = useState(false)
 
   const [carregandoPainel, setCarregandoPainel] = useState(true)
@@ -333,7 +335,7 @@ export function TelaDashboard() {
           </p>
         ) : (
           <>
-            <p className="resumo-historico">
+            <p className="resumo-historico" ref={inicioDaLista}>
               {historico.total} saída(s) no período — página {historico.pagina} de {totalPaginas}
             </p>
 
@@ -383,20 +385,12 @@ export function TelaDashboard() {
           </>
         )}
 
-        {totalPaginas > 1 && (
-          <div className="paginacao">
-            <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-              Anterior
-            </button>
-            <button
-              type="button"
-              disabled={pagina >= totalPaginas}
-              onClick={() => setPagina((p) => p + 1)}
-            >
-              Próxima
-            </button>
-          </div>
-        )}
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          aoMudar={setPagina}
+          alvoRolagem={inicioDaLista}
+        />
       </section>
     </section>
   )

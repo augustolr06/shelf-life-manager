@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Paginacao } from '../components/Paginacao'
 import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
 import { ErroApi } from '../services/api'
 import type { Usuario } from '../services/auth'
@@ -26,6 +27,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
   const [total, setTotal] = useState(0)
   const [tamanhoPagina, setTamanhoPagina] = useState(20)
   const [pagina, setPagina] = useState(1)
+  const inicioDaLista = useRef<HTMLParagraphElement>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   /**
@@ -96,7 +98,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
         <p>Nenhuma unidade vencida em estoque.</p>
       ) : (
         <>
-          <p className="resumo-fila">
+          <p className="resumo-fila" ref={inicioDaLista}>
             {total} unidade(s) vencida(s) em estoque — página {pagina} de {totalPaginas}
           </p>
 
@@ -181,20 +183,12 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
         </>
       )}
 
-      {totalPaginas > 1 && (
-        <div className="paginacao">
-          <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={pagina >= totalPaginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            Próxima
-          </button>
-        </div>
-      )}
+      <Paginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        aoMudar={setPagina}
+        alvoRolagem={inicioDaLista}
+      />
     </section>
   )
 }

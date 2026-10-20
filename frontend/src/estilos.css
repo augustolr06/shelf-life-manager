@@ -331,10 +331,96 @@ td button {
   font-size: 0.8125rem;
 }
 
+/* Paginação das listas (T27). O alvo de toque continua o de 2.75rem de todo
+   botão; os números só ficam mais estreitos. A `.paginacao` é contêiner para
+   o modo compacto depender da largura que ela tem, e não da tela: no Dashboard
+   ela fica dentro de um `.bloco-painel`, mais estreito que as outras listas. */
 .paginacao {
+  container-type: inline-size;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 1rem;
+}
+
+.paginacao-numeros {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paginacao-numeros button,
+.paginacao-atual {
+  min-width: 2.75rem;
+  padding: 0 0.5rem;
+}
+
+/* Os números no estilo de `button.secundario`, para a atual se destacar. */
+.paginacao-numeros button {
+  background: transparent;
+  color: var(--cor-primaria);
+  border: 1px solid var(--cor-borda);
+}
+
+.paginacao-numeros button:hover:not(:disabled) {
+  background: var(--cor-fundo);
+}
+
+.paginacao-atual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  border-radius: 0.375rem;
+  background: var(--cor-primaria);
+  color: #fff;
+  font-weight: 600;
+}
+
+.paginacao-compacta {
+  display: none;
+  min-width: 4.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fora da vista, não do leitor de tela. */
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Pouco espaço: só ‹ [6 / 35] ›. O texto de Anterior e Próxima sai da vista,
+   não do leitor de tela. 50rem é a largura do layout completo no pior caso
+   (página do meio, nove números), medida no navegador. O layout fino do
+   celular é de T36. */
+@container (max-width: 50rem) {
+  .paginacao-ponta,
+  .paginacao-numeros {
+    display: none;
+  }
+
+  .paginacao-compacta {
+    display: inline;
+  }
+
+  .paginacao-texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* Navegação entre telas. Virou link em T10, quando cada tela ganhou URL
@@ -891,7 +977,8 @@ textarea {
   .abas,
   .aviso,
   .controles-etiquetas,
-  .paginacao {
+  .paginacao,
+  .aviso-paginas {
     display: none;
   }
 

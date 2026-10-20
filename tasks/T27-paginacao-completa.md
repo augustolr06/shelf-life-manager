@@ -32,13 +32,15 @@ usuais e o aplica nas cinco telas.
 
 ## Critério de aceite
 
-- [ ] `Paginacao` com props `{ pagina, totalPaginas, aoMudar }` (e `total`/rótulo opcionais)
-- [ ] Função pura `paginasVisiveis(pagina, totalPaginas)` testada à parte: pontas, janela,
+- [x] `Paginacao` com props `{ pagina, totalPaginas, aoMudar }` (e `total`/rótulo opcionais)
+      — sem `total`/rótulo e com `alvoRolagem`, por decisão do orientando (ver
+      `docs/decisoes.md`, 2026-10-20)
+- [x] Função pura `paginasVisiveis(pagina, totalPaginas)` testada à parte: pontas, janela,
       reticências, poucas páginas
-- [ ] As cinco telas usam o componente; nenhum bloco `.paginacao` duplicado sobra
-- [ ] Mudar de página rola a lista para o topo
-- [ ] Testes de componente; testes das cinco telas continuam verdes
-- [ ] Conferência no navegador com o `playwright-cli` no Catálogo (o caso com mais páginas)
+- [x] As cinco telas usam o componente; nenhum bloco `.paginacao` duplicado sobra
+- [x] Mudar de página rola a lista para o topo
+- [x] Testes de componente; testes das cinco telas continuam verdes
+- [x] Conferência no navegador com o `playwright-cli` no Catálogo (o caso com mais páginas)
 
 ## Decisões a registrar em `docs/decisoes.md`
 

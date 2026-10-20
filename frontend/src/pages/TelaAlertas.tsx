@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
 import { listarAlertas, marcarAlertaComoLido, type Alerta } from '../services/alertas'
 import { formatarData } from '../services/datas'
@@ -30,6 +31,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
   const [naoLidos, setNaoLidos] = useState(0)
   const [tamanhoPagina, setTamanhoPagina] = useState(20)
   const [pagina, setPagina] = useState(1)
+  const inicioDaLista = useRef<HTMLParagraphElement>(null)
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -130,7 +132,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
         </p>
       ) : (
         <>
-          <p className="resumo-alertas">
+          <p className="resumo-alertas" ref={inicioDaLista}>
             {total} alerta(s) — {naoLidos} não lido(s) — página {pagina} de {totalPaginas}
           </p>
 
@@ -196,20 +198,12 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
         </>
       )}
 
-      {totalPaginas > 1 && (
-        <div className="paginacao">
-          <button type="button" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-            Anterior
-          </button>
-          <button
-            type="button"
-            disabled={pagina >= totalPaginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            Próxima
-          </button>
-        </div>
-      )}
+      <Paginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        aoMudar={setPagina}
+        alvoRolagem={inicioDaLista}
+      />
     </section>
   )
 }
