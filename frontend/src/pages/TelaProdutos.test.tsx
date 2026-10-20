@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaProdutos } from './TelaProdutos'
 import { encontrarAviso, renderizarComAvisos, semAvisos } from '../services/testes/avisos'
+import { encontrarConfirmacao, responderConfirmacao } from '../services/testes/confirmacao'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { Usuario } from '../services/auth'
 
@@ -163,6 +164,7 @@ describe('TelaProdutos (RF02)', () => {
     await waitFor(() => expect(buscar).toHaveBeenCalledTimes(2))
 
     fireEvent.click(screen.getByRole('button', { name: /inativar/i }))
+    await responderConfirmacao('Inativar produto?', 'Inativar')
 
     expect(await screen.findByRole('button', { name: /reativar/i })).toBeInTheDocument()
     await encontrarAviso('Produto “Eau de Parfum 50ml” inativado.')
@@ -183,7 +185,9 @@ describe('TelaProdutos (RF02)', () => {
     renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     fireEvent.click(await screen.findByRole('button', { name: /reativar/i }))
 
+    // Reativar desfaz uma inativação, sem perda: não pergunta (T39).
     expect(await screen.findByRole('button', { name: /inativar/i })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(buscar).toHaveBeenLastCalledWith(
       `http://localhost:3333/produtos/${PERFUME.id}`,
       expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ ativo: true }) }),
@@ -220,10 +224,64 @@ describe('TelaProdutos (RF02)', () => {
 
     renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+    await responderConfirmacao('Inativar produto?', 'Inativar')
 
     expect((await encontrarAviso(/conexão/i)).tipo).toBe('error')
     expect(screen.getByText('PRF-001')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  describe('confirmação antes de inativar (T39)', () => {
+    it('cita o produto e diz o que acontece com o estoque, com o foco em Cancelar', async () => {
+      buscar.mockResolvedValueOnce(pagina([PERFUME]))
+
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
+      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+
+      const dialogo = await encontrarConfirmacao('Inativar produto?')
+      expect(dialogo).toHaveAccessibleDescription(
+        /“Eau de Parfum 50ml” deixa de receber unidades novas.*As unidades que já estão em estoque continuam podendo ser vendidas/,
+      )
+      expect(within(dialogo).getByRole('button', { name: 'Cancelar' })).toHaveFocus()
+    })
+
+    it('cancelar não chama a API e deixa o produto ativo', async () => {
+      buscar.mockResolvedValueOnce(pagina([PERFUME]))
+
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
+      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await responderConfirmacao('Inativar produto?', 'Cancelar')
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(buscar).toHaveBeenCalledTimes(1)
+      expect(screen.getByText('Ativo')).toBeInTheDocument()
+    })
+
+    it('Esc cancela, como o botão', async () => {
+      buscar.mockResolvedValueOnce(pagina([PERFUME]))
+
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
+      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      fireEvent.keyDown(await encontrarConfirmacao('Inativar produto?'), { key: 'Escape' })
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(buscar).toHaveBeenCalledTimes(1)
+    })
+
+    it('confirmar chama a API uma vez', async () => {
+      buscar
+        .mockResolvedValueOnce(pagina([PERFUME]))
+        .mockResolvedValueOnce(respostaFalsa(200, { produto: { ...PERFUME, ativo: false } }))
+        .mockResolvedValueOnce(pagina([]))
+
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
+      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await responderConfirmacao('Inativar produto?', 'Inativar')
+
+      await encontrarAviso('Produto “Eau de Parfum 50ml” inativado.')
+      const inativacoes = buscar.mock.calls.filter(([, init]) => init?.method === 'DELETE')
+      expect(inativacoes).toHaveLength(1)
+    })
   })
 
   describe('busca em tempo real (T26)', () => {

@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaDescartesPendentes } from './TelaDescartesPendentes'
 import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
+import { responderConfirmacao } from '../services/testes/confirmacao'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { Usuario } from '../services/auth'
 
@@ -150,6 +151,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
 
     resolver('PRF-JC95FJ')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar descarte' }))
+    await responderConfirmacao('Descartar unidade?', 'Descartar')
 
     expect((await encontrarAviso('Descarte registrado. A unidade saiu do estoque.')).tipo).toBe(
       'success',
@@ -217,6 +219,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
 
     resolver('PRF-JC95FJ')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar descarte' }))
+    await responderConfirmacao('Descartar unidade?', 'Descartar')
 
     // Lista velha: alguém resolveu esta unidade desde que a fila carregou.
     const aviso = await encontrarAviso(

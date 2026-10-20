@@ -58,6 +58,27 @@ describe('Dialogo (T30)', () => {
     expect(aoCancelar).toHaveBeenCalledTimes(1)
   })
 
+  it('com aoCancelar, o clique no fundo cancela, e o clique no cartão não (T39)', () => {
+    const aoCancelar = vi.fn()
+    montar({ aoCancelar })
+
+    fireEvent.click(screen.getByText('A unidade sai do estoque.'))
+    expect(aoCancelar).not.toHaveBeenCalled()
+
+    // O conteúdo ocupa o cartão inteiro: clique que chega ao `<dialog>` em si
+    // é clique no fundo escurecido.
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(aoCancelar).toHaveBeenCalledTimes(1)
+  })
+
+  it('sem aoCancelar, o clique no fundo não fecha', () => {
+    montar()
+
+    fireEvent.click(screen.getByRole('dialog'))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('reabre se o navegador fechar por fora um diálogo que não pode ser cancelado', () => {
     montar()
     const dialogo = screen.getByRole<HTMLDialogElement>('dialog')

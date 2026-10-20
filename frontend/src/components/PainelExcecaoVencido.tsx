@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useConfirmacao } from './DialogoConfirmacao'
 import { ErroApi } from '../services/api'
 import type { Papel } from '../services/auth'
 import { formatarData } from '../services/datas'
@@ -81,6 +82,10 @@ export function PainelExcecaoVencido({
   // jeito.
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const confirmar = useConfirmacao()
+
+  /** Como a unidade aparece nas confirmações: o código da etiqueta e o produto. */
+  const identificacao = `${unidade.codigoQr} de ${unidade.produto.nome}`
 
   async function executar(acao: () => Promise<void>) {
     if (enviando) return
@@ -125,14 +130,30 @@ export function PainelExcecaoVencido({
     })
   }
 
-  function descartar() {
+  async function descartar() {
+    // O descarte grava `Saida` e `EventoLog` (RNF05): não há como desfazer, e
+    // o botão fica a um toque errado do da correção (T39).
+    const confirmado = await confirmar({
+      titulo: 'Descartar unidade?',
+      consequencia: `A unidade ${identificacao} sai do estoque e entra no relatório de perdas. O descarte não pode ser desfeito.`,
+      rotuloConfirmar: 'Descartar',
+    })
+    if (!confirmado) return
     void executar(async () => {
       aoResolver(await descartarUnidade(unidade.id, motivo, sessaoVendaId))
     })
   }
 
-  function autorizar(evento: FormEvent<HTMLFormElement>) {
+  async function autorizar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
+    // O último passo da fricção que a seção 6.1 do PRD pede para o override:
+    // depois do aviso legal e da justificativa, a pergunta direta (T39).
+    const confirmado = await confirmar({
+      titulo: 'Autorizar venda de unidade vencida?',
+      consequencia: `A unidade ${identificacao}, vencida em ${formatarData(unidade.dataValidade)}, será registrada como vendida. A autorização fica registrada com seu nome e não pode ser desfeita.`,
+      rotuloConfirmar: 'Autorizar venda',
+    })
+    if (!confirmado) return
     void executar(async () => {
       aoResolver(await autorizarVendaVencida(unidade.id, justificativa, sessaoVendaId))
     })
@@ -191,7 +212,7 @@ export function PainelExcecaoVencido({
             onChange={(evento) => setMotivo(evento.target.value)}
           />
         </div>
-        <button type="button" disabled={enviando} onClick={descartar}>
+        <button type="button" disabled={enviando} onClick={() => void descartar()}>
           {enviando ? 'Enviando…' : 'Registrar descarte'}
         </button>
       </div>
@@ -200,7 +221,7 @@ export function PainelExcecaoVencido({
       {podeAutorizar ? (
         <div className="caminho caminho-override">
           {overrideAberto ? (
-            <form onSubmit={autorizar}>
+            <form onSubmit={(evento) => void autorizar(evento)}>
               <h5>Autorizar a venda desta unidade vencida</h5>
               <p className="aviso-override">
                 A venda de produto com validade expirada é vedada pela legislação de defesa do

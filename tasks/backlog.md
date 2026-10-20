@@ -149,7 +149,7 @@ começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras i
 | T28 | Seletor de produto com filtro (busca e escolha num campo só) | concluída | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
 | T29 | Mensagens de sucesso e erro de ação em toasts | concluída | — | `tasks/T29-toasts.md` |
 | T30 | Aviso de sessão expirada em modal que leva ao login | concluída | — | `tasks/T30-sessao-expirada.md` |
-| T39 | Confirmação em diálogo antes de ação destrutiva | pendente | T30 | `tasks/T39-confirmacao-acoes-destrutivas.md` |
+| T39 | Confirmação em diálogo antes de ação destrutiva | concluída | T30 | `tasks/T39-confirmacao-acoes-destrutivas.md` |
 
 **T39 (2026-10-20).** Hoje nenhuma ação pede confirmação: descarte, inativação de produto,
 desativação de conta e troca de papel acontecem no primeiro clique (a troca de papel, no
@@ -161,6 +161,15 @@ porque é um risco de uso que já existe e não depende do redesign.
 E-mail (máx. 200) e Senha (máx. 200) não têm `maxLength` na tela, e a recusa do schema sai com
 a mensagem genérica de `CORPO_INVALIDO`. O helper `camposRecusados` de `services/api.ts` já
 serve para corrigir.
+
+**Achado de T39 (2026-10-20), sem tarefa aberta.** Desativar uma conta ou trocar o papel dela
+não afeta a sessão já aberta: `autenticar` (`backend/src/modules/auth/auth.middleware.ts`) só
+valida o JWT, e o papel vem do payload do token. A conta desativada continua operando, e o
+gestor rebaixado continua com poder de GESTOR (inclusive o override), até o token expirar
+(`DURACAO_SESSAO_SEGUNDOS`, 8 h). A confirmação de T39 avisa isso na tela, mas não corrige.
+A correção natural é reler `ativo` e `papel` do banco em `autenticar` (uma consulta por
+requisição) e responder 401 `NAO_AUTENTICADO` para conta inativa. O modal de T30 já trata esse
+caso.
 
 ## Incremento 10 — Fluxo de leitura: leitura única, consulta e carrinho
 

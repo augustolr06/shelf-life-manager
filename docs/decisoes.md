@@ -1984,3 +1984,58 @@ mínimo (atributo `open` e evento `close`). `services/api.test.ts` (novo) cobre 
 exclusões; `components/Dialogo.test.tsx` cobre foco, Esc e reabertura; `App.test.tsx` cobre o
 modal em carregamento e em clique, a ausência de toast, o retorno à rota, e os casos que não
 abrem o modal (401 do `/auth/me`, 401 do login, 403).
+
+## 2026-10-20 — Confirmação em diálogo antes de ação destrutiva (T39)
+
+**Contexto.** Descartar, autorizar venda vencida, inativar produto, desativar conta e trocar
+papel aconteciam no primeiro clique (o papel, no `onChange` do `<select>`). A tarefa põe uma
+confirmação igual em todas elas.
+
+**Decisões da tarefa** (as seis do arquivo da tarefa, confirmadas na implementação):
+
+1. **Confirmação como função que devolve promessa.** `components/DialogoConfirmacao.tsx`
+   exporta `ProvedorConfirmacao`, montado uma vez em `App.tsx` em volta das telas, e
+   `useConfirmacao()`, que devolve `confirmar({ titulo, consequencia, rotuloConfirmar })`.
+   Na tela: `if (!(await confirmar({...}))) return` antes da chamada à API. Um pedido novo com
+   outro aberto cancela o primeiro, para nenhuma promessa ficar pendurada.
+2. **Foco em Cancelar**, que é o primeiro botão (o `Dialogo` de T30 foca o primeiro botão de
+   `acoes`). Esc e clique fora cancelam.
+3. **O botão repete o verbo** ("Descartar", "Autorizar venda", "Inativar", "Desativar conta",
+   "Trocar papel") e o texto cita o dado concreto (código e produto da unidade, nome do
+   produto, nome da conta).
+4. **Trocar papel deixa de salvar no `onChange`.** Cancelar não precisa de código para
+   devolver o `<select>`: ele é controlado por `conta.papel`, que só muda com a resposta do
+   servidor, então ele já mostra o papel atual enquanto a pergunta está aberta.
+5. **O override pergunta depois da justificativa.** Cancelar a pergunta mantém o texto da
+   justificativa no formulário.
+6. **A confirmação é só de interface** (RNF04): libera a mesma chamada de antes.
+
+**Revisão de uma decisão de T30: clique fora.** T30 fez o `Dialogo` não fechar por clique
+fora. Agora o clique fora chama `aoCancelar` quando ele existe; sem `aoCancelar` (o aviso de
+sessão expirada) continua sem efeito. Na confirmação, cancelar é o desfecho seguro, então um
+toque perdido no fundo cai nele. Para distinguir clique no fundo de clique no cartão, o
+`<dialog>` ficou sem `padding` e o conteúdo foi para `.dialogo-conteudo`: um clique cujo alvo
+é o próprio `<dialog>` só pode ter sido no fundo.
+
+**O texto de cada consequência foi conferido no backend**, como o arquivo da tarefa pede:
+
+- **Inativar produto:** o servidor recusa receber unidade de produto inativo
+  (`unidade.service.ts`), e o seletor de produto do recebimento e das etiquetas só lista
+  ativos. A venda e o descarte das unidades já em estoque **não** olham `ativo`, e o texto diz
+  isso, em vez do rascunho "as unidades já em estoque não mudam", que era ambíguo.
+- **Desativar conta e trocar papel:** o login recusa conta inativa, mas `autenticar`
+  (`auth.middleware.ts`) só valida o JWT e lê o papel **do token**. Uma sessão aberta continua
+  com a conta ativa e o papel anterior até o token expirar (`DURACAO_SESSAO_SEGUNDOS`, 8 h). O
+  rascunho da tarefa ("não poderá mais entrar no sistema") era verdade só para o próximo login,
+  e o texto final diz as duas coisas. As 8 horas ficaram escritas na tela, com comentário
+  apontando para a constante do backend. Corrigir o comportamento é mudança de backend, fora
+  do escopo; ficou registrado como achado no backlog.
+- **Descarte e override:** gravam `Saida` e `EventoLog` (RNF05), e o override grava quem
+  autorizou. "Não pode ser desfeito" é literal.
+
+**Testes.** `services/testes/confirmacao.ts` traz `encontrarConfirmacao(titulo)` e
+`responderConfirmacao(titulo, botao)`. `renderizarComAvisos` passou a montar também o
+`ProvedorConfirmacao`, como o `App`, e a `montarTela` da Leitura também. Os 13 testes que
+clicavam e esperavam a chamada direta agora respondem ao diálogo. Os casos novos cobrem, por
+ação, o texto da consequência, o cancelamento sem chamada e a confirmação com uma chamada. No
+`Dialogo`, cobrem o clique no fundo e no cartão.

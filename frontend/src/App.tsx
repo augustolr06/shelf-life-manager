@@ -2,6 +2,7 @@ import { startTransition, useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Avisos } from './components/Avisos'
 import { Dialogo } from './components/Dialogo'
+import { ProvedorConfirmacao } from './components/DialogoConfirmacao'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDashboard } from './pages/TelaDashboard'
@@ -160,12 +161,17 @@ function rotaInicial(usuario: Usuario): string {
  * A região dos toasts fica fora do guardião de sessão: montada uma vez, ela
  * sobrevive à troca entre login e área autenticada, e um aviso dado no
  * momento da troca não se perde (T29).
+ *
+ * O provedor de confirmação (T39) também fica aqui: um diálogo só para o app
+ * inteiro, que qualquer tela pede com `useConfirmacao()`.
  */
 export function App() {
   return (
     <>
       <Avisos />
-      <Aplicacao />
+      <ProvedorConfirmacao>
+        <Aplicacao />
+      </ProvedorConfirmacao>
     </>
   )
 }

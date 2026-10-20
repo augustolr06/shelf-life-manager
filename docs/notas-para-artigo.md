@@ -1660,3 +1660,35 @@ futuro e fica fora do escopo.
 **Tarefa relacionada:** T30, T03 (duração da sessão), RNF02, RNF03, RNF04
 
 **Data:** 2026-10-20
+
+---
+
+## Revisão: desativar a conta tira o acesso no próximo login, não na hora
+
+**Contexto do problema:** a entrada *"Desligar alguém não é apagar alguém"* registrou que
+"conta desativada não autentica". Ao escrever o texto de confirmação da desativação (T39), com
+a regra de que o diálogo não pode afirmar o que o servidor não faz, foi preciso conferir o que
+acontece com quem **já está** com o sistema aberto. A resposta é que nada acontece até a
+sessão expirar. O servidor confere a conta só no login. Depois disso, ele confia no token da
+sessão, e o papel também vem do token. Uma atendente desligada continua podendo vender, e um
+gestor rebaixado continua podendo autorizar venda de unidade vencida, por até 8 horas.
+
+**Solução adotada (nesta tarefa):** a confirmação diz isso com todas as letras ("uma sessão
+já aberta continua valendo até expirar, em até 8 horas"), em vez de prometer efeito imediato.
+A correção do comportamento ficou registrada como trabalho pendente.
+
+**Por que importa / trade-offs:** é a troca clássica da sessão por token assinado. O servidor
+não guarda sessão e não consulta o banco a cada requisição, o que é simples e barato, e o
+preço é não conseguir revogar acesso antes do prazo. Na loja do piloto o risco prático é
+pequeno: o desligamento costuma acontecer fora do turno, e 8 horas é um turno. Mas o artigo
+não deve dizer que a desativação é imediata, e dois pontos ficam para a discussão. Primeiro,
+o `EventoLog` continua atribuindo a ação à pessoa certa mesmo nessa janela, então o dado de
+pesquisa não fica comprometido. Segundo, a correção é pequena (reler `ativo` e `papel` do
+banco a cada requisição autenticada, ao custo de uma consulta). O que vale registrar é que o
+limite só apareceu quando a interface precisou **descrever** a consequência de um clique. A
+exigência de que a tela diga a verdade sobre o servidor funcionou como revisão do próprio
+servidor.
+
+**Tarefa relacionada:** T39, T22 (desativação de conta), T03 (sessão por JWT), RF01
+
+**Data:** 2026-10-20

@@ -7,6 +7,7 @@ import {
   type ClipboardEvent,
   type FormEvent,
 } from 'react'
+import { useConfirmacao } from '../components/DialogoConfirmacao'
 import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
 import { Paginacao } from '../components/Paginacao'
 import { useValorComAtraso } from '../hooks/useValorComAtraso'
@@ -96,6 +97,7 @@ export function TelaProdutos({ usuario }: Props) {
   const [errosDeCampo, setErrosDeCampo] = useState<MensagensPorCampo>({})
   const [avisosDeColagem, setAvisosDeColagem] = useState<MensagensPorCampo>({})
   const [salvando, setSalvando] = useState(false)
+  const confirmar = useConfirmacao()
 
   // A escrita é restrita a GESTOR (RF02). Esconder o formulário é conveniência
   // de interface, não autorização: quem decide continua sendo o 403 do
@@ -204,6 +206,21 @@ export function TelaProdutos({ usuario }: Props) {
   }
 
   async function alternarSituacao(produto: Produto) {
+    // Só inativar pergunta: reativar desfaz uma inativação, sem perda (T39). O
+    // texto diz o que o servidor faz com produto inativo — recusa recebimento
+    // e sai do seletor de produto — e o que ele não faz: a venda e o descarte
+    // das unidades já em estoque continuam.
+    if (
+      produto.ativo &&
+      !(await confirmar({
+        titulo: 'Inativar produto?',
+        consequencia: `“${produto.nome}” deixa de receber unidades novas e sai da escolha de produto no recebimento e nas etiquetas. As unidades que já estão em estoque continuam podendo ser vendidas e descartadas. Você pode reativá-lo depois.`,
+        rotuloConfirmar: 'Inativar',
+      }))
+    ) {
+      return
+    }
+
     try {
       const atualizado = produto.ativo
         ? await inativarProduto(produto.id)

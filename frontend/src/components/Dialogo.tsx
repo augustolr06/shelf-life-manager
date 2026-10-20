@@ -8,9 +8,10 @@ type Props = {
   /** Os botões. O primeiro recebe o foco ao abrir. */
   acoes: ReactNode
   /**
-   * O que o Esc faz. Sem isto o Esc não fecha: há diálogo que não tem para
-   * onde voltar, como o de sessão expirada (T30). Com isto, quem fecha é quem
-   * chama, mudando `aberto` — o diálogo nunca se fecha sozinho.
+   * O que o Esc e o clique fora fazem. Sem isto nenhum dos dois fecha: há
+   * diálogo que não tem para onde voltar, como o de sessão expirada (T30).
+   * Com isto, quem fecha é quem chama, mudando `aberto` — o diálogo nunca se
+   * fecha sozinho.
    */
   aoCancelar?: () => void
 }
@@ -21,8 +22,9 @@ type Props = {
  * dele, e ele fica por cima de tudo, inclusive dos toasts. Feito para ser
  * reaproveitado pelas confirmações de T39.
  *
- * Clique fora não fecha: o fundo não é um botão, e um toque perdido no
- * celular não pode descartar uma pergunta.
+ * Clique fora só fecha quem pode ser cancelado. Na confirmação (T39), cancelar
+ * é o desfecho seguro, e um toque perdido no fundo cai nele; no aviso sem
+ * cancelamento, o toque não faz nada.
  */
 export function Dialogo({ aberto, titulo, children, acoes, aoCancelar }: Props) {
   const referencia = useRef<HTMLDialogElement>(null)
@@ -59,6 +61,11 @@ export function Dialogo({ aberto, titulo, children, acoes, aoCancelar }: Props) 
       }}
       // O que sobra: o botão voltar do Android, que chega como `cancel`.
       onCancel={pedirFechamento}
+      // O conteúdo ocupa o cartão inteiro, então um clique que chega ao próprio
+      // `<dialog>` só pode ter sido no fundo escurecido.
+      onClick={(evento) => {
+        if (evento.target === evento.currentTarget) aoCancelar?.()
+      }}
       onClose={() => {
         // Fechou por fora do controle (o `cancel` ignorado acima): quem pode
         // cancelar cancela; quem não pode volta a ver o diálogo.
@@ -66,9 +73,11 @@ export function Dialogo({ aberto, titulo, children, acoes, aoCancelar }: Props) 
         else referencia.current?.showModal()
       }}
     >
-      <h2 id={idTitulo}>{titulo}</h2>
-      <div id={idCorpo}>{children}</div>
-      <div className="dialogo-acoes">{acoes}</div>
+      <div className="dialogo-conteudo">
+        <h2 id={idTitulo}>{titulo}</h2>
+        <div id={idCorpo}>{children}</div>
+        <div className="dialogo-acoes">{acoes}</div>
+      </div>
     </dialog>
   )
 }

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaLeituraQr } from './TelaLeituraQr'
+import { ProvedorConfirmacao } from '../components/DialogoConfirmacao'
 import type { Usuario } from '../services/auth'
+import { encontrarConfirmacao, responderConfirmacao } from '../services/testes/confirmacao'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 
 /**
@@ -56,8 +58,13 @@ const GESTOR: Usuario = {
   papel: 'GESTOR',
 }
 
+/** Com o provedor que o `App` monta: o descarte e o override pedem confirmação (T39). */
 function montarTela(usuario: Usuario = ATENDENTE) {
-  return render(<TelaLeituraQr usuario={usuario} />)
+  return render(
+    <ProvedorConfirmacao>
+      <TelaLeituraQr usuario={usuario} />
+    </ProvedorConfirmacao>,
+  )
 }
 
 function unidade(codigoQr: string, dataValidade: string) {
@@ -451,17 +458,21 @@ describe('TelaLeituraQr (RF05, RF06, RNF07)', () => {
         return
       }
 
+      // Descarte e override passam pela confirmação (T39); a correção, não.
       if (caminho === 'descartar') {
         fireEvent.click(screen.getByRole('button', { name: /registrar descarte/i }))
+        await responderConfirmacao('Descartar unidade?', 'Descartar')
         return
       }
 
-      // O override exige dois atos: revelar o formulário e então justificar.
+      // O override exige três atos: revelar o formulário, justificar e
+      // confirmar no diálogo.
       fireEvent.click(screen.getByRole('button', { name: /autorizar a venda mesmo assim/i }))
       fireEvent.change(await screen.findByLabelText(/justificativa/i), {
         target: { value: JUSTIFICATIVA },
       })
       fireEvent.click(screen.getByRole('button', { name: /^autorizar venda$/i }))
+      await responderConfirmacao('Autorizar venda de unidade vencida?', 'Autorizar venda')
     }
 
     it('oferece os três caminhos ao GESTOR', async () => {
@@ -623,6 +634,57 @@ describe('TelaLeituraQr (RF05, RF06, RNF07)', () => {
         expect(enviosPara(caminho)[0]?.sessaoVendaId).toBe(leituraEnviada(0).sessaoVendaId)
         tela.unmount()
       }
+    })
+
+    describe('confirmação antes de descartar e de autorizar (T39)', () => {
+      it('pergunta antes de descartar, citando a unidade, e cancelar não chama a API', async () => {
+        comExcecao([VENCIDO], TODOS)
+        await lerUnidadeVencida(ATENDENTE)
+
+        fireEvent.click(screen.getByRole('button', { name: /registrar descarte/i }))
+
+        expect(await encontrarConfirmacao('Descartar unidade?')).toHaveAccessibleDescription(
+          'A unidade PRF-VVVVVV de Eau de Parfum 50ml sai do estoque e entra no relatório de perdas. O descarte não pode ser desfeito.',
+        )
+        await responderConfirmacao('Descartar unidade?', 'Cancelar')
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(enviosPara('descartar')).toHaveLength(0)
+        // A unidade continua à espera de um dos caminhos.
+        expect(screen.getByRole('heading', { name: /unidade vencida/i })).toBeInTheDocument()
+      })
+
+      it('pergunta de novo depois da justificativa, e cancelar não autoriza', async () => {
+        comExcecao([VENCIDO], TODOS)
+        await lerUnidadeVencida(GESTOR)
+
+        fireEvent.click(screen.getByRole('button', { name: /autorizar a venda mesmo assim/i }))
+        fireEvent.change(await screen.findByLabelText(/justificativa/i), {
+          target: { value: JUSTIFICATIVA },
+        })
+        fireEvent.click(screen.getByRole('button', { name: /^autorizar venda$/i }))
+
+        expect(
+          await encontrarConfirmacao('Autorizar venda de unidade vencida?'),
+        ).toHaveAccessibleDescription(
+          /A unidade PRF-VVVVVV de Eau de Parfum 50ml, vencida em 01\/08\/2026, será registrada como vendida\. A autorização fica registrada com seu nome/,
+        )
+        await responderConfirmacao('Autorizar venda de unidade vencida?', 'Cancelar')
+
+        expect(enviosPara('override')).toHaveLength(0)
+        // O que foi escrito fica: cancelar a pergunta não é desistir do texto.
+        expect(screen.getByLabelText(/justificativa/i)).toHaveValue(JUSTIFICATIVA)
+      })
+
+      it('confirmar o descarte chama a API uma vez', async () => {
+        comExcecao([VENCIDO], TODOS)
+        await lerUnidadeVencida(ATENDENTE)
+
+        await acionar('descartar')
+
+        await screen.findByRole('heading', { name: /descarte registrado/i })
+        expect(enviosPara('descartar')).toHaveLength(1)
+      })
     })
 
     it('cai no portão de offline se a rede some durante a resolução', async () => {

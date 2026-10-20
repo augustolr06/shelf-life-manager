@@ -1,13 +1,17 @@
 import { act, render, screen, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { Avisos, ROTULO_AVISOS } from '../../components/Avisos'
+import { ProvedorConfirmacao } from '../../components/DialogoConfirmacao'
 
-/** Monta a tela com a região dos toasts ao lado, como o `App` faz (T29). */
+/**
+ * Monta a tela com o que o `App` põe em volta de toda tela: a região dos
+ * toasts (T29) e o provedor da confirmação de ação destrutiva (T39).
+ */
 export function renderizarComAvisos(tela: ReactElement) {
   return render(
     <>
       <Avisos />
-      {tela}
+      <ProvedorConfirmacao>{tela}</ProvedorConfirmacao>
     </>,
   )
 }

@@ -59,18 +59,18 @@ redefinir senha (já é um formulário próprio, com campo e botão), remover it
 
 ## Critério de aceite
 
-- [ ] `DialogoConfirmacao` + `useConfirmacao()` em `frontend/src/components/`, montados uma
+- [x] `DialogoConfirmacao` + `useConfirmacao()` em `frontend/src/components/`, montados uma
       vez no `App`
-- [ ] As cinco ações da tabela passam pela confirmação; as da lista "não pedem" continuam
+- [x] As cinco ações da tabela passam pela confirmação; as da lista "não pedem" continuam
       diretas
-- [ ] Troca de papel: cancelar devolve o `<select>` ao valor anterior, sem chamada à API
-- [ ] Foco em Cancelar ao abrir; Esc e clique fora cancelam
-- [ ] Testes de componente: para cada ação, o diálogo aparece com o texto da consequência;
+- [x] Troca de papel: cancelar devolve o `<select>` ao valor anterior, sem chamada à API
+- [x] Foco em Cancelar ao abrir; Esc e clique fora cancelam
+- [x] Testes de componente: para cada ação, o diálogo aparece com o texto da consequência;
       cancelar **não** chama a API; confirmar chama uma vez
-- [ ] Testes existentes das telas afetadas atualizados (hoje clicam e esperam a chamada direta)
-- [ ] Conferência no navegador com o `playwright-cli`: inativar produto no catálogo
+- [x] Testes existentes das telas afetadas atualizados (hoje clicam e esperam a chamada direta)
+- [x] Conferência no navegador com o `playwright-cli`: inativar produto no catálogo
       (cancelar e confirmar) e trocar papel de uma conta (cancelar)
-- [ ] `docs/decisoes.md` com as decisões acima
+- [x] `docs/decisoes.md` com as decisões acima
 
 ## Decisões anteriores afetadas (alerta — não bloqueia)
 

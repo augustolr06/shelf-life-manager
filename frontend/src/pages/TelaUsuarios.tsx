@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useConfirmacao, type PedidoConfirmacao } from '../components/DialogoConfirmacao'
 import { ErroApi } from '../services/api'
 import { avisar } from '../services/avisos'
 import type { Papel, Usuario } from '../services/auth'
@@ -35,6 +36,53 @@ function rotuloDoPapel(papel: Papel): string {
   return PAPEIS.find(({ valor }) => valor === papel)?.rotulo.toLowerCase() ?? papel
 }
 
+/**
+ * O que muda no acesso de quem passa a ter o papel, para a confirmação da
+ * troca (T39). Espelha o que o `App` e as telas mostram por papel; quem recusa
+ * de fato continua sendo o 403 do backend.
+ */
+const ACESSO_DO_NOVO_PAPEL: Record<Papel, string> = {
+  GESTOR:
+    'Passa a ter as telas de gestão (recebimento, etiquetas, fila de descarte, alertas, dashboard e contas de acesso), a edição do catálogo e, na leitura, a correção de validade e a autorização de venda de unidade vencida.',
+  ATENDENTE:
+    'Perde as telas de gestão (recebimento, etiquetas, fila de descarte, alertas, dashboard e contas de acesso), a edição do catálogo e, na leitura, a correção de validade e a autorização de venda de unidade vencida. Fica com a leitura de QR, a consulta ao catálogo e a própria senha.',
+}
+
+/**
+ * O papel e a conta ativa viajam no token da sessão, e o servidor não os
+ * relê a cada requisição: desativar ou trocar papel vale a partir do próximo
+ * login. A confirmação diz isso em vez de prometer efeito imediato. As 8 horas
+ * são `DURACAO_SESSAO_SEGUNDOS`, do backend.
+ */
+const SESSAO_ABERTA_CONTINUA = 'continua valendo até expirar, em até 8 horas'
+
+/**
+ * A pergunta antes de alterar a conta, ou `null` quando a alteração não pede
+ * confirmação: reativar desfaz uma desativação, sem perda (T39).
+ */
+function pedidoDeConfirmacao(
+  conta: Conta,
+  alteracoes: { papel?: Papel; ativo?: boolean },
+): PedidoConfirmacao | null {
+  if (alteracoes.papel !== undefined) {
+    return {
+      titulo: 'Trocar papel?',
+      consequencia: `${conta.nome} passa de ${rotuloDoPapel(conta.papel)} para ${rotuloDoPapel(alteracoes.papel)}. ${ACESSO_DO_NOVO_PAPEL[alteracoes.papel]} A mudança vale a partir do próximo login: uma sessão já aberta ${SESSAO_ABERTA_CONTINUA}, com o papel anterior.`,
+      rotuloConfirmar: 'Trocar papel',
+    }
+  }
+
+  if (alteracoes.ativo === false) {
+    return {
+      titulo: 'Desativar conta?',
+      consequencia: `${conta.nome} não poderá mais entrar no sistema. Uma sessão já aberta ${SESSAO_ABERTA_CONTINUA}. Você pode reativar a conta depois.`,
+      rotuloConfirmar: 'Desativar conta',
+    }
+  }
+
+  return null
+}
+
 export function TelaUsuarios({ usuario }: Props) {
   const [contas, setContas] = useState<Conta[]>([])
   const [incluirInativas, setIncluirInativas] = useState(false)
@@ -49,6 +97,7 @@ export function TelaUsuarios({ usuario }: Props) {
   /** Id da conta cuja senha está sendo redefinida; `null` quando nenhuma. */
   const [redefinindo, setRedefinindo] = useState<string | null>(null)
   const [senhaNova, setSenhaNova] = useState('')
+  const confirmar = useConfirmacao()
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -83,6 +132,11 @@ export function TelaUsuarios({ usuario }: Props) {
   }
 
   async function alterar(conta: Conta, alteracoes: { papel?: Papel; ativo?: boolean }) {
+    // Cancelar não precisa devolver o `<select>` ao papel anterior: ele é
+    // controlado por `conta.papel`, que só muda com a resposta do servidor.
+    const pedido = pedidoDeConfirmacao(conta, alteracoes)
+    if (pedido && !(await confirmar(pedido))) return
+
     try {
       const atualizada = await alterarConta(conta.id, alteracoes)
       avisar.sucesso(
