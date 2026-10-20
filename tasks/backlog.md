@@ -127,6 +127,78 @@ um a um pelo formulário de T04 inviabiliza a carga inicial.
 |---|---|---|---|---|
 | T24 | Importação do catálogo de produtos por planilha CSV (RF02) | concluída | T04 | `tasks/T24-importacao-produtos-csv.md` |
 
+## Incremento 9 — Ajustes de uso em formulários e listas
+
+Levantado em 2026-10-13, depois do sistema rodar em produção com o catálogo fictício. Nenhuma
+destas tarefas muda regra de negócio: todas atacam atrito de uso que apareceu ao operar as
+telas de verdade. São independentes entre si, exceto T28, que reaproveita o atraso de busca
+de T26.
+
+**Regra para os incrementos 9, 10 e 11** (orientando, 2026-10-13): são ajustes vindos do uso
+real, e podem contrariar decisões iniciais do PRD ou de `docs/decisoes.md`. Uma decisão
+anterior **não impede** a execução da tarefa: o arquivo de detalhe lista as decisões
+afetadas numa seção "Decisões anteriores afetadas", quem executa avisa o orientando ao
+começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras inegociáveis do
+`CLAUDE.md` continuam valendo — por isso T33 (testes) vem antes de T33b.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T25 | Mensagem clara para o limite de 120 caracteres no cadastro de produto | pendente | T04 | `tasks/T25-limite-caracteres-produto.md` |
+| T26 | Busca em tempo real no Catálogo de produtos | pendente | T04 | `tasks/T26-busca-tempo-real-catalogo.md` |
+| T27 | Componente de paginação completo, compartilhado pelas telas paginadas | pendente | — | `tasks/T27-paginacao-completa.md` |
+| T28 | Seletor de produto com filtro (busca e escolha num campo só) | pendente | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
+| T29 | Mensagens de sucesso e erro de ação em toasts | pendente | — | `tasks/T29-toasts.md` |
+| T30 | Aviso de sessão expirada em modal que leva ao login | pendente | — | `tasks/T30-sessao-expirada.md` |
+
+## Incremento 10 — Fluxo de leitura: leitura única, consulta e carrinho
+
+Levantado em 2026-10-13. Hoje ler o QR na tela de Leitura **é** vender: o ramo `CONFIRMAR`
+de `validarSaidaFifo` cria a `Saida` na mesma transação. Com a câmera aberta, um segundo QR
+lido sem querer vende o produto errado, e não há como desfazer.
+
+O fluxo novo, definido pelo orientando: ler o QR **valida** (vencimento e FIFO, na hora,
+como hoje) e mostra o produto, **sem dar baixa**. Barrada, a tela mostra as opções de
+correção que já existem. Liberada, a unidade entra num **carrinho**, de onde pode ser removida
+(cliente desistiu, frasco errado). A venda só acontece quando quem está no balcão
+**confirma o carrinho**, e o servidor revalida cada item sob lock antes de baixar.
+Ler o QR para só **ver** o produto, sem intenção de vender, é a tela de consulta (T32).
+
+T33 e T33b seguem o mesmo par de T06/T07: mudar `validarSaidaFifo` exige escrever os casos
+de teste antes (regra do CLAUDE.md e seção 8 do PRD).
+
+**Decisões anteriores afetadas** (alerta, não bloqueio — detalhes em cada arquivo): PRD 6.2
+("não há carrinho"), T09 (remoção de `/saidas/confirmar`), suíte de T06 (ramo 5 deixa de
+baixar na leitura), T10 (câmera contínua e veredito apagado offline), T11 (correção de
+validade deixa de vender na revalidação).
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T31 | Leitura única: câmera desliga ao identificar o código e a tela mostra o resultado | pendente | T10 | `tasks/T31-leitura-unica-camera.md` |
+| T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | pendente | T10 | `tasks/T32-consulta-unidade-qr.md` |
+| T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | pendente | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
+| T33b | Backend: leitura sem baixa e confirmação da venda (`POST /saidas/finalizar`) | pendente | T33 | `tasks/T33b-avaliacao-efetivacao-backend.md` |
+| T34 | Frontend: carrinho na tela de venda | pendente | T31, T33b | `tasks/T34-carrinho-frontend.md` |
+
+## Incremento 11 — Redesign
+
+Levantado em 2026-10-13. Vem por último de propósito: as telas novas dos incrementos 9 e 10
+(paginação, seletor, toasts, consulta, carrinho) entram no redesign em vez de serem
+redesenhadas duas vezes. T35 é a fundação; as outras três dependem dela e podem ser feitas
+em qualquer ordem.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T35 | Fundação visual: tokens, tipografia e componentes base | pendente | T29, T34 | `tasks/T35-fundacao-visual.md` |
+| T36 | Responsividade para celular e tablet | pendente | T35 | `tasks/T36-responsividade.md` |
+| T37 | Revisão de copies (textos da interface e mensagens do servidor) | pendente | T35 | `tasks/T37-revisao-copies.md` |
+| T38 | Destaque de estado: vencidos, inativos e ações destrutivas | pendente | T35, T30 | `tasks/T38-destaques-de-estado.md` |
+
+**Ordem sugerida dentro dos três incrementos:** T31 primeiro, por ser o risco real em
+produção (a câmera aberta vende o que ler) e pequena → T33 → T33b → T34 (o carrinho fecha o
+risco de vez; T33b e T34 em sequência, porque entre as duas a tela diz "Saída registrada" para
+uma leitura que não baixou) → T25 → T26 → T27 → T28 → T29 → T30 → T32 → T35 →
+T36/T37/T38.
+
 ---
 
 ## Verificações manuais a cargo do orientando

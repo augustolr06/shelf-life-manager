@@ -1587,3 +1587,47 @@ planilha sabe e o que só o frasco sabe.
 **Tarefa relacionada:** T24, T05 (recebimento), T14 e T15 (a etiqueta por unidade), RF02, RF03
 
 **Data:** 2026-09-22
+
+---
+
+## O que o indicador chama de substituição nem sempre foi uma troca de frasco
+
+**Contexto do problema:** o roteiro de teste guiado (`docs/roteiro-tutorial.md`) simula um dia
+de loja e diz, para cada indicador do dashboard, o número exato que deve aparecer. Para
+escrevê-lo, foi preciso prever o efeito de cada cena no painel. Duas cenas comuns numa loja
+pequena produzem números que não dizem o que o rótulo promete.
+
+**O que apareceu:**
+
+1. **Substituição sem troca de frasco.** A atendente lê um frasco do lote novo e é bloqueada.
+   Enquanto ela vai buscar o do lote antigo, a gestora vende esse frasco antigo no caixa. A
+   atendente relê o frasco que já tinha na mão, e agora ele é o mais antigo em estoque: a venda
+   é confirmada. O painel conta uma "substituição efetiva", com uma tentativa até o acerto, mas
+   nenhum frasco foi trocado. Quem mudou foi o estoque. O indicador conta "venda precedida de
+   bloqueio no mesmo ciclo (produto, atendente)", e não "a atendente trocou o frasco pelo
+   indicado".
+2. **Bloqueio sem venda em curso.** Corrigir pela fila de descarte a validade de uma unidade
+   cadastrada com data errada revalida o FIFO. Se houver outra unidade mais antiga, o resultado é
+   um bloqueio, e ele entra no total de "bloqueios de FIFO" do período, embora não houvesse
+   cliente nem atendente. Isso também alarga a diferença entre bloqueios e substituições, que a
+   entrada "O número que fecha o ciclo" lê como abandono. No caso inverso, quando a revalidação
+   confirma, a correção pela fila registra uma venda que ninguém fez no balcão, e ela conta como
+   acerto de primeira leitura.
+
+**Por que importa / trade-offs:** as duas distorções vêm da mesma decisão, já registrada: o
+contador é derivado do log, e o ciclo é inferido pela dupla (produto, atendente), sem estado
+intermediário no servidor. Na escala de uma perfumaria pequena, as duas são raras: venda
+simultânea do mesmo SKU por duas pessoas, e correção de validade pela fila. Mas o artigo deve
+apresentar "substituições efetivas" como **limite superior** das trocas de frasco, e
+"bloqueios" como contagem que inclui revalidações fora do balcão. As duas são separáveis na
+análise, porque o log guarda o necessário. Na primeira, o `ALERTA_FIFO_DISPARADO` e a
+`SAIDA_CONFIRMADA` do mesmo ciclo apontam para a **mesma** unidade. Na segunda, o bloqueio vem
+logo depois de um `VALIDADE_CORRIGIDA` sem agrupador de atendimento, que é a marca da fila,
+como já acontece com o descarte. O painel não faz essa separação. É mais um caso em que o
+número exibido é correto pela definição e enganoso pelo rótulo, como a taxa que conta o
+override como acerto.
+
+**Tarefa relacionada:** T20 (os indicadores), T09 (o contador de tentativas), T13 (a correção
+pela fila), T11, RF12, RF13
+
+**Data:** 2026-10-12
