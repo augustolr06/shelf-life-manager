@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaMinhaSenha } from './TelaMinhaSenha'
+import { encontrarAviso, renderizarComAvisos, semAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 
 const buscar = vi.fn<typeof fetch>()
@@ -27,7 +28,7 @@ describe('TelaMinhaSenha (T22)', () => {
   it('envia a senha atual e a nova, sem id nenhum', async () => {
     buscar.mockResolvedValueOnce(respostaFalsa(204))
 
-    render(<TelaMinhaSenha />)
+    renderizarComAvisos(<TelaMinhaSenha />)
     preencher('senha-antiga-2026', 'senha-nova-2026')
 
     await waitFor(() => expect(buscar).toHaveBeenCalledTimes(1))
@@ -42,21 +43,23 @@ describe('TelaMinhaSenha (T22)', () => {
   it('confirma o sucesso e limpa os campos', async () => {
     buscar.mockResolvedValueOnce(respostaFalsa(204))
 
-    render(<TelaMinhaSenha />)
+    renderizarComAvisos(<TelaMinhaSenha />)
     preencher('senha-antiga-2026', 'senha-nova-2026')
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/Senha trocada/)
+    expect((await encontrarAviso(/Senha trocada/)).tipo).toBe('success')
     expect(screen.getByLabelText('Senha atual')).toHaveValue('')
     expect(screen.getByLabelText('Nova senha')).toHaveValue('')
   })
 
   // Conferência local de digitação — não chega a sair da tela.
   it('recusa confirmação diferente sem chamar a API', async () => {
-    render(<TelaMinhaSenha />)
+    renderizarComAvisos(<TelaMinhaSenha />)
     preencher('senha-antiga-2026', 'senha-nova-2026', 'senha-nova-2027')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/confirmação não corresponde/i)
     expect(buscar).not.toHaveBeenCalled()
+    // Aponta um campo digitado: fica no formulário, não vira toast (T29).
+    expect(await semAvisos()).toBe(true)
   })
 
   // RNF04: senha atual errada é veredito do backend, e a mensagem é a dele.
@@ -65,9 +68,9 @@ describe('TelaMinhaSenha (T22)', () => {
       respostaFalsa(401, { erro: 'SENHA_ATUAL_INCORRETA', mensagem: 'Senha atual incorreta.' }),
     )
 
-    render(<TelaMinhaSenha />)
+    renderizarComAvisos(<TelaMinhaSenha />)
     preencher('chutei', 'senha-nova-2026')
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Senha atual incorreta.')
+    expect((await encontrarAviso('Senha atual incorreta.')).tipo).toBe('error')
   })
 })

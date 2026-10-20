@@ -41,15 +41,21 @@ Este é o centro da tarefa — nem toda mensagem é resultado de ação.
 
 ## Critério de aceite
 
-- [ ] Biblioteca instalada e `<Toaster />` montado uma vez em `App.tsx`
-- [ ] `services/avisos.ts` com `sucesso` e `erro` (este aceita `unknown` e extrai a mensagem
+- [x] Biblioteca instalada e `<Toaster />` montado uma vez em `App.tsx`
+- [x] `services/avisos.ts` com `sucesso` e `erro` (este aceita `unknown` e extrai a mensagem
       de `ErroApi`, com texto padrão para o resto)
-- [ ] Todas as mensagens da coluna esquerda migradas; as da direita intactas
-- [ ] Toasts posicionados de modo a não cobrir a área de resultado da leitura nem a barra de
+- [x] Todas as mensagens da coluna esquerda migradas; as da direita intactas
+- [x] Toasts posicionados de modo a não cobrir a área de resultado da leitura nem a barra de
       navegação no celular
-- [ ] Testes de componente das telas afetadas atualizados (o texto do toast continua
+- [x] Testes de componente das telas afetadas atualizados (o texto do toast continua
       encontrável por `findByText`/`findByRole('status')`)
-- [ ] Conferência no navegador com o `playwright-cli`: um sucesso e um erro, em uma tela
+- [x] Conferência no navegador com o `playwright-cli`: um sucesso e um erro, em uma tela
+
+**Como ficou (2026-10-20).** `sonner` 2.0.8, toasts embaixo e no centro. Os casos que a
+tabela acima não cobria (erro de envio de formulário, login, painel da unidade vencida,
+importação) estão decididos em `docs/decisoes.md`. Os testes encontram o toast pelo texto,
+dentro da região "Avisos" (`services/testes/avisos.tsx`), e não por `role="status"`: a
+biblioteca anuncia os toasts por uma região `aria-live` única, sem `role` por toast.
 
 ## Fora de escopo
 

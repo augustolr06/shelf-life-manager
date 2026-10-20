@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import type { Papel, Usuario } from '../services/auth'
 import {
   alterarConta,
@@ -30,21 +31,24 @@ type Props = {
  * a tela exibe a mensagem que vier. Se a condição daqui estiver errada, a
  * recusa continua acontecendo no lugar certo.
  */
+function rotuloDoPapel(papel: Papel): string {
+  return PAPEIS.find(({ valor }) => valor === papel)?.rotulo.toLowerCase() ?? papel
+}
+
 export function TelaUsuarios({ usuario }: Props) {
   const [contas, setContas] = useState<Conta[]>([])
   const [incluirInativas, setIncluirInativas] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira
+  // toast (T29).
   const [erro, setErro] = useState<string | null>(null)
 
   const [nova, setNova] = useState<DadosNovaConta>(CAMPOS_VAZIOS)
-  const [erroFormulario, setErroFormulario] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
   /** Id da conta cuja senha está sendo redefinida; `null` quando nenhuma. */
   const [redefinindo, setRedefinindo] = useState<string | null>(null)
   const [senhaNova, setSenhaNova] = useState('')
-  const [erroSenha, setErroSenha] = useState<string | null>(null)
-  const [avisoSenha, setAvisoSenha] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -64,26 +68,28 @@ export function TelaUsuarios({ usuario }: Props) {
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setErroFormulario(null)
     setSalvando(true)
 
     try {
-      await criarConta(nova)
+      const criada = await criarConta(nova)
+      avisar.sucesso(`Conta de ${criada.nome} criada.`)
       setNova(CAMPOS_VAZIOS)
       await carregar()
     } catch (falha) {
-      setErroFormulario(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível criar a conta.',
-      )
+      avisar.erro(falha, 'Não foi possível criar a conta.')
     } finally {
       setSalvando(false)
     }
   }
 
   async function alterar(conta: Conta, alteracoes: { papel?: Papel; ativo?: boolean }) {
-    setErro(null)
     try {
       const atualizada = await alterarConta(conta.id, alteracoes)
+      avisar.sucesso(
+        alteracoes.papel !== undefined
+          ? `${atualizada.nome} agora é ${rotuloDoPapel(atualizada.papel)}.`
+          : `Conta de ${atualizada.nome} ${atualizada.ativo ? 'reativada' : 'desativada'}.`,
+      )
 
       // Conta desativada some do filtro corrente: recarrega em vez de deixar
       // uma linha que não pertence mais à lista.
@@ -93,7 +99,8 @@ export function TelaUsuarios({ usuario }: Props) {
       }
       setContas((atuais) => atuais.map((c) => (c.id === atualizada.id ? atualizada : c)))
     } catch (falha) {
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível alterar a conta.')
+      // O 409 de mexer no próprio acesso chega aqui, com a mensagem do backend.
+      avisar.erro(falha, 'Não foi possível alterar a conta.')
     }
   }
 
@@ -101,18 +108,14 @@ export function TelaUsuarios({ usuario }: Props) {
     evento.preventDefault()
     if (!redefinindo) return
 
-    setErroSenha(null)
-    setAvisoSenha(null)
     try {
       await redefinirSenha(redefinindo, senhaNova)
       const alvo = contas.find((c) => c.id === redefinindo)
-      setAvisoSenha(`Senha redefinida para ${alvo?.nome ?? 'a conta'}. Informe a pessoa.`)
+      avisar.sucesso(`Senha redefinida para ${alvo?.nome ?? 'a conta'}. Informe a pessoa.`)
       setRedefinindo(null)
       setSenhaNova('')
     } catch (falha) {
-      setErroSenha(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível redefinir a senha.',
-      )
+      avisar.erro(falha, 'Não foi possível redefinir a senha.')
     }
   }
 
@@ -181,12 +184,6 @@ export function TelaUsuarios({ usuario }: Props) {
           />
         </div>
 
-        {erroFormulario && (
-          <p className="erro" role="alert">
-            {erroFormulario}
-          </p>
-        )}
-
         <button type="submit" disabled={salvando}>
           {salvando ? 'Criando…' : 'Criar conta'}
         </button>
@@ -204,12 +201,6 @@ export function TelaUsuarios({ usuario }: Props) {
       {erro && (
         <p className="erro" role="alert">
           {erro}
-        </p>
-      )}
-
-      {avisoSenha && (
-        <p className="nota-sucesso" role="status">
-          {avisoSenha}
         </p>
       )}
 
@@ -271,8 +262,6 @@ export function TelaUsuarios({ usuario }: Props) {
                           onClick={() => {
                             setRedefinindo(conta.id)
                             setSenhaNova('')
-                            setErroSenha(null)
-                            setAvisoSenha(null)
                           }}
                         >
                           Redefinir senha
@@ -304,12 +293,6 @@ export function TelaUsuarios({ usuario }: Props) {
               onChange={(evento) => setSenhaNova(evento.target.value)}
             />
           </div>
-
-          {erroSenha && (
-            <p className="erro" role="alert">
-              {erroSenha}
-            </p>
-          )}
 
           <button type="submit">Salvar senha</button>
           <button type="button" onClick={() => setRedefinindo(null)}>

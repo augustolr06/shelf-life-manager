@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaAlertas } from './TelaAlertas'
+import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { Alerta } from '../services/alertas'
 
@@ -70,7 +71,7 @@ describe('TelaAlertas (RF08)', () => {
   it('lista o alerta com produto, etiqueta, validade e a janela que o gerou', async () => {
     buscar.mockResolvedValueOnce(pagina([NA_JANELA]))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     expect(await screen.findByText('Eau de Parfum 50ml')).toBeInTheDocument()
     expect(screen.getByText('PRF-JC95FJ')).toBeInTheDocument()
@@ -83,7 +84,7 @@ describe('TelaAlertas (RF08)', () => {
   it('marca o alerta cuja unidade venceu e aponta para a fila de descarte', async () => {
     buscar.mockResolvedValueOnce(pagina([VENCIDO]))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     // O rótulo vem de `situacao`, não de a tela comparar datas (RNF01/RNF04).
     expect(await screen.findByText('Vencida há')).toBeInTheDocument()
@@ -94,7 +95,7 @@ describe('TelaAlertas (RF08)', () => {
   it('não decide nada sobre validade: exibe o alerta lido do jeito que o servidor mandou', async () => {
     buscar.mockResolvedValueOnce(pagina([{ ...NA_JANELA, lidoEm: '2026-09-09T10:00:00.000Z' }]))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     expect(await screen.findByText('Lido')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Marcar como lido' })).not.toBeInTheDocument()
@@ -103,7 +104,7 @@ describe('TelaAlertas (RF08)', () => {
   it('estado vazio é o desejado, não erro', async () => {
     buscar.mockResolvedValueOnce(pagina([]))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     expect(
       await screen.findByText('Nenhuma unidade dentro da janela de alerta.'),
@@ -116,7 +117,7 @@ describe('TelaAlertas (RF08)', () => {
       respostaFalsa(403, { erro: 'PAPEL_INSUFICIENTE', mensagem: 'Seu papel não permite esta ação.' }),
     )
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Seu papel não permite esta ação.')
   })
@@ -128,11 +129,12 @@ describe('TelaAlertas (RF08)', () => {
       respostaFalsa(200, { alerta: { ...NA_JANELA, lidoEm: '2026-09-09T10:00:00.000Z' } }),
     )
 
-    render(<TelaAlertas aoAtualizarNaoLidos={naoLidos} />)
+    renderizarComAvisos(<TelaAlertas aoAtualizarNaoLidos={naoLidos} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Marcar como lido' }))
 
     expect(await screen.findByText('Lido')).toBeInTheDocument()
+    expect((await encontrarAviso('Alerta marcado como lido.')).tipo).toBe('success')
     // Continua visível: marcar não esconde nada quando o filtro está desligado.
     expect(screen.getByText('PRF-JC95FJ')).toBeInTheDocument()
     await waitFor(() => expect(naoLidos).toHaveBeenLastCalledWith(0))
@@ -142,6 +144,18 @@ describe('TelaAlertas (RF08)', () => {
     expect(chamada?.[1]).toMatchObject({ method: 'POST' })
   })
 
+  it('avisa em toast quando marcar como lido falha, e o alerta continua não lido (T29)', async () => {
+    buscar.mockResolvedValueOnce(pagina([NA_JANELA], { naoLidos: 1 }))
+    buscar.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    renderizarComAvisos(<TelaAlertas />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Marcar como lido' }))
+
+    expect((await encontrarAviso(/conexão/i)).tipo).toBe('error')
+    expect(screen.getByRole('button', { name: 'Marcar como lido' })).toBeEnabled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('com o filtro de não lidos, o alerta marcado sai da lista', async () => {
     buscar.mockResolvedValueOnce(pagina([NA_JANELA], { naoLidos: 1 }))
     buscar.mockResolvedValueOnce(pagina([NA_JANELA], { naoLidos: 1 }))
@@ -149,7 +163,7 @@ describe('TelaAlertas (RF08)', () => {
       respostaFalsa(200, { alerta: { ...NA_JANELA, lidoEm: '2026-09-09T10:00:00.000Z' } }),
     )
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
     await screen.findByText('PRF-JC95FJ')
 
     fireEvent.click(screen.getByLabelText('Mostrar só os não lidos'))
@@ -172,7 +186,7 @@ describe('TelaAlertas (RF08)', () => {
     buscar.mockResolvedValueOnce(pagina(muitos, { total: 25, naoLidos: 25 }))
     buscar.mockResolvedValueOnce(pagina([NA_JANELA], { total: 25, naoLidos: 25 }))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
     await screen.findByText('PRF-000000')
 
     fireEvent.click(screen.getByRole('button', { name: 'Próxima' }))
@@ -183,7 +197,7 @@ describe('TelaAlertas (RF08)', () => {
   it('exibe o resumo com total e não lidos', async () => {
     buscar.mockResolvedValueOnce(pagina([NA_JANELA, VENCIDO], { total: 2, naoLidos: 2 }))
 
-    render(<TelaAlertas />)
+    renderizarComAvisos(<TelaAlertas />)
 
     const resumo = await screen.findByText(/2 alerta\(s\)/)
     expect(resumo).toHaveTextContent('2 não lido(s)')

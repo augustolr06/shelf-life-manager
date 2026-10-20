@@ -1851,3 +1851,80 @@ valor é sempre um produto escolhido da lista, nunca o texto digitado.
 - **Recebimento guarda o produto junto do resultado.** "Imprimir etiquetas destas unidades"
   passa a usar o produto do recebimento feito, e não o que estiver no seletor no momento.
   Antes, trocar o `<select>` depois de registrar mandaria à folha o `produtoId` errado.
+
+## 2026-10-20 — Mensagens de resultado de ação em toasts (T29)
+
+**Contexto.** Cada tela tinha o seu `<p className="erro" role="alert">` e, às vezes, um
+parágrafo de sucesso, onde coubesse. Com isso a mensagem aparecia longe do botão clicado (no
+celular, fora da tela), ficava parada depois de perder o sentido, e cada tela resolvia isso de
+um jeito. Agora o resultado de ação é um toast, num lugar só.
+
+**Decisões da tarefa.**
+
+1. **`sonner`, versão 2.0.8**, e não `react-hot-toast`. Não tem dependências, aceita React 19 e
+   tem botão de fechar e cores por tipo prontos. A troca de biblioteca fica isolada em dois
+   arquivos.
+2. **Duração.** O sucesso some em 4 s. O erro fica até ser fechado (`duration: Infinity`, com
+   botão "Fechar aviso"), porque o usuário precisa ler o que deu errado.
+3. **Um ponto de chamada.** As telas chamam `avisar.sucesso(msg)` e `avisar.erro(falha, padrao)`
+   de `frontend/src/services/avisos.ts`. `erro` aceita `unknown`: usa a mensagem do `ErroApi`,
+   ou uma string já pronta, ou então o texto padrão da ação. Um `TypeError` de programação não
+   chega à tela com o texto técnico. A região dos toasts é `components/Avisos.tsx`, montada uma
+   vez em `App.tsx`, fora do guardião de sessão, para não ser desmontada na troca entre login e
+   área autenticada.
+4. **O texto continua sendo o do servidor** quando ele manda um (RNF04).
+
+**Critério de corte.** O arquivo da tarefa separa o que vira toast do que fica no lugar. Os
+casos que ele não cobria foram decididos assim:
+
+- **Erro de envio de formulário sem campo apontado vira toast.** Exemplos: código interno
+  repetido, e-mail repetido, senha atual incorreta, janela de alerta repetida, produto inativo
+  no recebimento. O formulário continua preenchido para a correção, e o toast de erro não some
+  sozinho. Fica no formulário só o que aponta um campo: a recusa por campo de T25 e a
+  conferência local "a confirmação não corresponde" de Minha senha.
+- **A tela de login fica como está.** Nela, a falha é o único conteúdo da tela e diz respeito
+  ao par e-mail/senha digitado. O aviso de backend inalcançável na verificação da sessão também
+  fica: ele explica por que a tela de login apareceu, é estado da tela. A falha do **Sair** vira
+  toast, e o parágrafo de aviso saiu da área autenticada, onde só ela o usava.
+- **A tela de Leitura de QR não foi alterada.** O erro de uma leitura (código inexistente, rede)
+  ocupa a área de resultado no lugar do veredito, e é o desfecho daquela leitura. O
+  `PainelExcecaoVencido` também mantém o próprio erro: o painel faz parte da área do veredito,
+  na Leitura e na Fila de descarte. O que mudou na Fila foi o desfecho mostrado depois que o
+  painel fecha (descarte registrado, resultado da revalidação, unidade já resolvida por outra
+  pessoa). Ele vira toast, e o tipo segue o veredito, como antes seguia a cor: só `CONFIRMAR` e
+  o descarte são sucesso.
+- **A importação por planilha fica como está.** O sucesso traz a lista de códigos pulados, e a
+  recusa traz a lista de linhas com erro. As duas são relatório para a gestora consultar.
+- **Notificações neste aparelho.** A falha ao *verificar* o aparelho fica no quadro, porque é
+  estado. A falha ao ativar ou desativar vira toast, com a mensagem do navegador quando ela
+  existe (`Error`, e não só `ErroApi`).
+- **Sucessos que antes não tinham mensagem nenhuma** passam a ter toast: produto cadastrado,
+  inativado e reativado; conta criada, desativada e reativada; papel trocado; janela de alerta
+  adicionada, salva, inativada e reativada; alerta marcado como lido; unidades registradas. No
+  Recebimento o resultado com os códigos e o botão das etiquetas continua abaixo do formulário,
+  e o toast só confirma o clique.
+- **Falha ao carregar a tela** continua no lugar em todas as telas. Onde o mesmo estado `erro`
+  servia ao carregamento e às ações (Catálogo, Contas, Alertas, Configurar alertas), ele passou
+  a ser só do carregamento.
+
+**Posição: embaixo e no centro.** A primeira escolha foi embaixo e à direita. Na conferência
+com o `playwright-cli`, o toast cobria a coluna "Ações" do Catálogo, e o de erro, que não some
+sozinho, ficaria em cima do botão "Inativar" da última linha. No centro ele cobre colunas de
+texto. No celular (390 px) a biblioteca estica o toast na largura da tela, colado embaixo,
+longe da navegação, que fica no topo. Nenhuma tela que dispara toast tem conteúdo principal
+na borda de baixo. A Leitura teria, mas não dispara toast.
+
+**Acessibilidade.** A biblioteca anuncia os toasts por uma região única com
+`aria-live="polite"` (nome acessível "Avisos"), sem `role` por toast. O erro é anunciado
+educadamente, e não de forma assertiva como o `role="alert"` anterior. Pôr `role="alert"`
+dentro de cada toast faria uma região viva dentro de outra, e o leitor de tela poderia anunciar
+duas vezes. Fica como está, e o redesign (T35) pode rever isso.
+
+**Testes.** `services/testes/avisos.tsx` traz `renderizarComAvisos(tela)`, que monta a tela
+com `<Avisos />` ao lado como o `App` faz, além de `encontrarAviso(texto)`, que devolve o
+elemento e o tipo (`success`/`error`), e de `semAvisos()`. Os testes de tela procuram o toast
+pelo texto que o usuário lê, e não pela chamada ao módulo. A biblioteca guarda os toasts num
+estado global e reapresenta os ativos a cada `<Toaster />` montado. Por isso o `setupTests.ts`
+fecha todos depois de cada teste: sem isso, um erro (que não some) passaria para o teste
+seguinte. `semAvisos()` espera uma volta do laço de eventos antes de olhar, porque o toast
+entra num `setTimeout` da biblioteca.

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Avisos } from './components/Avisos'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaDashboard } from './pages/TelaDashboard'
@@ -12,6 +13,7 @@ import { TelaUsuarios } from './pages/TelaUsuarios'
 import { TelaMinhaSenha } from './pages/TelaMinhaSenha'
 import { TelaRecebimento } from './pages/TelaRecebimento'
 import { contarAlertasNaoLidos } from './services/alertas'
+import { avisar } from './services/avisos'
 import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
 
 /**
@@ -152,8 +154,27 @@ function rotaInicial(usuario: Usuario): string {
   return usuario.papel === 'ATENDENTE' ? '/leitura' : '/produtos'
 }
 
+/**
+ * A região dos toasts fica fora do guardião de sessão: montada uma vez, ela
+ * sobrevive à troca entre login e área autenticada, e um aviso dado no
+ * momento da troca não se perde (T29).
+ */
 export function App() {
+  return (
+    <>
+      <Avisos />
+      <Aplicacao />
+    </>
+  )
+}
+
+function Aplicacao() {
   const [sessao, setSessao] = useState<EstadoSessao>({ situacao: 'verificando' })
+  /**
+   * Por que a tela de login apareceu sem ninguém ter saído: o backend não
+   * respondeu à verificação da sessão. É estado da tela, não resultado de
+   * ação, e por isso não vira toast; a falha do "Sair" vira (T29).
+   */
   const [aviso, setAviso] = useState<string | null>(null)
   /**
    * Quantos alertas proativos ainda não foram reconhecidos (T19).
@@ -221,7 +242,7 @@ export function App() {
     } catch (falha) {
       // Se o logout não chegou ao servidor, o cookie continua válido — não
       // adianta fingir que a sessão acabou.
-      setAviso(falha instanceof Error ? falha.message : 'Não foi possível sair.')
+      avisar.erro(falha, 'Não foi possível sair.')
     }
   }
 
@@ -278,12 +299,6 @@ export function App() {
           </button>
         </div>
       </header>
-
-      {aviso && (
-        <p className="aviso" role="alert">
-          {aviso}
-        </p>
-      )}
 
       <nav className="abas" aria-label="Seções do sistema">
         {visiveis.map((tela) => (

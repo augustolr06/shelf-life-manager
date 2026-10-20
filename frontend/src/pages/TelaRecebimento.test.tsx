@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaRecebimento } from './TelaRecebimento'
+import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 
 const ID_PRODUTO = '33333333-3333-3333-3333-333333333333'
@@ -43,7 +44,7 @@ function DestinoDasEtiquetas() {
 }
 
 function renderizarRecebimento() {
-  return render(
+  return renderizarComAvisos(
     <MemoryRouter initialEntries={['/recebimento']}>
       <Routes>
         <Route path="/recebimento" element={<TelaRecebimento />} />
@@ -161,6 +162,7 @@ describe('TelaRecebimento (RF03)', () => {
     // O código vem do backend; a tela nunca o inventa.
     expect(await screen.findByText('PRF-AB12CD')).toBeInTheDocument()
     expect(screen.getByText('01/03/2027')).toBeInTheDocument()
+    expect((await encontrarAviso('1 unidade(s) registrada(s).')).tipo).toBe('success')
   })
 
   it('exibe o aviso de unidade já vencida sem tratá-lo como erro', async () => {
@@ -202,7 +204,7 @@ describe('TelaRecebimento (RF03)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
 
     // RNF04: a tela reflete o veredito do backend, não inventa o seu.
-    expect(await screen.findByRole('alert')).toHaveTextContent(/está inativo/i)
+    expect((await encontrarAviso(/está inativo/i)).tipo).toBe('error')
     expect(screen.queryByText(/unidade\(s\) cadastrada\(s\)/i)).not.toBeInTheDocument()
   })
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { encontrarAviso } from './services/testes/avisos'
 import { respostaFalsa } from './services/testes/respostaFalsa'
 
 const GESTOR = {
@@ -171,7 +172,7 @@ describe('App — guardião de sessão', () => {
 
     // O cookie continua válido no navegador; fingir que a sessão acabou
     // deixaria a tela mentindo sobre o estado real.
-    expect(await screen.findByRole('alert')).toHaveTextContent(/não foi possível falar/i)
+    expect((await encontrarAviso(/não foi possível falar/i)).tipo).toBe('error')
     expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument()
   })
 

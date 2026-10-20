@@ -11,6 +11,7 @@ import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
 import { Paginacao } from '../components/Paginacao'
 import { useValorComAtraso } from '../hooks/useValorComAtraso'
 import { camposRecusados, ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import type { Usuario } from '../services/auth'
 import {
   criarProduto,
@@ -71,6 +72,8 @@ export function TelaProdutos({ usuario }: Props) {
   const [termoDigitado, setTermoDigitado] = useState('')
   const [incluirInativos, setIncluirInativos] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira
+  // toast (T29).
   const [erro, setErro] = useState<string | null>(null)
   const campoBusca = useRef<HTMLInputElement>(null)
   const ultimaConsulta = useRef(0)
@@ -90,7 +93,6 @@ export function TelaProdutos({ usuario }: Props) {
   }
 
   const [novo, setNovo] = useState<DadosProduto>(CAMPOS_VAZIOS)
-  const [erroFormulario, setErroFormulario] = useState<string | null>(null)
   const [errosDeCampo, setErrosDeCampo] = useState<MensagensPorCampo>({})
   const [avisosDeColagem, setAvisosDeColagem] = useState<MensagensPorCampo>({})
   const [salvando, setSalvando] = useState(false)
@@ -134,12 +136,12 @@ export function TelaProdutos({ usuario }: Props) {
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setErroFormulario(null)
     setErrosDeCampo({})
     setSalvando(true)
 
     try {
-      await criarProduto(novo)
+      const criado = await criarProduto(novo)
+      avisar.sucesso(`Produto “${criado.nome}” cadastrado.`)
       setNovo(CAMPOS_VAZIOS)
       setAvisosDeColagem({})
       await carregar()
@@ -156,10 +158,9 @@ export function TelaProdutos({ usuario }: Props) {
       }
 
       // Código interno duplicado chega como 409 com mensagem própria do
-      // backend — a tela só exibe o que recebeu.
-      setErroFormulario(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível cadastrar o produto.',
-      )
+      // backend — a tela só exibe o que recebeu. O formulário fica preenchido
+      // para a correção.
+      avisar.erro(falha, 'Não foi possível cadastrar o produto.')
     } finally {
       setSalvando(false)
     }
@@ -203,11 +204,13 @@ export function TelaProdutos({ usuario }: Props) {
   }
 
   async function alternarSituacao(produto: Produto) {
-    setErro(null)
     try {
       const atualizado = produto.ativo
         ? await inativarProduto(produto.id)
         : await reativarProduto(produto.id)
+      avisar.sucesso(
+        `Produto “${atualizado.nome}” ${atualizado.ativo ? 'reativado' : 'inativado'}.`,
+      )
 
       // Se o produto inativado sai do filtro corrente, recarrega; senão basta
       // trocar a linha no lugar.
@@ -219,9 +222,7 @@ export function TelaProdutos({ usuario }: Props) {
         atuais?.map((p) => (p.id === atualizado.id ? atualizado : p)) ?? null,
       )
     } catch (falha) {
-      setErro(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível alterar a situação do produto.',
-      )
+      avisar.erro(falha, 'Não foi possível alterar a situação do produto.')
     }
   }
 
@@ -278,12 +279,6 @@ export function TelaProdutos({ usuario }: Props) {
               </div>
             )
           })}
-
-          {erroFormulario && (
-            <p className="erro" role="alert">
-              {erroFormulario}
-            </p>
-          )}
 
           <button type="submit" disabled={salvando}>
             {salvando ? 'Cadastrando…' : 'Cadastrar'}

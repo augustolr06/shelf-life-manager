@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import {
   buscarChavePublicaPush,
   desinscreverAparelho,
@@ -69,6 +70,8 @@ function suportaPush(): boolean {
 
 export function NotificacoesDoAparelho() {
   const [estado, setEstado] = useState<Estado>({ situacao: 'verificando' })
+  // Só a falha ao verificar o aparelho: é estado do quadro. Falha ao ativar ou
+  // desativar é resultado de ação e vira toast (T29).
   const [erro, setErro] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
@@ -117,7 +120,6 @@ export function NotificacoesDoAparelho() {
   }, [verificar])
 
   async function ativar(chavePublica: string) {
-    setErro(null)
     setOcupado(true)
     try {
       // A permissão é pedida **no clique**, nunca na abertura da tela: o
@@ -153,10 +155,11 @@ export function NotificacoesDoAparelho() {
 
       setEstado({ situacao: 'ativa', endpoint: inscricao.endpoint })
     } catch (falha) {
-      setErro(
-        falha instanceof Error
-          ? falha.message
-          : 'Não foi possível ativar as notificações neste aparelho.',
+      // `Error` e não só `ErroApi`: a recusa pode vir do próprio navegador, ao
+      // inscrever o aparelho, e a mensagem dele é a única pista do motivo.
+      avisar.erro(
+        falha instanceof Error ? falha.message : falha,
+        'Não foi possível ativar as notificações neste aparelho.',
       )
     } finally {
       setOcupado(false)
@@ -164,7 +167,6 @@ export function NotificacoesDoAparelho() {
   }
 
   async function desativar(endpoint: string) {
-    setErro(null)
     setOcupado(true)
     try {
       // O servidor primeiro: se o navegador falhar em cancelar, o pior caso é
@@ -179,10 +181,9 @@ export function NotificacoesDoAparelho() {
 
       await verificar()
     } catch (falha) {
-      setErro(
-        falha instanceof Error
-          ? falha.message
-          : 'Não foi possível desativar as notificações neste aparelho.',
+      avisar.erro(
+        falha instanceof Error ? falha.message : falha,
+        'Não foi possível desativar as notificações neste aparelho.',
       )
     } finally {
       setOcupado(false)

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificacoesDoAparelho } from './NotificacoesDoAparelho'
+import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 
 /**
@@ -79,7 +80,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
   it('declara o navegador sem suporte e não consulta o servidor', async () => {
     // jsdom não tem `serviceWorker`, `PushManager` nem `Notification`: é o
     // estado do navegador antigo, e nele a tela não deve prometer nada.
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByText(/não oferece notificações/i)).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -89,7 +90,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
   it('pede para instalar o aplicativo quando não há service worker registrado', async () => {
     aparelhoCompativel({ semServiceWorker: true })
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByText(/Instale o aplicativo/i)).toBeInTheDocument()
     expect(buscar).not.toHaveBeenCalled()
@@ -99,7 +100,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
     aparelhoCompativel({})
     buscar.mockResolvedValueOnce(respostaFalsa(200, { chavePublica: CHAVE_PUBLICA }))
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByRole('button', { name: 'Ativar notificações' })).toBeInTheDocument()
     expect(buscar).toHaveBeenCalledWith(
@@ -114,7 +115,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
       respostaFalsa(503, { erro: 'PUSH_NAO_CONFIGURADO', mensagem: 'Sem push.' }),
     )
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByText(/servidor não está configurado/i)).toBeInTheDocument()
     // Nada de botão: ativar não levaria a lugar nenhum.
@@ -124,7 +125,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
   it('mostra o aparelho já inscrito, sem pedir a chave ao servidor', async () => {
     aparelhoCompativel({ inscricaoAtual: inscricaoFalsa() })
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByRole('button', { name: 'Desativar notificações' })).toBeInTheDocument()
     expect(buscar).not.toHaveBeenCalled()
@@ -133,7 +134,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
   it('diz que a permissão está bloqueada no navegador', async () => {
     aparelhoCompativel({ permissao: 'denied' })
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
 
     expect(await screen.findByText(/notificações estão bloqueadas/i)).toBeInTheDocument()
     // A chave não é pedida: não há o que ativar enquanto o bloqueio valer.
@@ -145,7 +146,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
     buscar.mockResolvedValueOnce(respostaFalsa(200, { chavePublica: CHAVE_PUBLICA }))
     buscar.mockResolvedValueOnce(respostaFalsa(201, { inscricao: { id: 'i1', criadoEm: 'agora' } }))
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
     fireEvent.click(await screen.findByRole('button', { name: 'Ativar notificações' }))
 
     await screen.findByRole('button', { name: 'Desativar notificações' })
@@ -171,7 +172,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
     buscar.mockResolvedValueOnce(respostaFalsa(200, { chavePublica: CHAVE_PUBLICA }))
     aparelho.pedirPermissao.mockResolvedValueOnce('denied')
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
     fireEvent.click(await screen.findByRole('button', { name: 'Ativar notificações' }))
 
     expect(await screen.findByText(/notificações estão bloqueadas/i)).toBeInTheDocument()
@@ -186,7 +187,7 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
     buscar.mockResolvedValueOnce(respostaFalsa(204))
     buscar.mockResolvedValueOnce(respostaFalsa(200, { chavePublica: CHAVE_PUBLICA }))
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
     fireEvent.click(await screen.findByRole('button', { name: 'Desativar notificações' }))
 
     await waitFor(() => expect(inscricao.unsubscribe).toHaveBeenCalledTimes(1))
@@ -204,11 +205,11 @@ describe('NotificacoesDoAparelho (RF08, T19b)', () => {
       respostaFalsa(503, { erro: 'PUSH_NAO_CONFIGURADO', mensagem: 'Este servidor não envia notificações.' }),
     )
 
-    render(<NotificacoesDoAparelho />)
+    renderizarComAvisos(<NotificacoesDoAparelho />)
     fireEvent.click(await screen.findByRole('button', { name: 'Ativar notificações' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Este servidor não envia notificações.',
-    )
+    expect((await encontrarAviso('Este servidor não envia notificações.')).tipo).toBe('error')
+    // O botão continua lá, para tentar de novo.
+    expect(screen.getByRole('button', { name: 'Ativar notificações' })).toBeEnabled()
   })
 })

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaConfiguracaoAlerta } from './TelaConfiguracaoAlerta'
+import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { ConfiguracaoAlerta } from '../services/configuracaoAlerta'
 
@@ -57,7 +58,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
   it('lista as janelas com antecedência, canal em português e situação', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA, SETE]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
 
     expect(await screen.findByText('30 dias antes')).toBeInTheDocument()
     // Sempre dentro da linha: os mesmos rótulos existem como <option> do
@@ -81,7 +82,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
   it('aponta para a aba de alertas e condiciona o push à autorização do aparelho', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     // Quarta versão do aviso (T19b): o push existe, e o que resta por dizer é
@@ -96,7 +97,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
   it('mostra o bloco de notificações deste aparelho', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     // Em jsdom não há service worker nem PushManager, então o bloco cai no
@@ -111,7 +112,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
   it('lista vazia tem estado próprio, não erro', async () => {
     buscar.mockResolvedValueOnce(lista([]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
 
     expect(await screen.findByText('Nenhuma janela de antecedência configurada.')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -122,7 +123,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       respostaFalsa(403, { erro: 'PAPEL_INSUFICIENTE', mensagem: 'Seu papel não permite esta ação.' }),
     )
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
 
     expect(await screen.findByText('Seu papel não permite esta ação.')).toBeInTheDocument()
   })
@@ -133,7 +134,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       .mockResolvedValueOnce(respostaFalsa(201, { configuracao: SETE }))
       .mockResolvedValueOnce(lista([SETE]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('Nenhuma janela de antecedência configurada.')
 
     fireEvent.change(screen.getByLabelText('Dias de antecedência'), { target: { value: '7' } })
@@ -141,6 +142,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar janela' }))
 
     expect(await screen.findByText('7 dias antes')).toBeInTheDocument()
+    expect((await encontrarAviso('Janela de 7 dias adicionada.')).tipo).toBe('success')
 
     const [url, init] = buscar.mock.calls[1] as [string, RequestInit]
     expect(url).toBe('http://localhost:3333/configuracao-alerta')
@@ -158,15 +160,15 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       }),
     )
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     fireEvent.change(screen.getByLabelText('Dias de antecedência'), { target: { value: '30' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar janela' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /Já existe uma configuração ativa com essa antecedência/,
-    )
+    expect(
+      (await encontrarAviso(/Já existe uma configuração ativa com essa antecedência/)).tipo,
+    ).toBe('error')
     // O gestor vai querer só trocar o número, não redigitar tudo.
     expect(screen.getByLabelText('Dias de antecedência')).toHaveValue(30)
     // Recusa não recarrega: a lista continua sendo a de uma chamada só.
@@ -178,7 +180,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       .mockResolvedValueOnce(lista([TRINTA]))
       .mockResolvedValueOnce(respostaFalsa(200, { configuracao: { ...TRINTA, canal: 'PUSH' } }))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     fireEvent.click(within(linhaDe('30 dias antes')).getByRole('button', { name: 'Alterar' }))
@@ -202,7 +204,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
   it('alterar sem mexer em nada não chama a API', async () => {
     buscar.mockResolvedValueOnce(lista([TRINTA]))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     fireEvent.click(within(linhaDe('30 dias antes')).getByRole('button', { name: 'Alterar' }))
@@ -217,12 +219,13 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       .mockResolvedValueOnce(lista([TRINTA]))
       .mockResolvedValueOnce(respostaFalsa(200, { configuracao: { ...TRINTA, ativo: false } }))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('30 dias antes')
 
     fireEvent.click(within(linhaDe('30 dias antes')).getByRole('button', { name: 'Inativar' }))
 
     expect(await within(linhaDe('30 dias antes')).findByText('Inativa')).toBeInTheDocument()
+    await encontrarAviso('Janela de 30 dias inativada.')
 
     const [url, init] = buscar.mock.calls[1] as [string, RequestInit]
     expect(url).toBe(`http://localhost:3333/configuracao-alerta/${TRINTA.id}`)
@@ -234,7 +237,7 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       .mockResolvedValueOnce(lista([SETE]))
       .mockResolvedValueOnce(respostaFalsa(200, { configuracao: { ...SETE, ativo: true } }))
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('7 dias antes')
 
     fireEvent.click(within(linhaDe('7 dias antes')).getByRole('button', { name: 'Reativar' }))
@@ -254,14 +257,14 @@ describe('TelaConfiguracaoAlerta (RF08)', () => {
       }),
     )
 
-    render(<TelaConfiguracaoAlerta />)
+    renderizarComAvisos(<TelaConfiguracaoAlerta />)
     await screen.findByText('7 dias antes')
 
     fireEvent.click(within(linhaDe('7 dias antes')).getByRole('button', { name: 'Reativar' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /Já existe uma configuração ativa com essa antecedência/,
-    )
+    expect(
+      (await encontrarAviso(/Já existe uma configuração ativa com essa antecedência/)).tipo,
+    ).toBe('error')
     expect(within(linhaDe('7 dias antes')).getByText('Inativa')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { NotificacoesDoAparelho } from '../components/NotificacoesDoAparelho'
 import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import {
   CANAIS,
   ROTULO_CANAL,
@@ -34,11 +35,12 @@ type EmEdicao = { id: string; dias: string; canal: Canal }
 export function TelaConfiguracaoAlerta() {
   const [configuracoes, setConfiguracoes] = useState<ConfiguracaoAlerta[]>([])
   const [carregando, setCarregando] = useState(true)
+  // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira
+  // toast (T29).
   const [erro, setErro] = useState<string | null>(null)
 
   const [novoDias, setNovoDias] = useState(PADRAO.dias)
   const [novoCanal, setNovoCanal] = useState<Canal>(PADRAO.canal)
-  const [erroFormulario, setErroFormulario] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
 
   // Uma linha em edição por vez: são poucos campos, e a tabela inteira
@@ -68,11 +70,14 @@ export function TelaConfiguracaoAlerta() {
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setErroFormulario(null)
     setSalvando(true)
 
     try {
-      await criarConfiguracao({ diasAntecedencia: Number(novoDias), canal: novoCanal })
+      const criada = await criarConfiguracao({
+        diasAntecedencia: Number(novoDias),
+        canal: novoCanal,
+      })
+      avisar.sucesso(`Janela de ${criada.diasAntecedencia} dias adicionada.`)
       setNovoDias(PADRAO.dias)
       setNovoCanal(PADRAO.canal)
       await carregar()
@@ -80,9 +85,7 @@ export function TelaConfiguracaoAlerta() {
       // Antecedência repetida chega como 409 com mensagem própria do backend.
       // O formulário fica como está: o gestor vai querer só trocar o número,
       // não redigitar tudo.
-      setErroFormulario(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível salvar a configuração.',
-      )
+      avisar.erro(falha, 'Não foi possível salvar a configuração.')
     } finally {
       setSalvando(false)
     }
@@ -109,29 +112,30 @@ export function TelaConfiguracaoAlerta() {
       return
     }
 
-    setErro(null)
     try {
       const alterada = await alterarConfiguracao(edicao.id, alteracao)
       setConfiguracoes((atuais) => atuais.map((c) => (c.id === alterada.id ? alterada : c)))
       setEdicao(null)
+      avisar.sucesso(`Janela de ${alterada.diasAntecedencia} dias salva.`)
     } catch (falha) {
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível alterar a configuração.')
+      // A linha continua em edição, com o que foi digitado.
+      avisar.erro(falha, 'Não foi possível alterar a configuração.')
     }
   }
 
   async function alternarSituacao(configuracao: ConfiguracaoAlerta) {
-    setErro(null)
     try {
       const atualizada = configuracao.ativo
         ? await inativarConfiguracao(configuracao.id)
         : await reativarConfiguracao(configuracao.id)
       setConfiguracoes((atuais) => atuais.map((c) => (c.id === atualizada.id ? atualizada : c)))
+      avisar.sucesso(
+        `Janela de ${atualizada.diasAntecedencia} dias ${atualizada.ativo ? 'reativada' : 'inativada'}.`,
+      )
     } catch (falha) {
       // Reativar pode colidir com outra janela criada nesse meio-tempo — 409
       // com a mensagem do servidor, como no cadastro.
-      setErro(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível alterar a situação.',
-      )
+      avisar.erro(falha, 'Não foi possível alterar a situação.')
     }
   }
 
@@ -191,12 +195,6 @@ export function TelaConfiguracaoAlerta() {
             ))}
           </select>
         </div>
-
-        {erroFormulario && (
-          <p className="erro" role="alert">
-            {erroFormulario}
-          </p>
-        )}
 
         <button type="submit" disabled={salvando}>
           {salvando ? 'Salvando…' : 'Adicionar janela'}

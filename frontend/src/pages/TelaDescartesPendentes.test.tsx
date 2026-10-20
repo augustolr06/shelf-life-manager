@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaDescartesPendentes } from './TelaDescartesPendentes'
+import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { Usuario } from '../services/auth'
 
@@ -68,7 +69,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
   it('lista as unidades vencidas com os dados que o servidor mandou', async () => {
     buscar.mockResolvedValueOnce(fila([VENCIDA]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
 
     expect(await screen.findByText('PRF-JC95FJ')).toBeInTheDocument()
     expect(screen.getByText('Eau de Parfum 50ml')).toBeInTheDocument()
@@ -84,7 +85,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
   it('fila vazia é o estado desejado, não uma falha', async () => {
     buscar.mockResolvedValueOnce(fila([]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
 
     expect(await screen.findByText('Nenhuma unidade vencida em estoque.')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -95,7 +96,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
       respostaFalsa(403, { erro: 'PAPEL_INSUFICIENTE', mensagem: 'Seu papel não permite esta ação.' }),
     )
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
 
     expect(await screen.findByText('Seu papel não permite esta ação.')).toBeInTheDocument()
   })
@@ -103,7 +104,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
   it('“Resolver” abre o painel só da unidade escolhida', async () => {
     buscar.mockResolvedValueOnce(fila([VENCIDA, OUTRA_VENCIDA]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-JC95FJ')
 
     const linha = resolver('PRF-JC95FJ')
@@ -117,7 +118,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
   it('não oferece o override: na fila não há venda acontecendo', async () => {
     buscar.mockResolvedValueOnce(fila([VENCIDA]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-JC95FJ')
 
     resolver('PRF-JC95FJ')
@@ -144,13 +145,15 @@ describe('TelaDescartesPendentes (RF11)', () => {
       }),
     )
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-JC95FJ')
 
     resolver('PRF-JC95FJ')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar descarte' }))
 
-    expect(await screen.findByText('Descarte registrado. A unidade saiu do estoque.')).toBeInTheDocument()
+    expect((await encontrarAviso('Descarte registrado. A unidade saiu do estoque.')).tipo).toBe(
+      'success',
+    )
     expect(screen.queryByText('PRF-JC95FJ')).toBeNull()
     expect(screen.getByText('PRF-6KJXCQ')).toBeInTheDocument()
 
@@ -175,7 +178,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
     )
     buscar.mockResolvedValueOnce(fila([]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-JC95FJ')
 
     resolver('PRF-JC95FJ')
@@ -186,7 +189,9 @@ describe('TelaDescartesPendentes (RF11)', () => {
 
     // A revalidação pode terminar em venda, em bloqueio ou de novo em unidade
     // vencida — quem sabe é o servidor, e a fila é relida.
-    expect(await screen.findByText('Saída registrada. Pode entregar esta unidade.')).toBeInTheDocument()
+    expect((await encontrarAviso('Saída registrada. Pode entregar esta unidade.')).tipo).toBe(
+      'success',
+    )
     await waitFor(() => expect(buscar).toHaveBeenCalledTimes(3))
     expect(await screen.findByText('Nenhuma unidade vencida em estoque.')).toBeInTheDocument()
 
@@ -207,18 +212,18 @@ describe('TelaDescartesPendentes (RF11)', () => {
     )
     buscar.mockResolvedValueOnce(fila([]))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-JC95FJ')
 
     resolver('PRF-JC95FJ')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar descarte' }))
 
     // Lista velha: alguém resolveu esta unidade desde que a fila carregou.
-    expect(
-      await screen.findByText(
-        'Esta unidade já saiu do estoque — foi vendida ou descartada. Nada a resolver.',
-      ),
-    ).toBeInTheDocument()
+    const aviso = await encontrarAviso(
+      'Esta unidade já saiu do estoque — foi vendida ou descartada. Nada a resolver.',
+    )
+    // Não é desfecho bom: pintá-lo de verde diria à gestora que deu certo.
+    expect(aviso.tipo).toBe('error')
     await waitFor(() => expect(buscar).toHaveBeenCalledTimes(3))
     expect(screen.queryByText('PRF-JC95FJ')).toBeNull()
   })
@@ -232,7 +237,7 @@ describe('TelaDescartesPendentes (RF11)', () => {
     buscar.mockResolvedValueOnce(fila(muitas, 25))
     buscar.mockResolvedValueOnce(fila([OUTRA_VENCIDA], 25))
 
-    render(<TelaDescartesPendentes usuario={GESTOR} />)
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
     await screen.findByText('PRF-000000')
 
     fireEvent.click(screen.getByRole('button', { name: 'Próxima' }))

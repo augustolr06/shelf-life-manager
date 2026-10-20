@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import { trocarPropriaSenha } from '../services/usuarios'
 
 /**
@@ -14,14 +14,14 @@ export function TelaMinhaSenha() {
   const [senhaAtual, setSenhaAtual] = useState('')
   const [senhaNova, setSenhaNova] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
+  // Só a conferência local da confirmação, que aponta um campo digitado. A
+  // recusa do servidor é resultado de ação e vira toast (T29).
   const [erro, setErro] = useState<string | null>(null)
-  const [sucesso, setSucesso] = useState(false)
   const [salvando, setSalvando] = useState(false)
 
   async function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
     setErro(null)
-    setSucesso(false)
 
     // Conferência local, não veredito (RNF04): a confirmação existe só neste
     // formulário, para pegar erro de digitação antes da viagem. Tamanho
@@ -37,9 +37,9 @@ export function TelaMinhaSenha() {
       setSenhaAtual('')
       setSenhaNova('')
       setConfirmacao('')
-      setSucesso(true)
+      avisar.sucesso('Senha trocada. Ela vale a partir do próximo login.')
     } catch (falha) {
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível trocar a senha.')
+      avisar.erro(falha, 'Não foi possível trocar a senha.')
     } finally {
       setSalvando(false)
     }
@@ -74,12 +74,6 @@ export function TelaMinhaSenha() {
         {erro && (
           <p className="erro" role="alert">
             {erro}
-          </p>
-        )}
-
-        {sucesso && (
-          <p className="nota-sucesso" role="status">
-            Senha trocada. Ela vale a partir do próximo login.
           </p>
         )}
 

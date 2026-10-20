@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import { listarAlertas, marcarAlertaComoLido, type Alerta } from '../services/alertas'
 import { formatarData } from '../services/datas'
 
@@ -34,6 +35,8 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
   const inicioDaLista = useRef<HTMLParagraphElement>(null)
   const [apenasNaoLidos, setApenasNaoLidos] = useState(false)
   const [carregando, setCarregando] = useState(true)
+  // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira
+  // toast (T29).
   const [erro, setErro] = useState<string | null>(null)
   // Qual alerta está sendo marcado: o botão da linha vira "Marcando…" sem
   // travar a lista inteira.
@@ -62,9 +65,9 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
 
   async function marcarComoLido(alerta: Alerta) {
     setMarcando(alerta.id)
-    setErro(null)
     try {
       const atualizado = await marcarAlertaComoLido(alerta.id)
+      avisar.sucesso('Alerta marcado como lido.')
 
       if (apenasNaoLidos) {
         // Com o filtro ligado, o alerta lido deixa de pertencer à lista que
@@ -81,9 +84,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
       setNaoLidos(restantes)
       aoAtualizarNaoLidos?.(restantes)
     } catch (falha) {
-      setErro(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível marcar o alerta como lido.',
-      )
+      avisar.erro(falha, 'Não foi possível marcar o alerta como lido.')
     } finally {
       setMarcando(null)
     }

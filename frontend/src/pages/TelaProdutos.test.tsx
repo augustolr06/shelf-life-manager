@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaProdutos } from './TelaProdutos'
+import { encontrarAviso, renderizarComAvisos, semAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 import type { Usuario } from '../services/auth'
 
@@ -71,7 +72,7 @@ describe('TelaProdutos (RF02)', () => {
   it('lista o catálogo sem pedir inativos por padrão', async () => {
     buscar.mockResolvedValueOnce(pagina([PERFUME]))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
 
     expect(await screen.findByText('PRF-001')).toBeInTheDocument()
     // Sem `incluirInativos` na consulta, o backend oculta os inativos.
@@ -87,12 +88,15 @@ describe('TelaProdutos (RF02)', () => {
       .mockResolvedValueOnce(respostaFalsa(201, { produto: PERFUME }))
       .mockResolvedValueOnce(pagina([PERFUME]))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     await screen.findByText(/nenhum produto encontrado/i)
 
     cadastrar('PRF-001')
 
     expect(await screen.findByText('PRF-001')).toBeInTheDocument()
+    expect((await encontrarAviso('Produto “Eau de Parfum 50ml” cadastrado.')).tipo).toBe(
+      'success',
+    )
     expect(buscar).toHaveBeenCalledWith(
       'http://localhost:3333/produtos',
       expect.objectContaining({
@@ -117,15 +121,14 @@ describe('TelaProdutos (RF02)', () => {
       }),
     )
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     await screen.findByText(/nenhum produto encontrado/i)
 
     cadastrar('PRF-001')
 
     // O veredito é do backend; a tela apenas o reflete (RNF04).
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Já existe um produto com esse código interno.',
-    )
+    const aviso = await encontrarAviso('Já existe um produto com esse código interno.')
+    expect(aviso.tipo).toBe('error')
     // Os dados digitados continuam na tela para correção.
     expect(screen.getByLabelText('Código interno')).toHaveValue('PRF-001')
   })
@@ -133,7 +136,7 @@ describe('TelaProdutos (RF02)', () => {
   it('pede os inativos ao backend quando o filtro é marcado', async () => {
     buscar.mockResolvedValue(pagina([PERFUME]))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     await screen.findByText('PRF-001')
 
     fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
@@ -152,7 +155,7 @@ describe('TelaProdutos (RF02)', () => {
       .mockResolvedValueOnce(pagina([PERFUME]))
       .mockResolvedValueOnce(respostaFalsa(200, { produto: { ...PERFUME, ativo: false } }))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     await screen.findByText('PRF-001')
 
     // Com o filtro de inativos ligado, a linha permanece visível após a baixa.
@@ -162,6 +165,7 @@ describe('TelaProdutos (RF02)', () => {
     fireEvent.click(screen.getByRole('button', { name: /inativar/i }))
 
     expect(await screen.findByRole('button', { name: /reativar/i })).toBeInTheDocument()
+    await encontrarAviso('Produto “Eau de Parfum 50ml” inativado.')
     const linha = screen.getByText('PRF-001').closest('tr')
     expect(within(linha as HTMLElement).getByText('Inativo')).toBeInTheDocument()
     expect(buscar).toHaveBeenLastCalledWith(
@@ -176,7 +180,7 @@ describe('TelaProdutos (RF02)', () => {
       .mockResolvedValueOnce(pagina([inativo]))
       .mockResolvedValueOnce(respostaFalsa(200, { produto: PERFUME }))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
     fireEvent.click(await screen.findByRole('button', { name: /reativar/i }))
 
     expect(await screen.findByRole('button', { name: /inativar/i })).toBeInTheDocument()
@@ -189,7 +193,7 @@ describe('TelaProdutos (RF02)', () => {
   it('não oferece cadastro nem ações de escrita ao ATENDENTE', async () => {
     buscar.mockResolvedValueOnce(pagina([PERFUME]))
 
-    render(<TelaProdutos usuario={ATENDENTE} />)
+    renderizarComAvisos(<TelaProdutos usuario={ATENDENTE} />)
     await screen.findByText('PRF-001')
 
     // Esconder é conveniência de interface; a recusa real continua sendo o
@@ -202,9 +206,24 @@ describe('TelaProdutos (RF02)', () => {
   it('avisa quando o catálogo não pôde ser carregado', async () => {
     buscar.mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
-    render(<TelaProdutos usuario={GESTOR} />)
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
 
+    // Falha ao carregar é estado da tela, e fica nela — não é toast (T29).
     expect(await screen.findByRole('alert')).toHaveTextContent(/conexão/i)
+    expect(await semAvisos()).toBe(true)
+  })
+
+  it('avisa em toast quando a inativação falha, sem trocar a lista por erro (T29)', async () => {
+    buscar
+      .mockResolvedValueOnce(pagina([PERFUME]))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
+    fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+
+    expect((await encontrarAviso(/conexão/i)).tipo).toBe('error')
+    expect(screen.getByText('PRF-001')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   describe('busca em tempo real (T26)', () => {
@@ -250,7 +269,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('busca depois da pausa na digitação, uma vez só, sem botão Buscar', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
       expect(screen.queryByRole('button', { name: /^buscar$/i })).not.toBeInTheDocument()
 
@@ -276,7 +295,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('campo apagado volta à lista completa, respeitando o filtro de inativos', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
 
       fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
@@ -299,7 +318,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('o botão de limpar só aparece com texto, esvazia o campo e volta à lista completa', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
       expect(screen.queryByRole('button', { name: 'Limpar busca' })).not.toBeInTheDocument()
 
@@ -321,7 +340,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('Enter no campo não recarrega a página nem busca de novo', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
 
       digitarEEsperar('parfum')
@@ -340,7 +359,7 @@ describe('TelaProdutos (RF02)', () => {
     it('mantém a lista anterior na tela enquanto a busca carrega', async () => {
       const busca = respostaAdiada()
       buscar.mockResolvedValueOnce(pagina([PERFUME])).mockReturnValueOnce(busca.promessa)
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
 
       digitarEEsperar('colônia')
@@ -362,7 +381,7 @@ describe('TelaProdutos (RF02)', () => {
         .mockResolvedValueOnce(pagina([]))
         .mockReturnValueOnce(antiga.promessa)
         .mockReturnValueOnce(atual.promessa)
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText(/nenhum produto encontrado/i)
 
       digitarEEsperar('col')
@@ -380,7 +399,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('termo novo volta para a primeira página', async () => {
       buscar.mockResolvedValue(pagina([PERFUME], 45))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
 
       fireEvent.click(screen.getByRole('button', { name: /próxima/i }))
@@ -406,7 +425,7 @@ describe('TelaProdutos (RF02)', () => {
 
     it('limita o termo aos 120 caracteres que o servidor aceita', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText('PRF-001')
 
       expect(campoBusca()).toHaveAttribute('maxLength', '120')
@@ -418,7 +437,7 @@ describe('TelaProdutos (RF02)', () => {
 
     async function abrirFormulario() {
       buscar.mockResolvedValueOnce(pagina([]))
-      render(<TelaProdutos usuario={GESTOR} />)
+      renderizarComAvisos(<TelaProdutos usuario={GESTOR} />)
       await screen.findByText(/nenhum produto encontrado/i)
     }
 
@@ -498,6 +517,8 @@ describe('TelaProdutos (RF02)', () => {
       expect(nome).toHaveAccessibleDescription(/O campo Nome aceita no máximo 120 caracteres/)
       expect(nome).toHaveAttribute('aria-invalid', 'true')
       expect(screen.queryByText(/confira os dados/i)).not.toBeInTheDocument()
+      // Erro de campo fica junto ao campo, e não vira toast (T29).
+      expect(await semAvisos()).toBe(true)
 
       // Corrigir o campo tira a recusa, que era sobre o valor anterior.
       fireEvent.change(nome, { target: { value: 'Eau de Parfum' } })
@@ -516,7 +537,7 @@ describe('TelaProdutos (RF02)', () => {
 
       cadastrar('PRF-001')
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(/confira os dados/i)
+      expect((await encontrarAviso(/confira os dados/i)).tipo).toBe('error')
     })
   })
 })

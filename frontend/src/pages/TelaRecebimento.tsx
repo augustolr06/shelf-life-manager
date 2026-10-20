@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SeletorProduto } from '../components/SeletorProduto'
-import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import { formatarData } from '../services/datas'
 import type { Produto } from '../services/produtos'
 import {
@@ -27,7 +27,6 @@ export function TelaRecebimento() {
 
   const [linhas, setLinhas] = useState<ItemLote[]>([{ ...LINHA_VAZIA }])
   const [enviando, setEnviando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
   // O produto vai junto do resultado: as etiquetas são das unidades que
   // chegaram, mesmo que o seletor já mostre outro produto.
   const [recebido, setRecebido] = useState<{
@@ -51,7 +50,6 @@ export function TelaRecebimento() {
 
   async function registrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault()
-    setErro(null)
     setRecebido(null)
     if (!produto) return
     setEnviando(true)
@@ -59,15 +57,16 @@ export function TelaRecebimento() {
     try {
       const resultado = await cadastrarUnidades(produto.id, linhas)
       setRecebido({ resultado, produto })
+      // O toast confirma o clique; o resultado logo abaixo do formulário
+      // continua sendo onde estão os códigos e o botão das etiquetas.
+      avisar.sucesso(`${resultado.unidades.length} unidade(s) registrada(s).`)
       // O formulário volta ao zero: o próximo recebimento é outro evento, e
       // reenviar o mesmo lote por engano geraria etiquetas duplicadas.
       setLinhas([{ ...LINHA_VAZIA }])
     } catch (falha) {
       // Produto inativo, lote grande demais, sessão expirada: a mensagem é a
       // que o backend escreveu (RNF04).
-      setErro(
-        falha instanceof ErroApi ? falha.message : 'Não foi possível registrar o recebimento.',
-      )
+      avisar.erro(falha, 'Não foi possível registrar o recebimento.')
     } finally {
       setEnviando(false)
     }
@@ -108,12 +107,6 @@ export function TelaRecebimento() {
         Cada unidade recebe um código próprio. Unidades do mesmo produto podem ter validades
         diferentes — adicione uma linha por validade.
       </p>
-
-      {erro && (
-        <p className="erro" role="alert">
-          {erro}
-        </p>
-      )}
 
       <form className="formulario-recebimento" onSubmit={registrar}>
         <SeletorProduto valor={produto} aoEscolher={setProduto} />

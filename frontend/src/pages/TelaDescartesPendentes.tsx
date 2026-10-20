@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Paginacao } from '../components/Paginacao'
 import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
 import { ErroApi } from '../services/api'
+import { avisar } from '../services/avisos'
 import type { Usuario } from '../services/auth'
 import { formatarData } from '../services/datas'
 import { listarDescartesPendentes, type UnidadePendente } from '../services/descartes'
@@ -30,15 +31,6 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
   const inicioDaLista = useRef<HTMLParagraphElement>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
-  /**
-   * O que aconteceu com a última unidade resolvida.
-   *
-   * O tom não é julgamento próprio: é a mesma escolha de *layout* por veredito
-   * que a tela de leitura faz (RNF04). Descarte concluído é desfecho bom;
-   * bloqueio de FIFO depois de uma correção, ou unidade que outra pessoa já
-   * resolveu, não são — e pintá-los de verde diria à gestora que deu certo.
-   */
-  const [nota, setNota] = useState<{ tom: 'sucesso' | 'recusa'; texto: string } | null>(null)
 
   // Um painel aberto por vez: são caminhos sobre uma unidade específica, e a
   // fila inteira aberta viraria uma parede de formulários.
@@ -79,15 +71,6 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
       {erro && (
         <p className="erro" role="alert">
           {erro}
-        </p>
-      )}
-
-      {nota && (
-        <p
-          className={nota.tom === 'sucesso' ? 'nota-sucesso' : 'erro'}
-          role={nota.tom === 'sucesso' ? 'status' : 'alert'}
-        >
-          {nota.texto}
         </p>
       )}
 
@@ -145,17 +128,24 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
                     // data no passado) ou sido vendida na revalidação — e é o
                     // servidor quem sabe qual dos três. A fila é recarregada em
                     // vez de a linha ser removida no palpite da tela.
+                    //
+                    // O desfecho vira toast (T29), e o tipo não é julgamento
+                    // próprio: é a mesma escolha de *layout* por veredito que a
+                    // tela de leitura faz (RNF04). Bloqueio de FIFO depois da
+                    // correção não é desfecho bom, e pintá-lo de verde diria à
+                    // gestora que deu certo.
                     aoRevalidar={(revalidacao) => {
-                      setNota({
-                        tom: revalidacao.veredito === 'CONFIRMAR' ? 'sucesso' : 'recusa',
-                        texto: revalidacao.mensagem,
-                      })
+                      if (revalidacao.veredito === 'CONFIRMAR') {
+                        avisar.sucesso(revalidacao.mensagem)
+                      } else {
+                        avisar.erro(revalidacao.mensagem)
+                      }
                       void carregar()
                     }}
                     // Descarte é terminal: a unidade saiu do estoque, e a linha
                     // pode sair da lista sem nova ida à rede.
                     aoResolver={(resolucao) => {
-                      setNota({ tom: 'sucesso', texto: resolucao.mensagem })
+                      avisar.sucesso(resolucao.mensagem)
                       setUnidades((atuais) => atuais.filter((u) => u.id !== resolucao.unidade.id))
                       setTotal((atual) => Math.max(0, atual - 1))
                       setEmResolucao(null)
@@ -164,7 +154,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
                     // fila foi carregada. É o equivalente, aqui, ao "volta ao
                     // estado de nova leitura" do balcão (T12).
                     aoPerderUnidade={(mensagem) => {
-                      setNota({ tom: 'recusa', texto: mensagem })
+                      avisar.erro(mensagem)
                       void carregar()
                     }}
                     // Sem o portão de conexão da tela de leitura (RNF07): aqui
