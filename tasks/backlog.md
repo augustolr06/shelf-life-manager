@@ -132,7 +132,7 @@ um a um pelo formulário de T04 inviabiliza a carga inicial.
 Levantado em 2026-10-13, depois do sistema rodar em produção com o catálogo fictício. Nenhuma
 destas tarefas muda regra de negócio: todas atacam atrito de uso que apareceu ao operar as
 telas de verdade. São independentes entre si, exceto T28, que reaproveita o atraso de busca
-de T26.
+de T26, e T39, que monta a confirmação sobre o diálogo de T30.
 
 **Regra para os incrementos 9, 10 e 11** (orientando, 2026-10-13): são ajustes vindos do uso
 real, e podem contrariar decisões iniciais do PRD ou de `docs/decisoes.md`. Uma decisão
@@ -149,6 +149,12 @@ começar, e a revisão é registrada com data em `docs/decisoes.md`. As regras i
 | T28 | Seletor de produto com filtro (busca e escolha num campo só) | concluída | T26 | `tasks/T28-seletor-produto-com-filtro.md` |
 | T29 | Mensagens de sucesso e erro de ação em toasts | pendente | — | `tasks/T29-toasts.md` |
 | T30 | Aviso de sessão expirada em modal que leva ao login | pendente | — | `tasks/T30-sessao-expirada.md` |
+| T39 | Confirmação em diálogo antes de ação destrutiva | pendente | T30 | `tasks/T39-confirmacao-acoes-destrutivas.md` |
+
+**T39 (2026-10-20).** Hoje nenhuma ação pede confirmação: descarte, inativação de produto,
+desativação de conta e troca de papel acontecem no primeiro clique (a troca de papel, no
+`onChange` do `<select>`). A confirmação saiu de T38, que fica só com o destaque visual,
+porque é um risco de uso que já existe e não depende do redesign.
 
 **Achado de T25 (2026-10-20), sem tarefa aberta.** A tela de Contas de acesso (T22,
 `TelaUsuarios.tsx`) tem o mesmo problema que T25 resolveu no catálogo: Nome (máx. 120),
@@ -183,7 +189,7 @@ validade deixa de vender na revalidação).
 | T32 | Consulta de unidade por QR, sem registrar saída (backend + tela) | pendente | T10 | `tasks/T32-consulta-unidade-qr.md` |
 | T33 | Casos de teste da leitura sem baixa e da confirmação da venda — escrever ANTES de T33b | pendente | T09, T11 | `tasks/T33-testes-avaliacao-efetivacao.md` |
 | T33b | Backend: leitura sem baixa e confirmação da venda (`POST /saidas/finalizar`) | pendente | T33 | `tasks/T33b-avaliacao-efetivacao-backend.md` |
-| T34 | Frontend: carrinho na tela de venda | pendente | T31, T33b | `tasks/T34-carrinho-frontend.md` |
+| T34 | Frontend: carrinho na tela de venda | pendente | T31, T33b, T39 | `tasks/T34-carrinho-frontend.md` |
 
 ## Incremento 11 — Redesign
 
@@ -197,13 +203,14 @@ em qualquer ordem.
 | T35 | Fundação visual: tokens, tipografia e componentes base | pendente | T29, T34 | `tasks/T35-fundacao-visual.md` |
 | T36 | Responsividade para celular e tablet | pendente | T35 | `tasks/T36-responsividade.md` |
 | T37 | Revisão de copies (textos da interface e mensagens do servidor) | pendente | T35 | `tasks/T37-revisao-copies.md` |
-| T38 | Destaque de estado: vencidos, inativos e ações destrutivas | pendente | T35, T30 | `tasks/T38-destaques-de-estado.md` |
+| T38 | Destaque de estado: vencidos, inativos e ações destrutivas | pendente | T35, T39 | `tasks/T38-destaques-de-estado.md` |
 
 **Ordem sugerida dentro dos três incrementos:** T31 primeiro, por ser o risco real em
 produção (a câmera aberta vende o que ler) e pequena → T33 → T33b → T34 (o carrinho fecha o
 risco de vez; T33b e T34 em sequência, porque entre as duas a tela diz "Saída registrada" para
 uma leitura que não baixou) → T25 → T26 → T27 → T28 → T29 → T30 → T32 → T35 →
-T36/T37/T38.
+T36/T37/T38. T39 entra logo depois de T30 e precisa vir antes de T34, que usa a mesma
+confirmação no carrinho.
 
 ---
 

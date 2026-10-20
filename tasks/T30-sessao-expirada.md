@@ -2,7 +2,7 @@
 
 **Depende de:** nada pendente (sessão por cookie desde T03/T03b)
 **Incremento:** 9 (Ajustes de uso em formulários e listas)
-**Bloqueia:** T38 (reaproveita o componente de diálogo)
+**Bloqueia:** T39 (reaproveita o componente de diálogo)
 
 ## Objetivo
 
@@ -33,7 +33,7 @@ próximo carregamento da página.
    `GET /auth/me` (ali 401 é "não está logado", não "expirou") e `POST /auth/login` (401 é
    senha errada).
 4. **Componente de diálogo reaproveitável** (`components/Dialogo.tsx`, sobre `<dialog>`
-   nativo, com foco preso e Esc), porque T38 vai precisar dele para as confirmações.
+   nativo, com foco preso e Esc), porque T39 vai precisar dele para as confirmações.
 
 ## Critério de aceite
 

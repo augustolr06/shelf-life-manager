@@ -53,5 +53,5 @@ Este é o centro da tarefa — nem toda mensagem é resultado de ação.
 
 ## Fora de escopo
 
-- Confirmações antes de ação destrutiva ("tem certeza?") — T38.
+- Confirmações antes de ação destrutiva ("tem certeza?") — T39.
 - Estilo final dos toasts — T35 aplica os tokens do redesign.

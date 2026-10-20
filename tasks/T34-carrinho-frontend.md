@@ -1,6 +1,7 @@
 # T34 — Frontend: carrinho na tela de venda
 
-**Depende de:** T31 (leitura única), T33b (leitura sem baixa e `POST /saidas/finalizar`)
+**Depende de:** T31 (leitura única), T33b (leitura sem baixa e `POST /saidas/finalizar`),
+T39 (`useConfirmacao()`)
 **Incremento:** 10 (Fluxo de leitura: leitura única, consulta e carrinho)
 **Bloqueia:** T35 (o redesign inclui a tela nova)
 
@@ -27,14 +28,14 @@ pessoa no balcão confirma. O contexto e o contrato do backend estão em
 3. **Ler próximo** religa a câmera.
 4. O carrinho lista os itens (produto, validade, código) com **Remover** em cada um. O mesmo
    código não entra duas vezes (aviso "já está no carrinho", sem chamar o servidor).
-5. **Confirmar venda** abre uma confirmação com a lista e a quantidade, e então envia os ids
+5. **Confirmar venda** abre uma confirmação (`useConfirmacao()`, T39) com a lista e a quantidade, e então envia os ids
    para `POST /saidas/finalizar`. Resultado por item:
    - `CONFIRMAR` → vendido, sai do carrinho;
    - qualquer outro → fica no carrinho marcado com a mensagem do servidor (o estoque mudou
      entre a leitura e a confirmação). `BLOQUEAR_FIFO` mostra a unidade correta;
      `EXCECAO_VENCIDO` abre o painel daquele item.
 6. Quando o carrinho esvazia por confirmação, o atendimento termina: novo `sessaoVendaId`.
-7. **Esvaziar carrinho** pede confirmação e não vende nada.
+7. **Esvaziar carrinho** pede confirmação (T39) e não vende nada.
 
 ## Decisões anteriores afetadas (alerta — não bloqueia)
 

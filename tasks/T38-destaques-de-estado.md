@@ -1,6 +1,6 @@
 # T38 — Destaque de estado: vencidos, inativos e ações destrutivas
 
-**Depende de:** T35 (paleta semântica e componentes base), T30 (componente `Dialogo`)
+**Depende de:** T35 (paleta semântica e componentes base), T39 (confirmações já existentes)
 **Incremento:** 11 (Redesign)
 **Bloqueia:** nada
 
@@ -33,10 +33,9 @@ Três tipos de estado hoje se parecem com todo o resto da tela:
 
 ### Ações destrutivas
 
-- Variante `perigo` de botão em todas elas.
-- **Confirmação** pelo `Dialogo` de T30, dizendo a consequência ("A unidade PRF-XXX sai do
-  estoque como descarte. Isso não pode ser desfeito."), com o botão de confirmar repetindo o
-  verbo da ação.
+- Variante `perigo` de botão em todas elas, e no botão de confirmar do diálogo de T39.
+- A **confirmação** em si (diálogo com a consequência e o verbo da ação) já existe desde
+  T39; esta tarefa só aplica o destaque visual.
 - **"Vender mesmo assim" (override, PRD 6.1):** recebe a cor de perigo, **mas continua não
   sendo o botão primário**. A seção 6.1 do PRD exige que correção e descarte sejam a ação
   padrão e que o override tenha fricção deliberada — destacar aqui significa sinalizar o
@@ -46,9 +45,8 @@ Três tipos de estado hoje se parecem com todo o resto da tela:
 
 - [ ] Vencidos destacados em todas as telas listadas, com dado do servidor
 - [ ] Inativos destacados no catálogo, seletor (se aparecerem), consulta e dashboard
-- [ ] Todas as ações destrutivas com variante perigo + confirmação
+- [ ] Todas as ações destrutivas com variante perigo, inclusive no diálogo de confirmação
 - [ ] Ordem visual do painel de exceção preservada: correção → descarte → override (PRD 6.1)
-- [ ] Testes de componente: confirmação aparece e cancelar não chama a API
 - [ ] Conferência no navegador com o `playwright-cli`: painel de exceção como GESTOR,
       inativação no catálogo
 - [ ] `docs/notas-para-artigo.md`: o destaque do vencido e a fricção do override como
@@ -58,3 +56,4 @@ Três tipos de estado hoje se parecem com todo o resto da tela:
 
 - Mudar regras: quem pode fazer o quê continua igual (o override segue restrito a GESTOR).
 - Desfazer ações destrutivas.
+- O comportamento da confirmação (quais ações, textos, foco) — T39.
