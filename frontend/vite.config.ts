@@ -42,8 +42,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'Controle de Estoque FIFO por Validade',
-        short_name: 'Estoque FIFO',
+        name: 'ShelfLife Manager',
+        // Embaixo do ícone na tela inicial do celular cabem uns 12 caracteres.
+        short_name: 'ShelfLife',
         description:
           'Controle de estoque por unidade física com saída FIFO por data de validade.',
         lang: 'pt-BR',

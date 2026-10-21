@@ -35,7 +35,10 @@ export function TelaLogin({ aoAutenticar }: Props) {
   return (
     <main className="tela-login">
       <form className="cartao cartao-login" onSubmit={submeter}>
-        <h1>Controle de Estoque FIFO por Validade</h1>
+        <h1>ShelfLife Manager</h1>
+        {/* O nome não diz o que o sistema faz; esta linha diz, para quem abre
+            o app pela primeira vez (T46). */}
+        <p className="apoio-login">Controle de estoque por validade</p>
         <p className="subtitulo">Entre com suas credenciais para continuar.</p>
 
         <label htmlFor="email">E-mail</label>

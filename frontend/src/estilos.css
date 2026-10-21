@@ -772,6 +772,13 @@ td button + button {
   line-height: 1.3;
 }
 
+.apoio-login {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
 .cartao-login label {
   font-size: var(--tamanho-apoio);
   font-weight: var(--peso-forte);

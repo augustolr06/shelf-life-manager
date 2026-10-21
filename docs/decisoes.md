@@ -2862,3 +2862,38 @@ do backend. Capturas em `docs/redesign/T45/`.
 **Tarefa relacionada:** T04, T24, T25, T26, T27, T39, T41, T42
 
 **Data:** 2026-10-21
+
+## 2026-10-21 — T46: nome do app, ShelfLife Manager
+
+Aplica a decisão 7 da especificação do redesign (`docs/redesign/claude-design/README.md`): o app
+se chama **ShelfLife Manager** (decisão do orientando), no lugar de "Controle de Estoque FIFO por
+Validade" e "Estoque FIFO". As entradas anteriores deste arquivo que citam o nome antigo não
+foram editadas. O que o arquivo da tarefa não fixava e foi decidido aqui:
+
+1. **`short_name` "ShelfLife"**, como a tarefa pedia, e o mesmo texto no
+   `apple-mobile-web-app-title` do `index.html`: o Safari ignora o `short_name` do manifest ao
+   adicionar à tela de início. `name` e `description` do manifest: o nome inteiro e o texto
+   descritivo de antes.
+2. **Menu mostra o nome inteiro**, e não o `short_name` como fazia desde T35: "ShelfLife Manager"
+   cabe numa linha do menu de 232 px (143 px de largura, conferido no navegador). No tablet o
+   menu recolhido continua escondendo o texto da marca, que segue para o leitor de tela.
+3. **Login com uma linha de apoio** abaixo do `<h1>`, "Controle de estoque por validade", em
+   texto suave e peso forte (`.apoio-login`), para separar do "Entre com suas credenciais para
+   continuar", que segue abaixo dela. O nome em inglês não diz o que o sistema faz; a linha diz.
+4. **Sem título por tela.** Nenhuma tela define `document.title`; a aba mostra "ShelfLife
+   Manager" em todas, e o padrão "{tela} — ShelfLife Manager" previsto na tarefa não se aplica.
+5. **`CLAUDE.md`** passa a "ShelfLife Manager — Controle de Estoque FIFO por Validade", e o
+   "Contexto do projeto" que estava no título vai para a nota logo abaixo. O comentário de
+   cabeçalho do `schema.prisma` ficou com o nome antigo: é código, fora do escopo da tarefa.
+
+**Verificação.** Um caso novo em `TelaLogin.test.tsx` (o `<h1>` com o nome e a linha de apoio).
+Frontend 336/336; typecheck e build limpos, com `dist/manifest.webmanifest` trazendo `name` e
+`short_name` novos e `dist/index.html` com o título e o `apple-mobile-web-app-title`. Os dois
+erros não tratados da suíte vêm de `TelaInicio.test.tsx` e já existiam (conferido com as
+mudanças guardadas). `playwright-cli` a 1280×900, 800×900 e 360×740: login, título da aba, menu
+lateral, menu recolhido e a folha "Mais" (que não tem a marca); console só com os 401 esperados
+de `/auth/me` antes do login. Capturas em `docs/redesign/T46/`.
+
+**Tarefa relacionada:** T35, T41
+
+**Data:** 2026-10-21

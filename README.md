@@ -1,4 +1,4 @@
-# Controle de Estoque FIFO por Validade
+# ShelfLife Manager — Controle de Estoque FIFO por Validade
 
 Sistema de controle de estoque por unidade física (QR Code único por item), com saída
 obrigatoriamente FIFO por **data de validade** — não por data de entrada.

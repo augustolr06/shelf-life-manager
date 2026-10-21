@@ -277,10 +277,10 @@ export function MenuLateral({
           <span className="marca-simbolo">
             <Icone nome="marca" tamanho={20} />
           </span>
-          {/* O nome curto do manifest do PWA (T35). O nome inteiro fica na
-              tela de login e no título da aba. */}
+          {/* O nome do app (T46). O `short_name` do manifest é mais curto,
+              "ShelfLife", porque embaixo do ícone do celular não cabe. */}
           <span className={recolhido ? 'visualmente-oculto' : 'marca-texto'}>
-            <span className="marca-nome">Estoque FIFO</span>
+            <span className="marca-nome">ShelfLife Manager</span>
             <span className="marca-lema">Primeiro que vence, primeiro que sai</span>
           </span>
         </div>

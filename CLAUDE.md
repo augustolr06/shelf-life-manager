@@ -1,6 +1,6 @@
-# Controle de Estoque FIFO por Validade — Contexto do Projeto
+# ShelfLife Manager — Controle de Estoque FIFO por Validade
 
-> Leia este arquivo primeiro em toda sessão nova. Ele existe para você não precisar reler o PRD inteiro a cada vez.
+> Contexto do projeto. Leia este arquivo primeiro em toda sessão nova. Ele existe para você não precisar reler o PRD inteiro a cada vez.
 
 ## O que é este projeto
 

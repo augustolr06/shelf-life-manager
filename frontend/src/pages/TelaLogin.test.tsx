@@ -29,6 +29,13 @@ describe('TelaLogin', () => {
     vi.unstubAllGlobals()
   })
 
+  it('mostra o nome do app e, abaixo, o que ele é', () => {
+    render(<TelaLogin aoAutenticar={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ShelfLife Manager')
+    expect(screen.getByText('Controle de estoque por validade')).toBeInTheDocument()
+  })
+
   it('autentica e devolve o usuário retornado pelo backend', async () => {
     buscar.mockResolvedValueOnce(respostaFalsa(200, { usuario: GESTOR }))
     const aoAutenticar = vi.fn()
