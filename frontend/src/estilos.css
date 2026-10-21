@@ -66,6 +66,14 @@
   --cor-primaria-escura: #0a3f38;
   --cor-primaria-suave: #e3f0ec;
 
+  /* Leitor da Venda (T43): a área escura onde o vídeo da câmera entra.
+     Instrução sobre ela 11,23:1, branco 16,80:1. A linha de leitura é
+     decorativa. O foco azul fica a 2,51:1 sobre ela, e por isso o anel, ali
+     dentro, é branco. */
+  --cor-leitor: #12201d;
+  --cor-leitor-texto: #c9d6d2;
+  --cor-leitor-linha: #5fd3a6;
+
   /* Escala de validade — ver tabela de contraste acima */
   --cor-faixa-vencida-texto: #a8231a;
   --cor-faixa-vencida-fundo: #fdecea;
@@ -1597,19 +1605,11 @@ button.item-barra.ativo {
    mão só, segurando um frasco na outra: alvo de toque grande e resultado
    legível de relance vêm antes de qualquer refinamento visual.
    ========================================================================== */
-.atendimento,
 .entrada-manual {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--espaco-3);
-}
-
-.atendimento p {
-  flex: 1 1 16rem;
-  margin: 0;
-  color: var(--cor-texto-suave);
-  font-size: var(--tamanho-apoio);
 }
 
 .camera {
@@ -1702,50 +1702,320 @@ button.item-barra.ativo {
   padding-left: var(--espaco-5);
 }
 
-.carrinho {
-  margin-top: var(--espaco-4);
+/* --- Venda no novo layout (T43) ------------------------------------------
+   O leitor no centro e a confirmação ao alcance do polegar. A mesma ordem
+   nos três tamanhos; no computador, numa coluna central de até 640 px. O
+   espaço entre os blocos é margem, e não `gap`: a área de resultado vazia
+   continua no DOM (ela é a região `aria-live`), e não pode abrir um vão. */
+:root {
+  --altura-leitor: 16.75rem;
+  --raio-leitor: 1.125rem;
+  /* 48 px no campo e no "Ler", 52 px no confirmar (especificação). */
+  --altura-controle-venda: 3rem;
+  --altura-confirmar-venda: 3.25rem;
+  --raio-campo-venda: 0.75rem;
 }
 
-.carrinho h3 {
-  font-size: var(--tamanho-titulo);
+.tela-venda {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.tela-venda > * {
+  margin: 0 0 var(--espaco-4);
+}
+
+.tela-venda > .area-resultado:empty {
+  margin: 0;
+}
+
+.cabecalho-venda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+}
+
+/* No celular, o título e o estado não cabem ao lado do botão numa linha só:
+   é o rótulo do botão que quebra, para ele continuar à direita. */
+.formato-celular .cabecalho-venda {
+  flex-wrap: nowrap;
+}
+
+.formato-celular .cabecalho-venda button {
+  flex: none;
+  max-width: 7rem;
+  padding: var(--espaco-1) var(--espaco-3);
+  font-size: var(--tamanho-apoio);
+  line-height: 1.2;
+}
+
+.estado-atendimento {
+  margin: 0;
+  color: var(--cor-sucesso-texto);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+/* O ponto verde acompanha o texto, que diz o estado: a cor não fala sozinha. */
+.estado-atendimento::before {
+  content: '';
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.375rem;
+  border-radius: 50%;
+  background: var(--cor-sucesso-forte);
+  vertical-align: 0.0625rem;
+}
+
+.estado-atendimento.sem-agrupamento {
+  max-width: 28rem;
+  color: var(--cor-texto-suave);
+}
+
+.estado-atendimento.sem-agrupamento::before {
+  background: var(--cor-borda-campo);
+}
+
+/* --- Leitor --- */
+.leitor-venda {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-4);
+  min-height: var(--altura-leitor);
+  padding: var(--espaco-4);
+  overflow: hidden;
+  border-radius: var(--raio-leitor);
+  background: var(--cor-leitor);
+  color: var(--cor-leitor-texto);
+}
+
+.leitor-venda p {
+  margin: 0;
+  font-weight: var(--peso-forte);
+  text-align: center;
+}
+
+.leitor-venda :focus-visible {
+  outline-color: var(--cor-texto-inverso);
+}
+
+/* Com a câmera ligada, o vídeo ocupa a área, e o botão de desligar fica
+   embaixo dele. */
+.leitor-ligado {
+  justify-content: flex-start;
+  padding: var(--espaco-3);
+}
+
+.leitor-venda .leitor-camera {
+  max-width: none;
+  overflow: hidden;
+  border-radius: var(--raio-controle);
+}
+
+.leitor-venda .leitor-camera video {
+  display: block;
+  width: 100%;
+}
+
+/* A moldura de mira: quatro cantos e a linha de leitura. Só desenho. */
+.mira {
+  position: relative;
+  width: 13.75rem;
+  max-width: 100%;
+  height: 7.5rem;
+}
+
+.mira span {
+  position: absolute;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 3px solid var(--cor-texto-inverso);
+}
+
+.mira span:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: var(--raio-controle);
+}
+
+.mira span:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+  border-top-right-radius: var(--raio-controle);
+}
+
+.mira span:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom-left-radius: var(--raio-controle);
+}
+
+.mira span:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: var(--raio-controle);
+}
+
+.mira::after {
+  content: '';
+  position: absolute;
+  top: calc(50% - 1px);
+  right: var(--espaco-4);
+  left: var(--espaco-4);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--cor-leitor-linha);
+}
+
+button.botao-leitor {
+  padding: 0 1.125rem;
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie);
+  color: var(--cor-leitor);
   font-weight: var(--peso-titulo);
+}
+
+button.botao-leitor:hover:not(:disabled) {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria-escura);
+}
+
+/* --- Código digitado --- */
+.codigo-venda {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.codigo-venda label {
+  color: var(--cor-texto-menu);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-destaque);
+}
+
+.linha-codigo {
+  display: flex;
+  gap: var(--espaco-2);
+}
+
+.linha-codigo input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--altura-controle-venda);
+  padding: 0 0.875rem;
+  border-radius: var(--raio-campo-venda);
+  font-family: var(--fonte-mono);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.linha-codigo button {
+  min-height: var(--altura-controle-venda);
+  padding: 0 1.125rem;
+  border-radius: var(--raio-campo-venda);
+  font-weight: var(--peso-titulo);
+}
+
+/* --- Carrinho --- */
+.cabecalho-carrinho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-3);
+}
+
+.cabecalho-carrinho h3 {
+  margin: 0;
 }
 
 .carrinho .contagem {
   color: var(--cor-texto-suave);
-  font-weight: var(--peso-normal);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
 }
 
 .itens-carrinho {
   list-style: none;
-  margin: 0 0 var(--espaco-4);
+  margin: var(--espaco-1) 0 0;
   padding: 0;
 }
 
 .item-carrinho {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--espaco-2) var(--espaco-4);
+  align-items: center;
+  gap: var(--espaco-3);
   padding: var(--espaco-3) 0;
   border-bottom: 1px solid var(--cor-borda);
 }
 
-.item-carrinho .dados-unidade {
-  flex: 1 1 14rem;
+.item-carrinho:last-child {
+  border-bottom: 0;
+}
+
+.icone-item {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--raio-controle);
+  background: var(--tom-fundo);
+  color: var(--tom-texto);
+}
+
+.dados-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.nome-item {
+  font-weight: var(--peso-destaque);
+}
+
+.marca-e-codigo {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.mensagem-item {
+  color: var(--cor-sucesso-texto);
+  font-size: var(--tamanho-legenda);
+  font-weight: var(--peso-destaque);
 }
 
 /* O item que a confirmação não vendeu: mesmo tom de atenção do bloqueio,
    porque quase sempre é o FIFO mudando entre a leitura e a confirmação. */
 .item-com-pendencia {
+  align-items: flex-start;
+  margin: var(--espaco-2) 0;
   padding: var(--espaco-3);
   border-left: 4px solid var(--tom-forte);
+  border-radius: var(--raio-pequeno);
+}
+
+.item-com-pendencia .icone-item {
+  background: var(--cor-superficie);
 }
 
 .pendencia {
-  flex: 1 1 100%;
-  order: 1;
+  margin-top: var(--espaco-1);
   font-size: var(--tamanho-apoio);
 }
 
@@ -1753,10 +2023,27 @@ button.item-barra.ativo {
   margin: 0 0 var(--espaco-2);
 }
 
-.acoes-carrinho {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espaco-3);
+button.esvaziar-carrinho {
+  margin-top: var(--espaco-2);
+  padding: 0 var(--espaco-3);
+}
+
+.confirmar-venda button {
+  width: 100%;
+  min-height: var(--altura-confirmar-venda);
+  border-radius: var(--raio-cartao);
+  font-size: 1rem;
+  font-weight: var(--peso-titulo);
+}
+
+/* No celular, preso acima da barra inferior. O anel na cor do fundo esconde o
+   que rola por trás do botão, em vez de deixar o texto passar rente a ele. */
+.formato-celular .confirmar-venda {
+  position: sticky;
+  bottom: calc(var(--altura-barra-inferior) + env(safe-area-inset-bottom, 0px) + var(--espaco-2));
+  z-index: 10;
+  border-radius: var(--raio-cartao);
+  box-shadow: 0 0 0 var(--espaco-2) var(--cor-fundo);
 }
 
 /* Sem conexão não há leitura: o veredito depende do estoque inteiro do

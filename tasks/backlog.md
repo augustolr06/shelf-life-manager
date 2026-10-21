@@ -289,7 +289,7 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 | T40 | Linguagem visual: tokens, escala de validade, fontes e manifest | concluída | T35 | `tasks/T40-linguagem-visual.md` |
 | T41 | Navegação por tarefa: menu lateral, barra inferior e fim da barra do topo | concluída | T40 | `tasks/T41-navegacao-por-tarefa.md` |
 | T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | concluída | T41 | `tasks/T42-tela-inicio.md` |
-| T43 | Venda no novo layout | pendente | T41 | `tasks/T43-venda-novo-layout.md` |
+| T43 | Venda no novo layout | concluída | T41 | `tasks/T43-venda-novo-layout.md` |
 | T44 | Descarte e alertas em lista compacta | pendente | T41 | `tasks/T44-validade-lista-compacta.md` |
 | T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | pendente | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
 
@@ -313,6 +313,13 @@ inicial do gestor e o primeiro item do menu, fora dos grupos; Consulta e Catálo
 `a.botao` nos componentes base. A saudação usa a hora do aparelho (a revisar; `docs/decisoes.md`,
 T42, decisão 5). Capturas em `docs/redesign/T42/`.
 
+**Estado de T43 (2026-10-21).** Concluída. Cabeçalho com o estado do atendimento e "Encerrar
+atendimento" à direita; leitor escuro com mira; campo mono com "Ler"; carrinho com uma linha por
+item e remover de 44 px; "Confirmar venda · N frascos" preso acima da barra inferior no celular.
+O item do carrinho mostra a frase do servidor que liberou a unidade, não a do mockup (a revisar;
+`docs/decisoes.md`, T43, decisão 1). Câmera ligada no novo leitor só no celular real (ver
+verificações manuais). Capturas em `docs/redesign/T43/`.
+
 ---
 
 ## Verificações manuais a cargo do orientando
@@ -324,6 +331,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | **Agora, e sem depender de mais código** — T15 imprime a folha (tela `/etiquetas`) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16). Imprima a mesma folha nos três tamanhos (15, 20 e 25 mm — o rodapé de cada folha diz qual é), recorte, cole em frascos reais e leia com o celular. O resultado esperado é um veredito por tamanho | Pode reabrir o formato do `codigoQr`, que é provisório e está travado em 10 caracteres pelo nível H (`docs/decisoes.md`, T14), **e** decide qual tamanho fica fixo no código. Quanto antes for feito, menos código depende do formato atual |
 | **Agora** — T10 concluída | Teste da câmera em celular real (RF05): a câmera abre, decodifica a etiqueta impressa, e o veredito aparece. Desde T31, conferir também que a câmera desliga logo depois da leitura (o vídeo some e o resultado fica) e que **Ler próximo** a religa. `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — é a única parte de T10 sem cobertura automatizada, isolada em `components/LeitorCamera.tsx`. No mesmo aparelho, conferir que a URL usada é segura: sem HTTPS não há câmera **nem** `crypto.randomUUID`, e o agrupamento de atendimento cai fora | Fluxo de leitura de QR não verificado no dispositivo-alvo |
 | **Agora** — T19b concluída | Push em aparelho real (RF08): gerar as chaves com `npm run push:chaves`, preenchê-las no `.env`, instalar o PWA no celular por HTTPS, ativar em **Configurar alertas → Notificações neste aparelho** e rodar `npm run alertas:varrer` com uma janela de canal push e uma unidade nova na janela. A notificação deve chegar com o app fechado, e o toque deve abrir `/alertas`. Web Push exige contexto seguro e um serviço externo (FCM), e nem a suíte nem o `playwright-cli` alcançam isso — no navegador automatizado a permissão é sempre negada, que foi o estado conferido | Metade da RF08 não verificada de ponta a ponta: o alerta continua chegando pela lista in-app, que é a fonte de verdade |
+| Junto com o teste da câmera — T43 concluída | Venda no novo layout no celular real: com a câmera ligada, o vídeo ocupa a área escura do leitor e "Desligar câmera" fica embaixo dele; "Confirmar venda · N frascos" fica preso logo acima da barra inferior ao rolar, sem ficar atrás dela (inclusive no iPhone, com a área segura de baixo); o campo do código não aproxima a página ao tocar | Layout conferido só no navegador do computador em 360×740, sem câmera e sem a barra do navegador do celular |
 | Junto com o teste da câmera | Instalar o PWA no celular e abrir com o modo avião ligado: deve abrir e mostrar o bloqueio explícito da RNF07, não o erro de rede do navegador | O comportamento offline foi conferido em navegador de desktop (`network-state-set offline`), não no app instalado |
 | ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |

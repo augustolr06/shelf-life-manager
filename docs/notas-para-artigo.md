@@ -1946,3 +1946,25 @@ do balcão (RNF03).
 **Tarefa relacionada:** T42, RF13, RNF04
 
 **Data:** 2026-10-21
+
+
+## O redesign também tentou escrever o veredito na tela
+
+**Contexto do problema:** no balcão, a atendente quer saber de relance se o frasco na mão é o
+certo. O mockup da tela de Venda feito no redesign respondeu a isso com um texto pronto em cada
+item do carrinho — "Unidade certa: é a que vence primeiro" —, escrito pela própria interface.
+
+**Solução adotada:** a implementação (T43) mostra, no lugar dele, a frase com que o servidor
+liberou a unidade, que inclui a validade dela. A tela continua sem nenhuma afirmação própria
+sobre a ordem de saída; quem diz que a unidade pode sair é a função `validarSaidaFifo`, e a tela
+repete.
+
+**Por que importa / trade-offs:** mostra que a regra de que o frontend não decide o veredito
+(RNF04) não se sustenta sozinha: até uma proposta visual feita a partir do sistema em produção
+reintroduziu, em texto, uma conclusão que só o servidor pode tirar. A regra escrita é o que
+permite reconhecer isso na hora de implementar. O custo é de redação: a frase do servidor repete
+nome e marca, que a linha de cima do item já mostra, e é mais longa que a do mockup.
+
+**Tarefa relacionada:** T43, RNF03, RNF04
+
+**Data:** 2026-10-21

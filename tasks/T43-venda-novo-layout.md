@@ -34,13 +34,13 @@ alcance do polegar.
 
 ## Critério de aceite
 
-- [ ] Ordem visual do painel de exceção preservada: correção → descarte → override (PRD 6.1)
-- [ ] "Encerrar atendimento" continua só com o carrinho vazio
-- [ ] Botão de confirmar visível sem rolar, a 360×740, com 3 itens no carrinho
-- [ ] Testes de Vitest de `TelaVenda` verdes sem mudar asserções de comportamento
-- [ ] `playwright-cli` a 360×740 e 1280×900: carrinho vazio, com itens e veredito de vencida;
+- [x] Ordem visual do painel de exceção preservada: correção → descarte → override (PRD 6.1)
+- [x] "Encerrar atendimento" continua só com o carrinho vazio
+- [x] Botão de confirmar visível sem rolar, a 360×740, com 3 itens no carrinho
+- [x] Testes de Vitest de `TelaVenda` verdes sem mudar asserções de comportamento
+- [x] `playwright-cli` a 360×740 e 1280×900: carrinho vazio, com itens e veredito de vencida;
       capturas em `docs/redesign/T43/`
-- [ ] Verificação no celular real anotada no backlog, junto da de câmera
+- [x] Verificação no celular real anotada no backlog, junto da de câmera
 
 ## Fora de escopo
 

@@ -316,7 +316,7 @@ async function digitarCodigo(codigo: string) {
   fireEvent.change(await screen.findByLabelText(/digite o código/i), {
     target: { value: codigo },
   })
-  fireEvent.click(screen.getByRole('button', { name: /ler código/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^ler$/i }))
 }
 
 /** Lê um código que o servidor libera e espera ele entrar no carrinho. */
@@ -335,7 +335,20 @@ function codigosNoCarrinho(): string[] {
   if (!regiao) return []
   return within(regiao)
     .queryAllByRole('listitem')
-    .map((item) => within(item).getByText(/^PRF-/, { selector: 'dd' }).textContent ?? '')
+    .map(
+      (item) =>
+        within(item).getByText(/^PRF-/, { selector: '.marca-e-codigo .codigo' }).textContent ?? '',
+    )
+}
+
+/**
+ * O cartão do veredito `CONFIRMAR`. Desde T43, a frase do servidor aparece
+ * nele e no item do carrinho; as asserções sobre a leitura olham o cartão.
+ */
+function cartaoDaLeitura(): HTMLElement {
+  const cartao = screen.getByRole('heading', { name: /no carrinho/i }).closest('section')
+  if (!cartao) throw new Error('o cartão da leitura não está na tela')
+  return cartao
 }
 
 function itemDoCarrinho(codigo: string): HTMLElement {
@@ -369,7 +382,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
 
       expect(await screen.findByRole('heading', { name: /no carrinho/i })).toBeInTheDocument()
       // A mensagem é a que o servidor escreveu, exibida como veio (RNF04).
-      expect(screen.getByText(CONFIRMADO.mensagem)).toBeInTheDocument()
+      expect(within(cartaoDaLeitura()).getByText(CONFIRMADO.mensagem)).toBeInTheDocument()
       expect(codigosNoCarrinho()).toEqual(['PRF-AAAAAA'])
       // Ler não vende (T33b): a venda é o botão do carrinho.
       expect(confirmacoesEnviadas()).toHaveLength(0)
@@ -671,6 +684,22 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
       expect(codigosNoCarrinho()).toEqual(['PRF-AAAAAA', 'PRF-BBBBBB'])
     })
 
+    it('cada item mostra a frase do servidor, e o botão diz quantos frascos vende', async () => {
+      simular({})
+      montarTela()
+
+      await adicionar('PRF-AAAAAA')
+      expect(screen.getByRole('button', { name: 'Confirmar venda · 1 frasco' })).toBeEnabled()
+
+      await adicionar('PRF-BBBBBB')
+      expect(screen.getByRole('button', { name: 'Confirmar venda · 2 frascos' })).toBeEnabled()
+      // A tela não escreve que a unidade é a certa: repete o que o servidor
+      // disse ao liberá-la (RNF04).
+      expect(
+        within(itemDoCarrinho('PRF-BBBBBB')).getByText(liberada('PRF-BBBBBB').mensagem),
+      ).toBeInTheDocument()
+    })
+
     it('remove um item do carrinho, e ele sai também das leituras seguintes', async () => {
       simular({})
       montarTela()
@@ -772,7 +801,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
 
         await adicionar('PRF-AAAAAA')
         await adicionar('PRF-BBBBBB')
-        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda$/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda · /i }))
 
         expect(await encontrarConfirmacao('Confirmar venda?')).toHaveAccessibleDescription(
           /^2 unidades serão vendidas: PRF-AAAAAA \(Eau de Parfum 50ml\), PRF-BBBBBB \(Eau de Parfum 50ml\)\./,
@@ -791,7 +820,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
 
         await adicionar('PRF-AAAAAA')
         await adicionar('PRF-BBBBBB')
-        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda$/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda · /i }))
         await responderConfirmacao('Confirmar venda?', 'Confirmar venda')
 
         expect(await screen.findByRole('heading', { name: 'Venda registrada' })).toBeInTheDocument()
@@ -830,7 +859,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
 
         await adicionar('PRF-AAAAAA')
         await adicionar('PRF-BBBBBB')
-        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda$/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda · /i }))
         await responderConfirmacao('Confirmar venda?', 'Confirmar venda')
 
         expect(
@@ -861,7 +890,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
 
         await adicionar('PRF-AAAAAA')
         await adicionar('PRF-VVVVVV')
-        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda$/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda · /i }))
         await responderConfirmacao('Confirmar venda?', 'Confirmar venda')
 
         expect(await screen.findByRole('heading', { name: /unidade vencida/i })).toBeInTheDocument()
@@ -888,7 +917,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
         montarTela()
 
         await adicionar('PRF-AAAAAA')
-        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda$/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^confirmar venda · /i }))
         await responderConfirmacao('Confirmar venda?', 'Confirmar venda')
 
         expect(
@@ -1019,7 +1048,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
       // Desde T33b, `CONFIRMAR` ali é "pode ser vendida": a unidade vai para o
       // carrinho, como numa leitura, e nada é vendido.
       expect(await screen.findByRole('heading', { name: /no carrinho/i })).toBeInTheDocument()
-      expect(screen.getByText(CORRIGIDA.mensagem)).toBeInTheDocument()
+      expect(within(cartaoDaLeitura()).getByText(CORRIGIDA.mensagem)).toBeInTheDocument()
       expect(codigosNoCarrinho()).toEqual(['PRF-VVVVVV'])
       expect(confirmacoesEnviadas()).toHaveLength(0)
       expect(enviosDoCaminho('corrigir')[0]).toEqual({
@@ -1288,7 +1317,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
       // revalida cada item (T34, Decisão 2). Por isso ele fica, e é ela que
       // espera a conexão.
       expect(codigosNoCarrinho()).toEqual(['PRF-AAAAAA', 'PRF-BBBBBB'])
-      expect(screen.getByRole('button', { name: /^confirmar venda$/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /^confirmar venda · /i })).toBeDisabled()
       expect(screen.queryByLabelText(/digite o código/i)).toBeNull()
 
       definirConexao(true)
@@ -1296,7 +1325,7 @@ describe('TelaVenda (RF05, RF06, RNF07, T34)', () => {
       await screen.findByLabelText(/digite o código/i)
 
       expect(codigosNoCarrinho()).toEqual(['PRF-AAAAAA', 'PRF-BBBBBB'])
-      expect(screen.getByRole('button', { name: /^confirmar venda$/i })).toBeEnabled()
+      expect(screen.getByRole('button', { name: /^confirmar venda · /i })).toBeEnabled()
     })
 
     it('libera a leitura quando a conexão volta', async () => {

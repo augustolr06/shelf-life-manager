@@ -1,5 +1,5 @@
 /**
- * Ícones de traço do menu (T41), copiados dos mockups da especificação do
+ * Ícones de traço do menu (T41) e da Venda (T43), copiados dos mockups da especificação do
  * redesign (`docs/redesign/claude-design/telas/`). SVG inline, sem biblioteca:
  * são poucos, e o PWA abre offline (RNF07) sem precisar de arquivo à parte.
  *
@@ -59,6 +59,21 @@ const TRACOS = {
   fechar: <path d="M6 6l12 12M18 6L6 18" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   sair: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />,
+  // Venda (T43): o botão da câmera e o estado de cada item do carrinho. O de
+  // atenção não está no mockup; é o do item que a confirmação não vendeu.
+  camera: (
+    <>
+      <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  confirmado: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  atencao: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5M12 16.5h.01" />
+    </>
+  ),
 } as const
 
 export type NomeIcone = keyof typeof TRACOS

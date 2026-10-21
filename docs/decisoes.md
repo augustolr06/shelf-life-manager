@@ -2676,3 +2676,59 @@ campos ignorando o período), 52/52 na pasta; `npm run typecheck` limpo. Fronten
 `playwright-cli` em 1280×900 e 360×740 como gestor: login leva a `/inicio`; busca `prf-474mzj`
 abre a Consulta com a unidade; busca por nome abre o Catálogo filtrado; Início no topo da folha
 "Mais"; sem rolagem horizontal; console sem erro. Capturas em `docs/redesign/T42/`.
+
+## 2026-10-21 — T43: Venda no novo layout
+
+Aplica a seção "Venda no celular" da especificação do redesign
+(`docs/redesign/claude-design/README.md`). Nenhum comportamento de T31, T33b, T34 ou T39 mudou;
+o que a especificação e o arquivo da tarefa não fixavam e foi decidido aqui:
+
+1. **O item do carrinho mostra a `mensagem` com que o servidor liberou a unidade**
+   ("Pode ser vendida: {produto} ({marca}), validade {data}."). O mockup escreve "Unidade certa:
+   é a que vence primeiro", que seria a tela afirmando o veredito (RNF04); a especificação diz
+   "a frase do servidor", e é ela que entra. `ItemCarrinho` ganhou o campo `mensagem`, gravado
+   na leitura e na revalidação que põem a unidade no carrinho. A frase repete nome e marca da
+   linha de cima, mas traz a validade, que o item mostrava antes como `<dl>`. Mudar o texto do
+   servidor ficou fora (seria backend numa tarefa de layout). **Ponto para o orientando revisar.**
+2. **O botão de confirmar sai do cartão do carrinho**, logo abaixo dele, para poder ficar preso
+   (`position: sticky`) acima da barra inferior no celular. A 360×740 com três itens ele fica
+   visível sem rolar, mesmo com o cartão "No carrinho" da última leitura na tela. No
+   computador fica no fluxo, como diz a especificação. Um anel na cor do fundo (`box-shadow`)
+   esconde o que rola por trás dele.
+3. **"Esvaziar carrinho" continua, como botão fantasma no pé do cartão.** O mockup não o
+   mostra (é o carrinho de um item), e o comportamento de T34 não muda.
+4. **Ordem da tela mantida: os vereditos ficam entre o campo do código e o carrinho**, como
+   antes. A especificação lista cabeçalho, leitor, código, carrinho e confirmar; o veredito é a
+   resposta à leitura, e fica junto dela.
+5. **Classes novas para a Venda** (`leitor-venda`, `codigo-venda`, `cabecalho-venda`), sem
+   tocar em `.camera` e `.entrada-manual`, que a Consulta usa e que ficam como estão: a Consulta
+   está fora do escopo do redesign (só tokens e menu). `.atendimento`, que só a Venda usava,
+   saiu. `tela-leitura` deixou de ser usada na Venda (era só um nome; não tinha estilo).
+6. **Espaço entre os blocos por margem, não por `gap`**: a `.area-resultado` vazia continua no
+   DOM porque é a região `aria-live`, e com `gap` ela abriria um vão a mais. Escondê-la quando
+   vazia (`display: none`) faria o leitor de tela perder o anúncio da primeira leitura.
+7. **Tokens do leitor no `:root`** (`--cor-leitor` `#12201D`, `--cor-leitor-texto` `#C9D6D2`,
+   11,23:1, e `--cor-leitor-linha`, decorativa). O anel de foco azul fica a 2,51:1 sobre o fundo
+   escuro; dentro do leitor ele é branco (16,80:1).
+8. **"Encerrar atendimento" no celular quebra o rótulo em duas linhas**, num botão de até 112 px
+   com texto de apoio, para caber à direita do título como na especificação; inteiro, ele
+   empurrava o botão para uma linha própria a 360 px.
+9. **Sem agrupamento de atendimento (sem HTTPS)**, o estado do cabeçalho troca o ponto verde
+   por um cinza e mantém, encurtada, a frase que explicava a consequência.
+10. **Ícones novos em `Icone.tsx`**: `camera` e `confirmado` vêm do mockup; `atencao` (círculo
+    com exclamação) marca o item que a confirmação não vendeu, que o mockup não mostra.
+11. **Rótulos novos**: "Ler" (era "Ler código"), "Ou digite o código da etiqueta" (era "…
+    impresso na etiqueta"), "Confirmar venda · N frascos", contagem "N frascos" no carrinho. Os
+    testes de `TelaVenda` mudaram só nos localizadores desses nomes e do código do item (que
+    deixou de ser `<dd>`); duas buscas da mensagem da leitura foram restritas ao cartão da
+    leitura, porque a mesma frase agora aparece também no item do carrinho.
+
+**Verificação.** Vitest 315/315 no frontend (um caso novo: o botão diz quantos frascos vende e
+o item mostra a frase do servidor); os dois erros não tratados que a suíte relata vêm de
+`TelaInicio.test.tsx` (`FormData` no jsdom) e já aconteciam no commit de T42. `npm run
+typecheck` limpo. `playwright-cli` a 360×740 (atendente) e 1280×900 (gestor): carrinho vazio,
+três itens com o botão de confirmar visível sem rolar (52 px, acima da barra inferior), veredito
+de vencida com correção → descarte → override na ordem do PRD 6.1 (gestor) e só o descarte
+(atendente); "Encerrar atendimento" some com itens no carrinho; console sem erro além do 401 de
+`/auth/me` antes do login. Câmera ligada não foi conferida: o `playwright-cli` não tem câmera, e
+isso entra na verificação em celular real. Capturas em `docs/redesign/T43/`.

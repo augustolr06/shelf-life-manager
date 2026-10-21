@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useConfirmacao } from '../components/DialogoConfirmacao'
+import { Icone } from '../components/Icone'
 import { LeitorCamera } from '../components/LeitorCamera'
 import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
 import { PortaoOffline } from '../components/PortaoOffline'
@@ -36,13 +37,18 @@ import {
  * vezes.
  */
 
+type Liberacao = Extract<RespostaLeitura, { veredito: 'CONFIRMAR' }>
+
 /**
- * Uma unidade liberada pela leitura. `pendencia` é o veredito que a
- * confirmação devolveu quando a unidade **não** saiu: o estoque mudou entre a
- * leitura e a confirmação, e o item fica no carrinho com o motivo.
+ * Uma unidade liberada pela leitura. `mensagem` é a frase do servidor que a
+ * liberou, e é ela que o item mostra (T43): a tela não escreve que a unidade
+ * é a certa. `pendencia` é o veredito que a confirmação devolveu quando a
+ * unidade **não** saiu: o estoque mudou entre a leitura e a confirmação, e o
+ * item fica no carrinho com o motivo.
  */
 type ItemCarrinho = {
   unidade: UnidadeLida
+  mensagem: string
   pendencia: RespostaLeitura | null
 }
 
@@ -116,13 +122,12 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
   const idsNoCarrinho = carrinho.map((item) => item.unidade.id)
 
   /** Entra no carrinho, ou, se já estava, deixa de ter pendência. */
-  function colocarNoCarrinho(unidade: UnidadeLida) {
+  function colocarNoCarrinho({ unidade, mensagem }: Liberacao) {
+    const novo = { unidade, mensagem, pendencia: null }
     setCarrinho((atual) =>
       atual.some((item) => item.unidade.id === unidade.id)
-        ? atual.map((item) =>
-            item.unidade.id === unidade.id ? { unidade, pendencia: null } : item,
-          )
-        : [...atual, { unidade, pendencia: null }],
+        ? atual.map((item) => (item.unidade.id === unidade.id ? novo : item))
+        : [...atual, novo],
     )
   }
 
@@ -183,7 +188,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
       }
 
       setResultado(resposta)
-      if (resposta.veredito === 'CONFIRMAR') colocarNoCarrinho(resposta.unidade)
+      if (resposta.veredito === 'CONFIRMAR') colocarNoCarrinho(resposta)
     } catch (falha) {
       setErro(
         falha instanceof ErroApi ? falha.message : 'Não foi possível registrar esta leitura.',
@@ -346,7 +351,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
           setErro(null)
           codigoJaProcessado.current = null
           if (revalidacao.veredito === 'CONFIRMAR') {
-            colocarNoCarrinho(revalidacao.unidade)
+            colocarNoCarrinho(revalidacao)
           } else {
             // Unidade que já estava no carrinho (venceu entre a leitura e a
             // confirmação) continua lá com o motivo novo.
@@ -400,12 +405,32 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
   const ocupada = lendo || confirmandoVenda
 
   return (
-    <section className="tela tela-leitura">
-      <h1>Venda</h1>
-      <p className="subtitulo">
-        Leia o código de cada frasco. O sistema confere se é a unidade que sai primeiro e, se for,
-        coloca no carrinho. Nada sai do estoque até você confirmar a venda.
-      </p>
+    <section className="tela tela-venda">
+      {/* Sem o texto de explicação que abria a tela até T43: o carrinho vazio
+          diz que cada frasco liberado entra nele, e o botão diz que é ele que
+          vende. */}
+      <header className="cabecalho-venda">
+        <div>
+          <h1>Venda</h1>
+          {online &&
+            (sessaoVendaId ? (
+              <p className="estado-atendimento">Atendimento em andamento</p>
+            ) : (
+              <p className="estado-atendimento sem-agrupamento">
+                Sem agrupamento de atendimento neste navegador (exige HTTPS). A venda funciona; só
+                o relatório por atendimento fica sem dado.
+              </p>
+            ))}
+        </div>
+        {/* Com itens no carrinho, o atendimento termina pela confirmação ou
+            pelo esvaziamento: encerrar aqui deixaria o carrinho de um cliente
+            no atendimento do próximo. */}
+        {online && carrinho.length === 0 && (
+          <button type="button" className="secundario" onClick={encerrarAtendimento}>
+            Encerrar atendimento
+          </button>
+        )}
+      </header>
 
       {!online ? (
         // Não existe leitura nem venda offline: o veredito depende do estoque
@@ -418,57 +443,57 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
         </PortaoOffline>
       ) : (
         <>
-          <div className="cartao atendimento">
-            <p>
-              {sessaoVendaId ? (
-                <>
-                  Atendimento em andamento. Ele termina quando a venda do carrinho é confirmada, e
-                  as saídas dele ficam agrupadas no relatório.
-                </>
-              ) : (
-                <>
-                  Sem agrupamento de atendimento neste navegador (exige HTTPS ou localhost). A
-                  venda funciona normalmente; só o relatório por atendimento fica sem dado.
-                </>
-              )}
-            </p>
-            {/* Com itens no carrinho, o atendimento termina pela confirmação
-                ou pelo esvaziamento: encerrar aqui deixaria o carrinho de um
-                cliente no atendimento do próximo. */}
-            {carrinho.length === 0 && (
-              <button type="button" className="secundario" onClick={encerrarAtendimento}>
-                Encerrar atendimento
-              </button>
-            )}
-          </div>
-
-          <div className="cartao camera">
+          {/* O leitor é o centro da tela: a área escura que o vídeo ocupa
+              quando a câmera liga. */}
+          <section
+            className={cameraLigada ? 'leitor-venda leitor-ligado' : 'leitor-venda'}
+            aria-label="Leitor de etiqueta"
+          >
             {cameraLigada ? (
               <>
                 <LeitorCamera modo="unica" aoLer={lerPelaCamera} aoFalhar={falhaDaCamera} />
-                <button type="button" className="secundario" onClick={() => setCameraLigada(false)}>
+                <button
+                  type="button"
+                  className="botao-leitor"
+                  onClick={() => setCameraLigada(false)}
+                >
                   Desligar câmera
                 </button>
               </>
             ) : (
-              <button type="button" onClick={ligarCamera} disabled={confirmandoVenda}>
-                Ligar câmera
-              </button>
+              <>
+                <div className="mira" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <p>Aponte para o código da etiqueta</p>
+                <button
+                  type="button"
+                  className="botao-leitor"
+                  onClick={ligarCamera}
+                  disabled={confirmandoVenda}
+                >
+                  <Icone nome="camera" />
+                  Ligar câmera
+                </button>
+              </>
             )}
+          </section>
 
-            {avisoCamera && (
-              <p className="erro" role="alert">
-                {avisoCamera}
-              </p>
-            )}
-          </div>
+          {avisoCamera && (
+            <p className="erro" role="alert">
+              {avisoCamera}
+            </p>
+          )}
 
           {/* Sempre visível, não escondido atrás da falha da câmera: é o
               caminho da etiqueta riscada, molhada ou apagada, e essa leitura é
               dado da pesquisa (RF12). */}
-          <form className="cartao entrada-manual" onSubmit={lerDigitado}>
-            <div className="campo">
-              <label htmlFor="codigo-qr">Ou digite o código impresso na etiqueta</label>
+          <form className="codigo-venda" onSubmit={lerDigitado}>
+            <label htmlFor="codigo-qr">Ou digite o código da etiqueta</label>
+            <div className="linha-codigo">
               <input
                 ref={campoCodigo}
                 id="codigo-qr"
@@ -478,14 +503,14 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
                 onChange={(evento) => setCodigoDigitado(evento.target.value)}
                 placeholder="PRF-XXXXXX"
               />
+              <button
+                type="submit"
+                aria-busy={lendo}
+                disabled={ocupada || codigoDigitado.trim() === ''}
+              >
+                {lendo ? 'Lendo…' : 'Ler'}
+              </button>
             </div>
-            <button
-              type="submit"
-              aria-busy={lendo}
-              disabled={ocupada || codigoDigitado.trim() === ''}
-            >
-              {lendo ? 'Lendo…' : 'Ler código'}
-            </button>
           </form>
 
           <div className="area-resultado" aria-live="polite">
@@ -566,58 +591,82 @@ function Carrinho({
   aoEsvaziar: () => void
 }) {
   return (
-    <section className="cartao carrinho" aria-labelledby="titulo-carrinho">
-      <h3 id="titulo-carrinho">
-        Carrinho {itens.length > 0 && <span className="contagem">({itens.length})</span>}
-      </h3>
+    <>
+      <section className="cartao carrinho" aria-labelledby="titulo-carrinho">
+        <div className="cabecalho-carrinho">
+          <h3 id="titulo-carrinho">Carrinho</h3>
+          {itens.length > 0 && <span className="contagem">{frascos(itens.length)}</span>}
+        </div>
 
-      {itens.length === 0 ? (
-        <p className="subtitulo">Vazio. Cada frasco liberado na leitura entra aqui.</p>
-      ) : (
-        <>
-          <ul className="itens-carrinho">
-            {itens.map(({ unidade, pendencia }) => (
-              <li
-                key={unidade.id}
-                className={pendencia ? 'item-carrinho item-com-pendencia' : 'item-carrinho'}
-              >
-                <DadosDaUnidade unidade={unidade} />
-                {pendencia && <PendenciaDoItem pendencia={pendencia} aoVerOpcoes={aoVerOpcoes} />}
-                <button
-                  type="button"
-                  className="secundario"
-                  disabled={confirmando}
-                  onClick={() => aoRemover(unidade.id)}
-                  aria-label={`Remover ${unidade.codigoQr} do carrinho`}
+        {itens.length === 0 ? (
+          <p className="subtitulo">Vazio. Cada frasco liberado na leitura entra aqui.</p>
+        ) : (
+          <>
+            <ul className="itens-carrinho">
+              {itens.map(({ unidade, mensagem, pendencia }) => (
+                <li
+                  key={unidade.id}
+                  className={pendencia ? 'item-carrinho item-com-pendencia' : 'item-carrinho'}
                 >
-                  Remover
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <span className={pendencia ? 'icone-item tom-atencao' : 'icone-item tom-sucesso'}>
+                    <Icone nome={pendencia ? 'atencao' : 'confirmado'} tamanho={20} />
+                  </span>
+                  <div className="dados-item">
+                    <span className="nome-item">{unidade.produto.nome}</span>
+                    <span className="marca-e-codigo">
+                      {unidade.produto.marca} · <span className="codigo">{unidade.codigoQr}</span>
+                    </span>
+                    {pendencia ? (
+                      <PendenciaDoItem pendencia={pendencia} aoVerOpcoes={aoVerOpcoes} />
+                    ) : (
+                      <span className="mensagem-item">{mensagem}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="fantasma botao-icone"
+                    disabled={confirmando}
+                    onClick={() => aoRemover(unidade.id)}
+                    aria-label={`Remover ${unidade.codigoQr} do carrinho`}
+                  >
+                    <Icone nome="fechar" />
+                  </button>
+                </li>
+              ))}
+            </ul>
 
-          <div className="acoes-carrinho">
             <button
               type="button"
-              aria-busy={confirmando}
-              disabled={!podeConfirmar}
-              onClick={aoConfirmar}
-            >
-              {confirmando ? 'Confirmando…' : 'Confirmar venda'}
-            </button>
-            <button
-              type="button"
-              className="secundario"
+              className="fantasma esvaziar-carrinho"
               disabled={confirmando}
               onClick={aoEsvaziar}
             >
               Esvaziar carrinho
             </button>
-          </div>
-        </>
+          </>
+        )}
+      </section>
+
+      {/* Fora do cartão para ficar preso acima da barra inferior no celular:
+          com o carrinho cheio, confirmar não pode depender de rolar a tela. */}
+      {itens.length > 0 && (
+        <div className="confirmar-venda">
+          <button
+            type="button"
+            aria-busy={confirmando}
+            disabled={!podeConfirmar}
+            onClick={aoConfirmar}
+          >
+            {confirmando ? 'Confirmando…' : `Confirmar venda · ${frascos(itens.length)}`}
+          </button>
+        </div>
       )}
-    </section>
+    </>
   )
+}
+
+function frascos(quantos: number): string {
+  return quantos === 1 ? '1 frasco' : `${quantos} frascos`
 }
 
 /**
