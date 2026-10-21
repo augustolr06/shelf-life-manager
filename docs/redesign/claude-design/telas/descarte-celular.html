@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Fila de descarte no celular — Estoque FIFO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0F5C52}a:hover{color:#0A3F38}
+</style>
+</head>
+<body>
+
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F7F5; font-family: Manrope, system-ui, sans-serif; color: #16201E; font-size: 15px; overflow: hidden">
+
+  <header style="display: flex; flex-direction: column; gap: 12px; padding: 20px 20px 12px">
+    <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.02em">Validade</h1>
+    <div role="tablist" aria-label="Validade" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: #E8ECEA">
+      <button type="button" role="tab" aria-selected="true" style="height: 40px; border: 0; border-radius: 9px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px">Descarte <span style="padding: 1px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-size: 12px">7</span></button>
+      <button type="button" role="tab" aria-selected="false" style="height: 40px; border: 0; border-radius: 9px; background: transparent; color: #3B4643; font: inherit; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">Alertas <span style="padding: 1px 8px; border-radius: 999px; background: #FEF0E1; color: #9A3C06; font-size: 12px">3</span></button>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #5B6763; line-height: 1.45">Unidades vencidas ficam bloqueadas para venda. Decida o destino de cada uma.</p>
+  </header>
+
+  <main style="flex: 1; min-height: 0; padding: 0 20px 12px">
+    <ul style="list-style: none; margin: 0; padding: 0; border-radius: 16px; background: #FFFFFF; border: 1px solid #E2E6E3; overflow: hidden">
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Creme Gama</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 49 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-1PM7HS</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Creme Gama</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 39 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-NK481P</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Perfume Beta</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 34 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-EAYDZR</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Creme Gama</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 32 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-PY3WKC</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Loção Delta</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 19 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-VNKCPK</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Perfume Ômega</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 18 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-QB9WA2</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+        <li style="display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-bottom: 1px solid #EEF1EF">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 700; font-size: 15px">Loção Delta</span>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5B6763">
+              <span style="padding: 2px 8px; border-radius: 999px; background: #FDECEA; color: #A8231A; font-weight: 800">há 4 dias</span>
+              <span style="font-family: 'JetBrains Mono', monospace">PRF-DA8X3V</span>
+            </span>
+          </div>
+          <button type="button" style="height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-size: 14px; font-weight: 700; flex: none">Resolver</button>
+        </li>
+      
+    </ul>
+  </main>
+
+  <nav aria-label="Menu principal" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px 18px; background: #FFFFFF; border-top: 1px solid #E2E6E3">
+    <a href="venda-celular.html" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>
+      Venda
+    </a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+      Consultar
+    </a>
+    <a href="descarte-celular.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #0F5C52; text-decoration: none; font-size: 12px; font-weight: 800">
+      <span style="position: relative; display: flex">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 2M9 3h6"/></svg>
+        <span style="position: absolute; top: -6px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: #A8231A; color: #FFFFFF; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">7</span>
+      </span>
+      Validade
+    </a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      Mais
+    </a>
+  </nav>
+</div>
+</body>
+</html>

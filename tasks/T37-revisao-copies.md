@@ -1,5 +1,10 @@
 # T37 — Revisão de copies (textos da interface e mensagens do servidor)
 
+> **Substituída em 2026-10-21 — não executar.** Por decisão do orientando, o redesign segue a
+> especificação de `docs/redesign/claude-design/README.md`, implementada em T40–T45. O que está
+> neste arquivo e não está na especificação não faz parte do redesign. Arquivo mantido como
+> registro; ver `tasks/backlog.md` e `docs/decisoes.md` (2026-10-21).
+
 **Depende de:** T35 (fundação visual)
 **Incremento:** 11 (Redesign)
 **Bloqueia:** nada

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Venda no celular — Estoque FIFO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0F5C52}a:hover{color:#0A3F38}
+</style>
+</head>
+<body>
+
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F6F7F5; font-family: Manrope, system-ui, sans-serif; color: #16201E; font-size: 15px; overflow: hidden">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 12px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.02em">Venda</h1>
+      <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1F6F4A"><span style="width: 8px; height: 8px; border-radius: 4px; background: #2E9E6A"></span>Atendimento em andamento</span>
+    </div>
+  </header>
+
+  <main style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 4px 20px 16px">
+    <section aria-label="Leitor de etiqueta" style="position: relative; height: 268px; border-radius: 18px; background: #12201D; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px">
+      <div style="position: relative; width: 220px; height: 120px">
+        <div style="position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-left: 3px solid #FFFFFF; border-top: 3px solid #FFFFFF; border-top-left-radius: 10px"></div>
+        <div style="position: absolute; right: 0; top: 0; width: 28px; height: 28px; border-right: 3px solid #FFFFFF; border-top: 3px solid #FFFFFF; border-top-right-radius: 10px"></div>
+        <div style="position: absolute; left: 0; bottom: 0; width: 28px; height: 28px; border-left: 3px solid #FFFFFF; border-bottom: 3px solid #FFFFFF; border-bottom-left-radius: 10px"></div>
+        <div style="position: absolute; right: 0; bottom: 0; width: 28px; height: 28px; border-right: 3px solid #FFFFFF; border-bottom: 3px solid #FFFFFF; border-bottom-right-radius: 10px"></div>
+        <div style="position: absolute; left: 16px; right: 16px; top: 59px; height: 2px; background: #5FD3A6; border-radius: 1px"></div>
+      </div>
+      <span style="color: #C9D6D2; font-size: 14px; font-weight: 600">Aponte para o código da etiqueta</span>
+      <button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: #FFFFFF; color: #12201D; font: inherit; font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        Ligar câmera
+      </button>
+    </section>
+
+    <form style="display: flex; flex-direction: column; gap: 6px">
+      <label for="cod" style="font-size: 13px; font-weight: 700; color: #3B4643">Ou digite o código da etiqueta</label>
+      <div style="display: flex; gap: 8px">
+        <input id="cod" type="text" placeholder="PRF-XXXXXX" style="flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid #66726E; border-radius: 12px; background: #FFFFFF; font-family: 'JetBrains Mono', monospace; font-size: 16px; letter-spacing: 0.04em; color: #16201E">
+        <button type="submit" style="height: 48px; padding: 0 18px; border: 0; border-radius: 12px; background: #0F5C52; color: #FFFFFF; font: inherit; font-weight: 800">Ler</button>
+      </div>
+    </form>
+
+    <section aria-labelledby="carrinho" style="border-radius: 16px; background: #FFFFFF; border: 1px solid #E2E6E3; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <h2 id="carrinho" style="margin: 0; font-size: 16px; font-weight: 800">Carrinho</h2>
+        <span style="font-size: 13px; color: #5B6763; font-weight: 600">1 frasco</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="width: 40px; height: 40px; border-radius: 10px; background: #E6F3EC; color: #1F6F4A; display: flex; align-items: center; justify-content: center; flex: none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-weight: 700">Base Líquida Natural</span>
+          <span style="font-size: 13px; color: #5B6763">Bella Lumière · <span style="font-family: 'JetBrains Mono', monospace">PRF-XXXXXX</span></span>
+          <span style="font-size: 12px; font-weight: 700; color: #1F6F4A">Unidade certa: é a que vence primeiro</span>
+        </div>
+        <button type="button" aria-label="Remover do carrinho" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; flex: none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <button type="button" style="margin-top: auto; height: 52px; border: 0; border-radius: 14px; background: #0F5C52; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 800">Confirmar venda · 1 frasco</button>
+  </main>
+
+  <nav aria-label="Menu principal" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px 18px; background: #FFFFFF; border-top: 1px solid #E2E6E3">
+    <a href="venda-celular.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #0F5C52; text-decoration: none; font-size: 12px; font-weight: 800">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>
+      Venda
+    </a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+      Consultar
+    </a>
+    <a href="descarte-celular.html" style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <span style="position: relative; display: flex">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 2M9 3h6"/></svg>
+        <span style="position: absolute; top: -6px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px; background: #A8231A; color: #FFFFFF; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center">7</span>
+      </span>
+      Validade
+    </a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; min-height: 52px; box-sizing: border-box; color: #5B6763; text-decoration: none; font-size: 12px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      Mais
+    </a>
+  </nav>
+</div>
+</body>
+</html>

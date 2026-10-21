@@ -1,5 +1,10 @@
 # T38 — Destaque de estado: vencidos, inativos e ações destrutivas
 
+> **Substituída em 2026-10-21 — não executar.** Por decisão do orientando, o redesign segue a
+> especificação de `docs/redesign/claude-design/README.md`, implementada em T40–T45. O que está
+> neste arquivo e não está na especificação não faz parte do redesign. Arquivo mantido como
+> registro; ver `tasks/backlog.md` e `docs/decisoes.md` (2026-10-21).
+
 **Depende de:** T35 (paleta semântica e componentes base), T39 (confirmações já existentes)
 **Incremento:** 11 (Redesign)
 **Bloqueia:** nada

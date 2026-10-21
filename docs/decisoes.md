@@ -2445,3 +2445,43 @@ erro além do 404 esperado do código inexistente.
 em `docs/redesign/T35/`, mais o veredito de unidade vencida na Venda, o diálogo de confirmação e
 um toast de erro (senha atual errada). Foco por teclado conferido nas abas e nos campos. Console
 sem erro além do 401 esperado da senha errada.
+
+
+## 2026-10-21 — Redesign pela proposta do Claude Design; T36, T37 e T38 substituídas
+
+**Decisão do orientando.** O redesign passa a seguir a proposta feita no Claude Design a partir
+do app em produção, especificada em `docs/redesign/claude-design/README.md` (com mockups em
+`docs/redesign/claude-design/telas/`). Ela é a **fonte de verdade** do redesign e substitui o
+escopo de T36 (responsividade), T37 (revisão de textos) e T38 (destaque de estado), que ficam
+com o status novo `substituída`. O que estava naquelas três tarefas e não está na especificação
+não faz parte do redesign; se for necessário, vira tarefa nova. A implementação foi dividida em
+T40–T45 (Incremento 12).
+
+Justificativa: a proposta resolve de uma vez os problemas que T36 e T38 atacavam em separado
+(navegação que ocupa metade da tela no celular, estado de validade sem destaque) e acrescenta o
+que nenhuma das três previa: uma tela inicial para o gestor com o que precisa de ação, e o
+catálogo com a lista primeiro.
+
+**Decisões de T35 revistas** (T35 continua sendo a base técnica: CSS próprio, tokens por papel,
+classes de tom):
+
+1. **Vencida é vermelha** (revê T35, decisão 4). O tom roxo `vencido` sai; a unidade vencida é
+   a primeira das cinco faixas de validade que o servidor já devolve no dashboard, cada uma com
+   cor própria. `perigo`, `atencao` e `sucesso` se alinham às faixas vencida, 8 a 30 dias e 31
+   a 90 dias.
+2. **Sem barra do topo** (revê T35, decisão 12). A marca e o usuário vão para o menu lateral no
+   computador; no celular, a navegação é uma barra inferior. `theme_color` passa ao fundo da
+   página.
+3. **Manrope e JetBrains Mono** no lugar da fonte do sistema, **empacotadas no build**
+   (`@fontsource`), nunca pelo Google Fonts, por causa do PWA offline (RNF07).
+4. **Borda de controle `#66726E`** (5,00:1 sobre branco), mantendo o critério de T35 para o
+   balcão ao sol. A primeira versão dos mockups usava `#D5DBD8` (1,40:1) e foi corrigida antes
+   de virar especificação.
+5. **Gestor começa no Início** (`/inicio`), e não mais no Catálogo; a atendente continua na
+   Venda.
+
+**Decisões da especificação que tocam a RNF04.** O Início mostra o próximo vencimento e a data
+de hoje: os dois entram na resposta de `GET /dashboard` (T42), em vez de o navegador comparar
+datas. Nos alertas, a cor do distintivo sai da `situacao` que o servidor já devolve
+(`VENCIDA` ou `NA_JANELA`), sem classificar `diasParaVencer` no navegador. O filtro por
+categoria do catálogo é do servidor (T45).

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Catálogo de produtos — Estoque FIFO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F7F5}
+a{color:#0F5C52}a:hover{color:#0A3F38}
+</style>
+</head>
+<body>
+
+<div style="width: 100%; min-height: 860px; box-sizing: border-box; display: flex; flex-wrap: wrap; background: #F6F7F5; font-family: Manrope, system-ui, sans-serif; color: #16201E; font-size: 14px">
+
+  <nav aria-label="Menu principal" style="flex: 1 1 232px; max-width: 100%; box-sizing: border-box; padding: 20px 14px; background: #FFFFFF; border-right: 1px solid #E2E6E3; display: flex; flex-direction: column; gap: 22px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px">
+      <div style="width: 34px; height: 34px; border-radius: 10px; background: #0F5C52; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 18h14M5 13h10M5 8h6"/></svg>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-weight: 800; font-size: 16px; letter-spacing: -0.01em">Estoque FIFO</span>
+        <span style="font-size: 12px; color: #5B6763">Primeiro que vence, primeiro que sai</span>
+      </div>
+    </div>
+
+    <a href="inicio.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6h-6v6H4z"/></svg>
+      Início
+    </a>
+
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B6763; padding: 0 12px 6px">Operação</span>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>
+        Venda
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+        Consultar produto
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h5l1 3h6l1-3h5M5 5h14l2 8v6H3v-6z"/></svg>
+        Recebimento
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12l-8 8-8-8V4h8z"/><circle cx="8" cy="8" r="1.5"/></svg>
+        Etiquetas
+      </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B6763; padding: 0 12px 6px">Validade</span>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg>
+        <span style="flex: 1">Alertas</span>
+        <span style="min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 11px; background: #FEF0E1; color: #9A3C06; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center">3</span>
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+        <span style="flex: 1">Descarte</span>
+        <span style="min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 11px; background: #FDECEA; color: #A8231A; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center">7</span>
+      </a>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B6763; padding: 0 12px 6px">Gestão</span>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg>
+        Relatórios
+      </a>
+      <a href="catalogo.html" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: #E3F0EC; color: #0F5C52; text-decoration: none; font-weight: 700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+        Catálogo
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.8-1.6-5-4-5.8"/></svg>
+        Contas de acesso
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #3B4643; text-decoration: none; font-weight: 600">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        Configurar alertas
+      </a>
+    </div>
+
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid #E2E6E3">
+      <div style="width: 34px; height: 34px; border-radius: 17px; background: #E3F0EC; color: #0F5C52; font-weight: 800; display: flex; align-items: center; justify-content: center">GL</div>
+      <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+        <span style="font-weight: 700">Gestora de Loja</span>
+        <span style="font-size: 12px; color: #5B6763">Gestor · <a href="#">Minha senha</a></span>
+      </div>
+      <button type="button" aria-label="Sair" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid #E2E6E3; background: #FFFFFF; color: #3B4643; display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 40px; display: flex; flex-direction: column; gap: 20px">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em">Catálogo de produtos</h1>
+        <span style="color: #5B6763">26 produtos ativos</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <button type="button" style="height: 44px; padding: 0 16px; border: 1px solid #66726E; border-radius: 10px; background: #FFFFFF; color: #16201E; font: inherit; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+          Importar planilha
+        </button>
+        <button type="button" style="height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #0F5C52; color: #FFFFFF; font: inherit; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Novo produto
+        </button>
+      </div>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+      <section aria-label="Lista de produtos" style="flex: 999 1 520px; min-width: 0; box-sizing: border-box; border-radius: 14px; background: #FFFFFF; border: 1px solid #E2E6E3; display: flex; flex-direction: column">
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 16px; border-bottom: 1px solid #E2E6E3">
+          <label style="flex: 1 1 240px; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 1px solid #66726E; border-radius: 10px; color: #5B6763; box-sizing: border-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+            <input type="text" placeholder="Buscar por nome, marca ou código" aria-label="Buscar produtos" style="border: 0; outline: none; font: inherit; color: #16201E; background: transparent; flex: 1; min-width: 0">
+          </label>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 0; background: #16201E; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700">Todas</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #66726E; background: #FFFFFF; color: #3B4643; font: inherit; font-size: 13px; font-weight: 600">Maquiagem</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #66726E; background: #FFFFFF; color: #3B4643; font: inherit; font-size: 13px; font-weight: 600">Perfumaria</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #66726E; background: #FFFFFF; color: #3B4643; font: inherit; font-size: 13px; font-weight: 600">Pele</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #66726E; background: #FFFFFF; color: #3B4643; font: inherit; font-size: 13px; font-weight: 600">Corpo e banho</button>
+            <button type="button" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #66726E; background: #FFFFFF; color: #3B4643; font: inherit; font-size: 13px; font-weight: 600">Cabelos</button>
+          </div>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="width: 100%; border-collapse: collapse; min-width: 640px">
+            <thead>
+              <tr style="text-align: left; font-size: 12px; color: #5B6763; text-transform: uppercase; letter-spacing: 0.06em">
+                <th style="padding: 12px 16px; font-weight: 700">Código</th>
+                <th style="padding: 12px 16px; font-weight: 700">Produto</th>
+                <th style="padding: 12px 16px; font-weight: 700">Categoria</th>
+                <th style="padding: 12px 16px; font-weight: 700">Situação</th>
+                <th style="padding: 12px 16px; font-weight: 700; width: 56px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P04</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Base Líquida Natural</span>
+                      <span style="font-size: 13px; color: #5B6763">Bella Lumière</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Maquiagem</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P03</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Batom Matte Rubi</span>
+                      <span style="font-size: 13px; color: #5B6763">Bella Lumière</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Maquiagem</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P14</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Body Splash Flor de Lótus</span>
+                      <span style="font-size: 13px; color: #5B6763">Essenza Nobre</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Perfumaria</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P09</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Colônia Cítrica</span>
+                      <span style="font-size: 13px; color: #5B6763">Essenza Nobre</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Perfumaria</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P02</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Condicionador Nutritivo</span>
+                      <span style="font-size: 13px; color: #5B6763">Aurora Cosméticos</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Cabelos</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-GAMA</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Creme Gama</span>
+                      <span style="font-size: 13px; color: #5B6763">Marca Fictícia</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Cuidados com a pele</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P20</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Creme para Mãos Karité</span>
+                      <span style="font-size: 13px; color: #5B6763">Pele Pura</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Corpo e banho</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P08</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Desodorante Brisa</span>
+                      <span style="font-size: 13px; color: #5B6763">Casa Alecrim</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Corpo e banho</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P18</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Eau de Parfum Noir</span>
+                      <span style="font-size: 13px; color: #5B6763">Essenza Nobre</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Perfumaria</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+                <tr style="border-top: 1px solid #EEF1EF">
+                  <td style="padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #3B4643">ZZ-P10</td>
+                  <td style="padding: 12px 16px">
+                    <div style="display: flex; flex-direction: column; gap: 2px">
+                      <span style="font-weight: 700">Esfoliante Corporal Café</span>
+                      <span style="font-size: 13px; color: #5B6763">Casa Alecrim</span>
+                    </div>
+                  </td>
+                  <td style="padding: 12px 16px; color: #3B4643">Corpo e banho</td>
+                  <td style="padding: 12px 16px"><span style="padding: 4px 10px; border-radius: 999px; background: #E6F3EC; color: #1F6F4A; font-size: 12px; font-weight: 800">Ativo</span></td>
+                  <td style="padding: 6px 16px">
+                    <button type="button" aria-label="Mais ações" style="width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              
+            </tbody>
+          </table>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid #E2E6E3; color: #5B6763; font-size: 13px">
+          <label style="display: flex; align-items: center; gap: 8px"><input type="checkbox" style="width: 18px; height: 18px; accent-color: #0F5C52">Mostrar inativos</label>
+          <div style="display: flex; align-items: center; gap: 10px">
+            <span>1–10 de 26</span>
+            <button type="button" aria-label="Página anterior" style="width: 36px; height: 36px; border: 1px solid #66726E; border-radius: 8px; background: #FFFFFF; color: #3B4643; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button type="button" aria-label="Próxima página" style="width: 36px; height: 36px; border: 1px solid #66726E; border-radius: 8px; background: #FFFFFF; color: #3B4643; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <aside aria-labelledby="novo" style="flex: 1 1 280px; box-sizing: border-box; padding: 20px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E2E6E3; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <h2 id="novo" style="margin: 0; font-size: 16px; font-weight: 800">Novo produto</h2>
+          <button type="button" aria-label="Fechar" style="width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: #5B6763; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 13px">Código interno
+          <input type="text" placeholder="Ex.: ZZ-P21" style="height: 44px; padding: 0 12px; border: 1px solid #66726E; border-radius: 10px; font: inherit; font-weight: 500; font-family: 'JetBrains Mono', monospace">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 13px">Nome
+          <input type="text" style="height: 44px; padding: 0 12px; border: 1px solid #66726E; border-radius: 10px; font: inherit; font-weight: 500">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 13px">Marca
+          <input type="text" style="height: 44px; padding: 0 12px; border: 1px solid #66726E; border-radius: 10px; font: inherit; font-weight: 500">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 13px">Categoria
+          <select style="height: 44px; padding: 0 12px; border: 1px solid #66726E; border-radius: 10px; font: inherit; font-weight: 500; background: #FFFFFF">
+            <option>Escolha uma categoria</option>
+            <option>Maquiagem</option>
+            <option>Perfumaria</option>
+            <option>Cuidados com a pele</option>
+            <option>Corpo e banho</option>
+            <option>Cabelos</option>
+          </select>
+        </label>
+        <button type="button" style="height: 44px; border: 0; border-radius: 10px; background: #0F5C52; color: #FFFFFF; font: inherit; font-weight: 700; cursor: pointer">Cadastrar produto</button>
+        <p style="margin: 0; font-size: 13px; color: #5B6763; line-height: 1.5">Tem muitos produtos? <a href="#" style="font-weight: 700">Importe uma planilha CSV</a>.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+</body>
+</html>

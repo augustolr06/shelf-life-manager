@@ -2,7 +2,8 @@
 
 Ordem de implementação segue a seção 8 do PRD (fatias verticais). Não pule a ordem de dependência mesmo que pareça mais rápido.
 
-Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`.
+Status possíveis: `pendente`, `em-andamento`, `concluída`, `bloqueada`, `substituída` (não
+executar: o escopo passou para outras tarefas, indicadas na nota da tarefa).
 
 ## Incremento 1 — Fundação (Auth + Produto + UnidadeProduto)
 
@@ -245,9 +246,16 @@ em qualquer ordem.
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T35 | Fundação visual: tokens, tipografia e componentes base | concluída | T29, T34 | `tasks/T35-fundacao-visual.md` |
-| T36 | Responsividade para celular e tablet | pendente | T35 | `tasks/T36-responsividade.md` |
-| T37 | Revisão de copies (textos da interface e mensagens do servidor) | pendente | T35 | `tasks/T37-revisao-copies.md` |
-| T38 | Destaque de estado: vencidos, inativos e ações destrutivas | pendente | T35, T39 | `tasks/T38-destaques-de-estado.md` |
+| T36 | Responsividade para celular e tablet | substituída | T35 | `tasks/T36-responsividade.md` |
+| T37 | Revisão de copies (textos da interface e mensagens do servidor) | substituída | T35 | `tasks/T37-revisao-copies.md` |
+| T38 | Destaque de estado: vencidos, inativos e ações destrutivas | substituída | T35, T39 | `tasks/T38-destaques-de-estado.md` |
+
+**T36, T37 e T38 substituídas (2026-10-21).** Por decisão do orientando, o redesign passa a
+seguir a proposta feita no Claude Design, especificada em
+`docs/redesign/claude-design/README.md` e dividida em T40–T45 (Incremento 12). O que estava
+nestas três tarefas e não está na especificação **não** faz parte do redesign e não deve ser
+feito; o orientando abre tarefa nova se quiser algum desses pontos. Decisão em
+`docs/decisoes.md` (2026-10-21).
 
 **Estado de T35 (2026-10-20).** Concluída. Tokens por papel e tabela de contraste no topo de
 `frontend/src/estilos.css`; tons semânticos (`tom-sucesso`, `-atencao`, `-perigo`, `-inativo`,
@@ -260,7 +268,32 @@ produção (a câmera aberta vende o que ler) e pequena → T33 → T33b → T34
 risco de vez; T33b e T34 em sequência, porque entre as duas a tela diz "Saída registrada" para
 uma leitura que não baixou) → T25 → T26 → T27 → T28 → T29 → T30 → T32 → T35 →
 T36/T37/T38. T39 entra logo depois de T30 e precisa vir antes de T34, que usa a mesma
-confirmação no carrinho.
+confirmação no carrinho. *(2026-10-21: T36, T37 e T38 foram substituídas pelo Incremento 12.)*
+
+## Incremento 12 — Redesign (proposta do Claude Design)
+
+Levantado em 2026-10-21. **A fonte de verdade do redesign é
+`docs/redesign/claude-design/README.md`**, com os mockups em `docs/redesign/claude-design/telas/`;
+cada arquivo de tarefa remete à seção dela. Substitui T36, T37 e T38. Os tokens e componentes
+de T35 continuam sendo a base técnica; mudam os valores (T40), a navegação (T41) e o layout de
+quatro telas (T42–T45). As telas que a especificação não redesenha recebem só T40 e T41.
+
+**Decisões anteriores afetadas** (detalhes em cada arquivo e em `docs/decisoes.md`,
+2026-10-21): T35 decisão 4 (tom `vencido` roxo vira vermelho), T35 decisão 12 (barra do topo
+e `theme_color`), fonte do sistema de T35 (vira Manrope e JetBrains Mono empacotadas),
+`rotaInicial` do gestor (vira `/inicio`), formato de cartão por unidade de T13 e T19, e
+cadastro e importação sempre visíveis no catálogo (T04, T24).
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T40 | Linguagem visual: tokens, escala de validade, fontes e manifest | pendente | T35 | `tasks/T40-linguagem-visual.md` |
+| T41 | Navegação por tarefa: menu lateral, barra inferior e fim da barra do topo | pendente | T40 | `tasks/T41-navegacao-por-tarefa.md` |
+| T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | pendente | T41 | `tasks/T42-tela-inicio.md` |
+| T43 | Venda no novo layout | pendente | T41 | `tasks/T43-venda-novo-layout.md` |
+| T44 | Descarte e alertas em lista compacta | pendente | T41 | `tasks/T44-validade-lista-compacta.md` |
+| T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | pendente | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
+
+**Ordem sugerida:** T40 → T41 → T42, T43, T44 e T45 em qualquer ordem.
 
 ---
 
