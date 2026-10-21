@@ -41,7 +41,18 @@ const COLONIA = {
   nome: 'Colônia 100ml',
 }
 
+/**
+ * As consultas da lista, do cadastro e da situação, na ordem em que saem. As
+ * categorias (T45) são pedidas em paralelo, ao abrir e depois de cadastrar, e
+ * respondem por fora dela — em `buscarCategorias` —, para não desalinhar a
+ * fila de respostas de cada teste.
+ */
 const buscar = vi.fn<typeof fetch>()
+const buscarCategorias = vi.fn<() => Promise<Response>>()
+const CATEGORIAS = ['Corpo e banho', 'Perfumaria']
+
+const fetchFalso: typeof fetch = (entrada, init) =>
+  String(entrada).endsWith('/produtos/categorias') ? buscarCategorias() : buscar(entrada, init)
 
 /** Uma resposta que só chega quando o teste mandar, para controlar a ordem. */
 function respostaAdiada() {
@@ -52,13 +63,30 @@ function respostaAdiada() {
   return { promessa, entregar }
 }
 
-/** Preenche o formulário de cadastro e submete. */
+/** O painel de cadastro começa fechado (T45). */
+function abrirNovoProduto() {
+  fireEvent.click(screen.getByRole('button', { name: 'Novo produto' }))
+}
+
+/** Preenche o formulário de cadastro e submete, abrindo o painel se preciso. */
 function cadastrar(codigo: string) {
+  if (!screen.queryByRole('complementary', { name: 'Novo produto' })) abrirNovoProduto()
   fireEvent.change(screen.getByLabelText('Código interno'), { target: { value: codigo } })
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Eau de Parfum 50ml' } })
   fireEvent.change(screen.getByLabelText('Marca'), { target: { value: 'Marca Exemplo' } })
   fireEvent.change(screen.getByLabelText('Categoria'), { target: { value: 'Perfumaria' } })
-  fireEvent.click(screen.getByRole('button', { name: /^cadastrar$/i }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cadastrar produto' }))
+}
+
+/** Escolhe uma ação no menu "…" da linha do produto (T45). */
+function escolherAcao(nomeProduto: string, acao: string) {
+  fireEvent.click(screen.getByRole('button', { name: `Ações de “${nomeProduto}”` }))
+  fireEvent.click(screen.getByRole('menuitem', { name: acao }))
+}
+
+async function esperarAcao(nomeProduto: string, acao: string) {
+  await screen.findByRole('button', { name: `Ações de “${nomeProduto}”` })
+  escolherAcao(nomeProduto, acao)
 }
 
 /**
@@ -76,7 +104,9 @@ function montar(usuario: Usuario = GESTOR, rota = '/produtos') {
 describe('TelaProdutos (RF02)', () => {
   beforeEach(() => {
     buscar.mockReset()
-    vi.stubGlobal('fetch', buscar)
+    buscarCategorias.mockReset()
+    buscarCategorias.mockImplementation(async () => respostaFalsa(200, { categorias: CATEGORIAS }))
+    vi.stubGlobal('fetch', fetchFalso)
   })
 
   afterEach(() => {
@@ -153,7 +183,7 @@ describe('TelaProdutos (RF02)', () => {
     montar()
     await screen.findByText('PRF-001')
 
-    fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
+    fireEvent.click(screen.getByLabelText('Mostrar inativos'))
 
     await waitFor(() =>
       expect(buscar).toHaveBeenLastCalledWith(
@@ -173,16 +203,18 @@ describe('TelaProdutos (RF02)', () => {
     await screen.findByText('PRF-001')
 
     // Com o filtro de inativos ligado, a linha permanece visível após a baixa.
-    fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
+    fireEvent.click(screen.getByLabelText('Mostrar inativos'))
     await waitFor(() => expect(buscar).toHaveBeenCalledTimes(2))
 
-    fireEvent.click(screen.getByRole('button', { name: /inativar/i }))
+    escolherAcao(PERFUME.nome, 'Inativar')
     await responderConfirmacao('Inativar produto?', 'Inativar')
 
-    expect(await screen.findByRole('button', { name: /reativar/i })).toBeInTheDocument()
     await encontrarAviso('Produto “Eau de Parfum 50ml” inativado.')
     const linha = screen.getByText('PRF-001').closest('tr')
     expect(within(linha as HTMLElement).getByText('Inativo')).toBeInTheDocument()
+    // O menu da linha agora oferece o desfazer.
+    fireEvent.click(screen.getByRole('button', { name: `Ações de “${PERFUME.nome}”` }))
+    expect(screen.getByRole('menuitem', { name: 'Reativar' })).toBeInTheDocument()
     expect(buscar).toHaveBeenLastCalledWith(
       `http://localhost:3333/produtos/${PERFUME.id}`,
       expect.objectContaining({ method: 'DELETE' }),
@@ -196,10 +228,10 @@ describe('TelaProdutos (RF02)', () => {
       .mockResolvedValueOnce(respostaFalsa(200, { produto: PERFUME }))
 
     montar()
-    fireEvent.click(await screen.findByRole('button', { name: /reativar/i }))
+    await esperarAcao(PERFUME.nome, 'Reativar')
 
     // Reativar desfaz uma inativação, sem perda: não pergunta (T39).
-    expect(await screen.findByRole('button', { name: /inativar/i })).toBeInTheDocument()
+    expect(await screen.findByText('Ativo')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(buscar).toHaveBeenLastCalledWith(
       `http://localhost:3333/produtos/${PERFUME.id}`,
@@ -215,9 +247,14 @@ describe('TelaProdutos (RF02)', () => {
 
     // Esconder é conveniência de interface; a recusa real continua sendo o
     // 403 do backend (RNF04).
+    expect(screen.queryByRole('button', { name: 'Novo produto' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Importar planilha' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ações de/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Ações' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Código interno')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /inativar/i })).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Arquivo CSV')).not.toBeInTheDocument()
+    // A busca e o filtro por categoria são de todos.
+    expect(screen.getByLabelText(/buscar por nome ou código/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Perfumaria' })).toBeInTheDocument()
   })
 
   it('avisa quando o catálogo não pôde ser carregado', async () => {
@@ -236,7 +273,7 @@ describe('TelaProdutos (RF02)', () => {
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
     montar()
-    fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+    await esperarAcao(PERFUME.nome, 'Inativar')
     await responderConfirmacao('Inativar produto?', 'Inativar')
 
     expect((await encontrarAviso(/conexão/i)).tipo).toBe('error')
@@ -244,12 +281,215 @@ describe('TelaProdutos (RF02)', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  describe('filtro por categoria (T45)', () => {
+    it('mostra "Todas" e as categorias do servidor, com "Todas" escolhida', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+
+      const grupo = await screen.findByRole('group', { name: 'Filtrar por categoria' })
+      const pilulas = within(grupo).getAllByRole('button')
+      expect(pilulas.map((pilula) => pilula.textContent)).toEqual([
+        'Todas',
+        'Corpo e banho',
+        'Perfumaria',
+      ])
+      expect(within(grupo).getByRole('button', { name: 'Todas' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+    })
+
+    it('pede a categoria ao servidor, combinada com a busca, e volta à primeira página', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME], 45))
+      montar(GESTOR, '/produtos?busca=eau')
+      await screen.findByText('PRF-001')
+
+      fireEvent.click(screen.getByRole('button', { name: /próxima/i }))
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          'http://localhost:3333/produtos?busca=eau&pagina=2',
+          expect.anything(),
+        ),
+      )
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Corpo e banho' }))
+
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          'http://localhost:3333/produtos?busca=eau&categoria=Corpo+e+banho',
+          expect.anything(),
+        ),
+      )
+      expect(screen.getByRole('button', { name: 'Corpo e banho' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      expect(screen.getByRole('button', { name: 'Todas' })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('"Todas" tira o filtro', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Perfumaria' }))
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          'http://localhost:3333/produtos?categoria=Perfumaria',
+          expect.anything(),
+        ),
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Todas' }))
+
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith('http://localhost:3333/produtos', expect.anything()),
+      )
+    })
+
+    it('sem as categorias, a lista continua, só sem as pílulas', async () => {
+      buscarCategorias.mockRejectedValue(new TypeError('Failed to fetch'))
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+
+      expect(await screen.findByText('PRF-001')).toBeInTheDocument()
+      await waitFor(() => expect(buscarCategorias).toHaveBeenCalled())
+      expect(screen.queryByRole('group', { name: 'Filtrar por categoria' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('cabeçalho com a contagem (T45)', () => {
+    it('conta os produtos ativos da lista, pelo total do servidor', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME], 26))
+      montar()
+
+      expect(await screen.findByText('26 produtos ativos')).toBeInTheDocument()
+      expect(screen.getByText('1–20 de 26')).toBeInTheDocument()
+    })
+
+    it('diz quando conta os inativos junto', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME], 30))
+      montar()
+      await screen.findByText('30 produtos ativos')
+
+      fireEvent.click(screen.getByLabelText('Mostrar inativos'))
+
+      expect(await screen.findByText('30 produtos')).toBeInTheDocument()
+    })
+  })
+
+  describe('painel de cadastro e importação (T45)', () => {
+    it('começa fechado; "Novo produto" abre o formulário com o foco no código', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByText('PRF-001')
+
+      expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Código interno')).not.toBeInTheDocument()
+
+      abrirNovoProduto()
+
+      const painel = screen.getByRole('complementary', { name: 'Novo produto' })
+      expect(within(painel).getByLabelText('Código interno')).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Novo produto' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      // A lista continua na tela ao lado do painel.
+      expect(screen.getByText('PRF-001')).toBeInTheDocument()
+    })
+
+    it('fechar devolve o foco ao botão que abriu o painel, e o Esc fecha também', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByText('PRF-001')
+
+      abrirNovoProduto()
+      fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+
+      expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Novo produto' })).toHaveFocus()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Importar planilha' }))
+      fireEvent.keyDown(screen.getByLabelText('Arquivo CSV'), { key: 'Escape' })
+
+      expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Importar planilha' })).toHaveFocus()
+    })
+
+    it('o que foi digitado continua lá quando o painel reabre', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByText('PRF-001')
+
+      abrirNovoProduto()
+      fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Colônia' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+      abrirNovoProduto()
+
+      expect(screen.getByLabelText('Nome')).toHaveValue('Colônia')
+    })
+
+    it('"Importar planilha" abre a importação no mesmo painel, e dá para trocar entre os dois', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByText('PRF-001')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Importar planilha' }))
+
+      const importacao = screen.getByRole('complementary', { name: 'Importar planilha' })
+      expect(within(importacao).getByLabelText('Arquivo CSV')).toHaveFocus()
+
+      fireEvent.click(within(importacao).getByRole('button', { name: 'Cadastre pelo formulário' }))
+      const cadastro = screen.getByRole('complementary', { name: 'Novo produto' })
+      expect(within(cadastro).getByLabelText('Código interno')).toHaveFocus()
+
+      fireEvent.click(within(cadastro).getByRole('button', { name: 'Importe uma planilha CSV' }))
+      expect(screen.getByRole('complementary', { name: 'Importar planilha' })).toBeInTheDocument()
+    })
+
+    it('o campo Categoria sugere as categorias que já existem e aceita uma nova', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByRole('button', { name: 'Perfumaria' })
+
+      abrirNovoProduto()
+
+      const campo = screen.getByLabelText('Categoria')
+      const sugestoes = document.getElementById(campo.getAttribute('list') ?? '')
+      expect(sugestoes?.tagName).toBe('DATALIST')
+      expect(
+        Array.from(sugestoes?.querySelectorAll('option') ?? []).map((opcao) => opcao.value),
+      ).toEqual(CATEGORIAS)
+      // Continua um campo de texto: categoria nova é digitada.
+      fireEvent.change(campo, { target: { value: 'Óleos' } })
+      expect(campo).toHaveValue('Óleos')
+    })
+
+    it('cadastro com sucesso mantém o painel aberto e pede as categorias de novo', async () => {
+      buscar
+        .mockResolvedValueOnce(pagina([]))
+        .mockResolvedValueOnce(respostaFalsa(201, { produto: PERFUME }))
+        .mockResolvedValueOnce(pagina([PERFUME]))
+      montar()
+      await screen.findByText(/nenhum produto encontrado/i)
+      await waitFor(() => expect(buscarCategorias).toHaveBeenCalledTimes(1))
+
+      cadastrar('PRF-001')
+
+      expect(await screen.findByText('PRF-001')).toBeInTheDocument()
+      expect(buscarCategorias).toHaveBeenCalledTimes(2)
+      expect(screen.getByRole('complementary', { name: 'Novo produto' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Código interno')).toHaveFocus()
+    })
+  })
+
   describe('confirmação antes de inativar (T39)', () => {
     it('cita o produto e diz o que acontece com o estoque, com o foco em Cancelar', async () => {
       buscar.mockResolvedValueOnce(pagina([PERFUME]))
 
       montar()
-      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await esperarAcao(PERFUME.nome, 'Inativar')
 
       const dialogo = await encontrarConfirmacao('Inativar produto?')
       expect(dialogo).toHaveAccessibleDescription(
@@ -258,11 +498,25 @@ describe('TelaProdutos (RF02)', () => {
       expect(within(dialogo).getByRole('button', { name: 'Cancelar' })).toHaveFocus()
     })
 
+    it('o item Inativar do menu é o de perigo; Reativar não', async () => {
+      buscar.mockResolvedValueOnce(pagina([PERFUME, { ...COLONIA, ativo: false }]))
+
+      montar()
+      await screen.findByText('PRF-001')
+
+      fireEvent.click(screen.getByRole('button', { name: `Ações de “${PERFUME.nome}”` }))
+      expect(screen.getByRole('menuitem', { name: 'Inativar' })).toHaveClass('perigo')
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+
+      fireEvent.click(screen.getByRole('button', { name: `Ações de “${COLONIA.nome}”` }))
+      expect(screen.getByRole('menuitem', { name: 'Reativar' })).not.toHaveClass('perigo')
+    })
+
     it('cancelar não chama a API e deixa o produto ativo', async () => {
       buscar.mockResolvedValueOnce(pagina([PERFUME]))
 
       montar()
-      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await esperarAcao(PERFUME.nome, 'Inativar')
       await responderConfirmacao('Inativar produto?', 'Cancelar')
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -274,7 +528,7 @@ describe('TelaProdutos (RF02)', () => {
       buscar.mockResolvedValueOnce(pagina([PERFUME]))
 
       montar()
-      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await esperarAcao(PERFUME.nome, 'Inativar')
       fireEvent.keyDown(await encontrarConfirmacao('Inativar produto?'), { key: 'Escape' })
 
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -288,7 +542,7 @@ describe('TelaProdutos (RF02)', () => {
         .mockResolvedValueOnce(pagina([]))
 
       montar()
-      fireEvent.click(await screen.findByRole('button', { name: /inativar/i }))
+      await esperarAcao(PERFUME.nome, 'Inativar')
       await responderConfirmacao('Inativar produto?', 'Inativar')
 
       await encontrarAviso('Produto “Eau de Parfum 50ml” inativado.')
@@ -383,7 +637,7 @@ describe('TelaProdutos (RF02)', () => {
       montar()
       await screen.findByText('PRF-001')
 
-      fireEvent.click(screen.getByLabelText(/mostrar produtos inativos/i))
+      fireEvent.click(screen.getByLabelText('Mostrar inativos'))
       await esperarFimDoCarregamento()
       digitarEEsperar('parfum')
       await esperarFimDoCarregamento()
@@ -479,7 +733,7 @@ describe('TelaProdutos (RF02)', () => {
 
       expect(screen.getByText('COL-002')).toBeInTheDocument()
       expect(screen.queryByText('PRF-001')).not.toBeInTheDocument()
-      expect(screen.getByText(/1 produto\(s\)/)).toBeInTheDocument()
+      expect(screen.getByText('1 produto ativo encontrado')).toBeInTheDocument()
     })
 
     it('termo novo volta para a primeira página', async () => {
@@ -524,6 +778,7 @@ describe('TelaProdutos (RF02)', () => {
       buscar.mockResolvedValueOnce(pagina([]))
       montar()
       await screen.findByText(/nenhum produto encontrado/i)
+      abrirNovoProduto()
     }
 
     it('limita os quatro campos e mostra o contador de caracteres', async () => {

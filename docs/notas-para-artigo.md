@@ -1994,3 +1994,29 @@ mesmo frasco.
 **Tarefa relacionada:** T44, T17, T40, RF08, RNF04
 
 **Data:** 2026-10-21
+
+## Catálogo que se consulta mais do que se cadastra, e categoria em texto livre
+
+**Contexto do problema:** na loja, o catálogo de ~700 SKUs é montado uma vez (pela planilha,
+T24) e depois quase só consultado: "esse perfume está cadastrado?", "qual o código dele?". Até
+T45 a tela de catálogo abria com o formulário de cadastro e a importação no topo, e a lista
+começava abaixo da dobra, como se cadastrar fosse a tarefa comum. A categoria, por sua vez, é
+um campo de texto livre desde o primeiro cadastro (T04): é como a loja já classifica os produtos
+na planilha, sem uma tabela fixa de categorias.
+
+**Solução adotada:** a lista vem primeiro, com busca e um filtro por categoria em pílulas, e o
+cadastro e a importação ficam num painel fechado por padrão (T45). As pílulas são as categorias
+que existem no catálogo, devolvidas pelo servidor, e o campo de categoria do cadastro passa a
+sugerir as mesmas, aceitando ainda uma nova.
+
+**Por que resolve o problema / trade-offs:** a tela passa a servir à tarefa frequente, e o
+filtro por categoria encurta a procura num catálogo grande sem exigir que a loja mantenha uma
+taxonomia. O preço do texto livre é que "Perfumaria" e "perfumaria" são duas categorias para o
+sistema, e o filtro, que é por igualdade, mostra as duas como pílulas separadas. A sugestão no
+cadastro reduz o problema daqui em diante, mas não corrige o que a planilha importada já trouxe
+com grafias diferentes. Normalizar as categorias, ou ter uma lista fixa, é trabalho futuro e vale
+citar como limitação: a qualidade do filtro depende da disciplina de quem preenche a planilha.
+
+**Tarefa relacionada:** T45, T04, T24
+
+**Data:** 2026-10-21

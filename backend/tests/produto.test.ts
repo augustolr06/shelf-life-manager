@@ -260,6 +260,76 @@ describe('CRUD de Produto (RF02)', () => {
       )
     })
 
+    describe('filtro por categoria (T45)', () => {
+      it('filtra pela categoria exata, sem mexer na regra dos inativos', async () => {
+        await app.inject({
+          method: 'GET',
+          url: '/produtos?categoria=Perfumaria',
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(listar).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { ativo: true, categoria: 'Perfumaria' } }),
+        )
+        expect(contar).toHaveBeenCalledWith({ where: { ativo: true, categoria: 'Perfumaria' } })
+      })
+
+      it('combina com a busca e com os inativos', async () => {
+        await app.inject({
+          method: 'GET',
+          url: `/produtos?busca=parfum&categoria=${encodeURIComponent('Corpo e banho')}&incluirInativos=true`,
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(listar).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              categoria: 'Corpo e banho',
+              OR: [
+                { nome: { contains: 'parfum', mode: 'insensitive' } },
+                { codigoInterno: { contains: 'parfum', mode: 'insensitive' } },
+              ],
+            },
+          }),
+        )
+      })
+
+      it('categoria que não existe devolve a lista vazia, e não erro', async () => {
+        listar.mockResolvedValue([])
+        contar.mockResolvedValue(0)
+
+        const resposta = await app.inject({
+          method: 'GET',
+          url: '/produtos?categoria=Inexistente',
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(resposta.statusCode).toBe(200)
+        expect(resposta.json()).toEqual({ produtos: [], total: 0, pagina: 1, tamanhoPagina: 20 })
+      })
+
+      it('categoria vazia não filtra', async () => {
+        await app.inject({
+          method: 'GET',
+          url: '/produtos?categoria=',
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(listar).toHaveBeenCalledWith(expect.objectContaining({ where: { ativo: true } }))
+      })
+
+      it('recusa categoria acima de 120 caracteres', async () => {
+        const resposta = await app.inject({
+          method: 'GET',
+          url: `/produtos?categoria=${'x'.repeat(121)}`,
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(resposta.statusCode).toBe(400)
+        expect(listar).not.toHaveBeenCalled()
+      })
+    })
+
     it('pagina o resultado', async () => {
       const resposta = await app.inject({
         method: 'GET',
@@ -294,6 +364,53 @@ describe('CRUD de Produto (RF02)', () => {
 
     it('exige sessão', async () => {
       const resposta = await app.inject({ method: 'GET', url: '/produtos' })
+
+      expect(resposta.statusCode).toBe(401)
+    })
+  })
+
+  describe('GET /produtos/categorias (T45)', () => {
+    it('devolve as categorias sem repetição, em ordem alfabética do português', async () => {
+      listar.mockResolvedValueOnce([
+        { categoria: 'Perfumaria' },
+        { categoria: 'Óleos' },
+        { categoria: 'cabelos' },
+        { categoria: 'Corpo e banho' },
+      ] as never)
+
+      const resposta = await app.inject({
+        method: 'GET',
+        url: '/produtos/categorias',
+        cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+      })
+
+      expect(resposta.statusCode).toBe(200)
+      // "Óleos" entre "Corpo" e "Perfumaria", e não no fim, como na colação `C`.
+      expect(resposta.json()).toEqual({
+        categorias: ['cabelos', 'Corpo e banho', 'Óleos', 'Perfumaria'],
+      })
+      // Sem filtro de `ativo`: a categoria de produto inativo também conta.
+      expect(listar).toHaveBeenCalledWith({
+        distinct: ['categoria'],
+        select: { categoria: true },
+      })
+    })
+
+    it('permite ATENDENTE, que também filtra a lista', async () => {
+      listar.mockResolvedValueOnce([])
+
+      const resposta = await app.inject({
+        method: 'GET',
+        url: '/produtos/categorias',
+        cookies: { [NOME_COOKIE_SESSAO]: sessaoAtendente },
+      })
+
+      expect(resposta.statusCode).toBe(200)
+      expect(resposta.json()).toEqual({ categorias: [] })
+    })
+
+    it('exige sessão', async () => {
+      const resposta = await app.inject({ method: 'GET', url: '/produtos/categorias' })
 
       expect(resposta.statusCode).toBe(401)
     })

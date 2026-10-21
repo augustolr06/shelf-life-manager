@@ -33,6 +33,8 @@ export type PaginaDeProdutos = {
 
 export type FiltrosProduto = {
   busca?: string
+  /** Igualdade exata com uma das categorias de `listarCategorias` (T45). */
+  categoria?: string
   incluirInativos?: boolean
   pagina?: number
 }
@@ -40,11 +42,18 @@ export type FiltrosProduto = {
 export async function listarProdutos(filtros: FiltrosProduto = {}): Promise<PaginaDeProdutos> {
   const parametros = new URLSearchParams()
   if (filtros.busca) parametros.set('busca', filtros.busca)
+  if (filtros.categoria) parametros.set('categoria', filtros.categoria)
   if (filtros.incluirInativos) parametros.set('incluirInativos', 'true')
   if (filtros.pagina && filtros.pagina > 1) parametros.set('pagina', String(filtros.pagina))
 
   const consulta = parametros.toString()
   return requisitarApi<PaginaDeProdutos>(`/produtos${consulta ? `?${consulta}` : ''}`)
+}
+
+/** As categorias que já existem no catálogo, na ordem em que o servidor as devolve (T45). */
+export async function listarCategorias(): Promise<string[]> {
+  const { categorias } = await requisitarApi<{ categorias: string[] }>('/produtos/categorias')
+  return categorias
 }
 
 export async function criarProduto(dados: DadosProduto): Promise<Produto> {

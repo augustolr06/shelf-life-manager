@@ -9,8 +9,11 @@ import {
 } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useConfirmacao } from '../components/DialogoConfirmacao'
+import { Icone } from '../components/Icone'
 import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
+import { MenuLinha } from '../components/MenuLinha'
 import { Paginacao } from '../components/Paginacao'
+import { useFormatoDaTela } from '../hooks/useFormatoDaTela'
 import { useValorComAtraso } from '../hooks/useValorComAtraso'
 import { camposRecusados, ErroApi } from '../services/api'
 import { avisar } from '../services/avisos'
@@ -18,6 +21,7 @@ import type { Usuario } from '../services/auth'
 import {
   criarProduto,
   inativarProduto,
+  listarCategorias,
   listarProdutos,
   reativarProduto,
   TAMANHO_MAXIMO_CAMPO_PRODUTO,
@@ -60,6 +64,12 @@ type MensagensPorCampo = Partial<Record<CampoProduto, string>>
  */
 const TAMANHO_MAXIMO_BUSCA = 120
 
+/**
+ * O que o painel ao lado da lista mostra (T45). Fechado por padrão: o uso
+ * mais comum do catálogo é procurar, não cadastrar.
+ */
+type Painel = 'novo' | 'importar' | null
+
 type Props = {
   usuario: Usuario
 }
@@ -76,13 +86,17 @@ export function TelaProdutos({ usuario }: Props) {
   const [parametros] = useSearchParams()
   const [termoDigitado, setTermoDigitado] = useState(() => parametros.get('busca') ?? '')
   const [incluirInativos, setIncluirInativos] = useState(false)
+  // `null` é "Todas". As categorias vêm do servidor, como estão gravadas, e o
+  // filtro é por igualdade (T45).
+  const [categoria, setCategoria] = useState<string | null>(null)
+  const [categorias, setCategorias] = useState<string[]>([])
   const [carregando, setCarregando] = useState(true)
   // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira
   // toast (T29).
   const [erro, setErro] = useState<string | null>(null)
   const campoBusca = useRef<HTMLInputElement>(null)
   const ultimaConsulta = useRef(0)
-  const inicioDaLista = useRef<HTMLTableElement>(null)
+  const inicioDaLista = useRef<HTMLElement>(null)
 
   // A busca vai ao servidor só depois de uma pausa na digitação (T26). Campo
   // vazio, ou só com espaços, vira busca vazia: a lista completa.
@@ -103,9 +117,23 @@ export function TelaProdutos({ usuario }: Props) {
   const [salvando, setSalvando] = useState(false)
   const confirmar = useConfirmacao()
 
-  // A escrita é restrita a GESTOR (RF02). Esconder o formulário é conveniência
-  // de interface, não autorização: quem decide continua sendo o 403 do
-  // backend (RNF04), inclusive se esta condição estiver errada.
+  const [painel, setPainel] = useState<Painel>(null)
+  const elementoPainel = useRef<HTMLElement>(null)
+  const botaoNovo = useRef<HTMLButtonElement>(null)
+  const botaoImportar = useRef<HTMLButtonElement>(null)
+  // Quem abriu o painel recebe o foco quando ele fecha. Guardado pelo nome, e
+  // não pelo elemento: no celular o cabeçalho sai da tela com o painel aberto,
+  // e o botão que volta é outro nó.
+  const abertoPor = useRef<Exclude<Painel, null> | null>(null)
+  const devolverFoco = useRef(false)
+  // No celular o painel ocupa a tela, no lugar da lista; nos outros tamanhos,
+  // fica ao lado dela (computador) ou acima (tablet).
+  const painelEmTelaCheia = useFormatoDaTela() === 'celular' && painel !== null
+
+  // A escrita é restrita a GESTOR (RF02). Esconder os botões, o painel e o
+  // menu da linha é conveniência de interface, não autorização: quem decide
+  // continua sendo o 403 do backend (RNF04), inclusive se esta condição
+  // estiver errada.
   const podeEditar = usuario.papel === 'GESTOR'
 
   const carregar = useCallback(async () => {
@@ -118,7 +146,12 @@ export function TelaProdutos({ usuario }: Props) {
     setCarregando(true)
     setErro(null)
     try {
-      const resultado = await listarProdutos({ busca, incluirInativos, pagina })
+      const resultado = await listarProdutos({
+        busca,
+        categoria: categoria ?? undefined,
+        incluirInativos,
+        pagina,
+      })
       if (!ehAtual()) return
       setProdutos(resultado.produtos)
       setTotal(resultado.total)
@@ -129,11 +162,54 @@ export function TelaProdutos({ usuario }: Props) {
     } finally {
       if (ehAtual()) setCarregando(false)
     }
-  }, [busca, incluirInativos, pagina])
+  }, [busca, categoria, incluirInativos, pagina])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  // Falha aqui não vira aviso: sem as categorias, a tela perde só as pílulas
+  // e as sugestões do campo, e a lista — que é o que importa — tem o próprio
+  // aviso de falha. Cadastro e importação podem criar categoria nova, e por
+  // isso pedem a lista de novo.
+  const carregarCategorias = useCallback(async () => {
+    try {
+      setCategorias(await listarCategorias())
+    } catch {
+      // Fica a lista anterior.
+    }
+  }, [])
+
+  useEffect(() => {
+    void carregarCategorias()
+  }, [carregarCategorias])
+
+  // Painel aberto ou trocado: o foco vai para o primeiro campo dele. Painel
+  // fechado: volta para o botão que o abriu.
+  useEffect(() => {
+    if (painel) {
+      elementoPainel.current?.querySelector('input')?.focus()
+      return
+    }
+    if (!devolverFoco.current) return
+    devolverFoco.current = false
+    ;(abertoPor.current === 'importar' ? botaoImportar : botaoNovo).current?.focus()
+  }, [painel])
+
+  function abrirPainel(qual: Exclude<Painel, null>) {
+    abertoPor.current = qual
+    setPainel(qual)
+  }
+
+  function fecharPainel() {
+    devolverFoco.current = true
+    setPainel(null)
+  }
+
+  function escolherCategoria(escolhida: string | null) {
+    setPagina(1)
+    setCategoria(escolhida)
+  }
 
   function limparBusca() {
     setTermoDigitado('')
@@ -150,6 +226,9 @@ export function TelaProdutos({ usuario }: Props) {
       avisar.sucesso(`Produto “${criado.nome}” cadastrado.`)
       setNovo(CAMPOS_VAZIOS)
       setAvisosDeColagem({})
+      // O painel continua aberto, vazio, para o próximo cadastro.
+      elementoPainel.current?.querySelector('input')?.focus()
+      void carregarCategorias()
       await carregar()
     } catch (falha) {
       // Recusa de schema (T12b) traz os campos recusados: a mensagem vai para
@@ -248,169 +327,343 @@ export function TelaProdutos({ usuario }: Props) {
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / tamanhoPagina))
+  const filtrada = busca !== '' || categoria !== null
 
   return (
     <section className="tela tela-produtos">
-      <h1>Catálogo</h1>
+      {!painelEmTelaCheia && (
+        <header className="cabecalho-catalogo">
+          <div>
+            <h1>Catálogo</h1>
+            <p className="subtitulo">
+              {produtos !== null && contagemDaLista(total, incluirInativos, filtrada)}
+              {/* Ao lado da contagem, e não da caixa de busca: lá, aparecer
+                  e sumir a cada busca mudaria a largura dela (T26). */}
+              {carregando && produtos !== null && (
+                <span className="indicador-carregando" role="status">
+                  Carregando…
+                </span>
+              )}
+            </p>
+          </div>
 
-      {podeEditar && (
-        <form className="cartao formulario-linha cadastro-produto" onSubmit={cadastrar}>
-          <h3>Cadastrar produto</h3>
+          {podeEditar && (
+            <div className="acoes-catalogo">
+              <button
+                ref={botaoImportar}
+                type="button"
+                className="secundario"
+                aria-expanded={painel === 'importar'}
+                onClick={() => abrirPainel('importar')}
+              >
+                <Icone nome="importar" />
+                Importar planilha
+              </button>
+              <button
+                ref={botaoNovo}
+                type="button"
+                aria-expanded={painel === 'novo'}
+                onClick={() => abrirPainel('novo')}
+              >
+                <Icone nome="novo" />
+                Novo produto
+              </button>
+            </div>
+          )}
+        </header>
+      )}
 
-          {CAMPOS_DO_FORMULARIO.map(({ campo, rotulo, foiCortado }) => {
-            const erroDoCampo = errosDeCampo[campo]
-            const avisoDeColagem = avisosDeColagem[campo]
-            const descricoes = [
-              `contador-${campo}`,
-              erroDoCampo ? `erro-${campo}` : null,
-              avisoDeColagem ? `aviso-colagem-${campo}` : null,
-            ]
-              .filter(Boolean)
-              .join(' ')
-
-            return (
-              <div className="campo" key={campo}>
-                <div className="rotulo-com-contador">
-                  <label htmlFor={campo}>{rotulo}</label>
-                  <span className="contador-caracteres" id={`contador-${campo}`}>
-                    {novo[campo].length}/{TAMANHO_MAXIMO_CAMPO_PRODUTO}
-                  </span>
-                </div>
+      <div className={painel ? 'corpo-catalogo com-painel' : 'corpo-catalogo'}>
+        {!painelEmTelaCheia && (
+          <section ref={inicioDaLista} className="cartao lista-catalogo" aria-label="Lista de produtos">
+            {/* A busca reage à digitação (T26). O formulário continua
+                existindo só para o Enter no campo não recarregar a página. */}
+            <form
+              role="search"
+              className="busca-catalogo"
+              onSubmit={(evento) => evento.preventDefault()}
+            >
+              <label htmlFor="busca" className="visualmente-oculto">
+                Buscar por nome ou código
+              </label>
+              <div className="campo-com-limpar">
+                <Icone nome="consultar" />
                 <input
-                  id={campo}
-                  name={campo}
-                  required
-                  maxLength={TAMANHO_MAXIMO_CAMPO_PRODUTO}
-                  aria-invalid={erroDoCampo ? true : undefined}
-                  aria-describedby={descricoes}
-                  value={novo[campo]}
-                  onChange={(evento) => editarCampo(campo, evento)}
-                  onPaste={(evento) => avisarColagemCortada(campo, foiCortado, evento)}
+                  id="busca"
+                  name="busca"
+                  ref={campoBusca}
+                  placeholder="Buscar por nome ou código"
+                  maxLength={TAMANHO_MAXIMO_BUSCA}
+                  value={termoDigitado}
+                  onChange={(evento) => setTermoDigitado(evento.target.value)}
                 />
-                {avisoDeColagem && (
-                  <p className="nota-informativa" id={`aviso-colagem-${campo}`} role="status">
-                    {avisoDeColagem}
-                  </p>
-                )}
-                {erroDoCampo && (
-                  <p className="erro" id={`erro-${campo}`} role="alert">
-                    {erroDoCampo}
-                  </p>
+                {termoDigitado && (
+                  <button
+                    type="button"
+                    className="botao-limpar-busca"
+                    aria-label="Limpar busca"
+                    onClick={limparBusca}
+                  >
+                    ×
+                  </button>
                 )}
               </div>
-            )
-          })}
+            </form>
 
-          <button type="submit" aria-busy={salvando} disabled={salvando}>
-            {salvando ? 'Cadastrando…' : 'Cadastrar'}
-          </button>
-        </form>
-      )}
-
-      {podeEditar && <ImportacaoProdutos aoImportar={() => void carregar()} />}
-
-      {/* A busca reage à digitação (T26). O formulário continua existindo só
-          para o Enter no campo não recarregar a página. */}
-      <form className="cartao formulario-linha" onSubmit={(evento) => evento.preventDefault()}>
-        <div className="campo">
-          {/* O indicador fica na linha do rótulo: ao lado da caixa, aparecer e
-              sumir a cada busca mudaria a largura dela. */}
-          <div className="rotulo-com-contador">
-            <label htmlFor="busca">Buscar por nome ou código</label>
-            {carregando && produtos !== null && (
-              <span className="indicador-carregando" role="status">
-                Carregando…
-              </span>
+            {categorias.length > 0 && (
+              <div className="pilulas-categoria" role="group" aria-label="Filtrar por categoria">
+                {[null, ...categorias].map((opcao) => (
+                  <button
+                    key={opcao ?? ''}
+                    type="button"
+                    className="pilula"
+                    aria-pressed={categoria === opcao}
+                    onClick={() => escolherCategoria(opcao)}
+                  >
+                    {opcao ?? 'Todas'}
+                  </button>
+                ))}
+              </div>
             )}
-          </div>
-          <div className="campo-com-limpar">
-            <input
-              id="busca"
-              name="busca"
-              ref={campoBusca}
-              maxLength={TAMANHO_MAXIMO_BUSCA}
-              value={termoDigitado}
-              onChange={(evento) => setTermoDigitado(evento.target.value)}
-            />
-            {termoDigitado && (
+
+            {erro && (
+              <p className="erro" role="alert">
+                {erro}
+              </p>
+            )}
+
+            {produtos === null ? (
+              carregando && <p role="status">Carregando produtos…</p>
+            ) : produtos.length === 0 ? (
+              <p className="lista-vazia">Nenhum produto encontrado.</p>
+            ) : (
+              // A tabela rola dentro do cartão; a página não rola na
+              // horizontal (T45).
+              <div className="rolagem-tabela">
+                <table className="tabela-catalogo">
+                  <thead>
+                    <tr>
+                      <th scope="col">Código</th>
+                      <th scope="col">Produto</th>
+                      <th scope="col">Categoria</th>
+                      <th scope="col">Situação</th>
+                      {podeEditar && (
+                        <th scope="col">
+                          <span className="visualmente-oculto">Ações</span>
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {produtos.map((produto) => (
+                      <tr key={produto.id} className={produto.ativo ? undefined : 'linha-inativa'}>
+                        <td className="codigo">{produto.codigoInterno}</td>
+                        <td>
+                          <span className="nome-produto">{produto.nome}</span>
+                          <span className="marca-produto">{produto.marca}</span>
+                        </td>
+                        <td>{produto.categoria}</td>
+                        <td>
+                          <span
+                            className={
+                              produto.ativo
+                                ? 'distintivo distintivo-sucesso'
+                                : 'distintivo distintivo-inativo'
+                            }
+                          >
+                            {produto.ativo ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        {podeEditar && (
+                          <td className="acoes-linha">
+                            <MenuLinha
+                              rotulo={`Ações de “${produto.nome}”`}
+                              acoes={[
+                                produto.ativo
+                                  ? {
+                                      rotulo: 'Inativar',
+                                      perigo: true,
+                                      aoEscolher: () => void alternarSituacao(produto),
+                                    }
+                                  : {
+                                      rotulo: 'Reativar',
+                                      aoEscolher: () => void alternarSituacao(produto),
+                                    },
+                              ]}
+                            />
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="rodape-lista">
+              <label className="caixa-selecao">
+                <input
+                  type="checkbox"
+                  checked={incluirInativos}
+                  onChange={(evento) => {
+                    setPagina(1)
+                    setIncluirInativos(evento.target.checked)
+                  }}
+                />
+                Mostrar inativos
+              </label>
+              {produtos !== null && total > 0 && (
+                <span className="intervalo-lista">
+                  {(pagina - 1) * tamanhoPagina + 1}–{Math.min(pagina * tamanhoPagina, total)} de{' '}
+                  {total}
+                </span>
+              )}
+              <Paginacao
+                pagina={pagina}
+                totalPaginas={totalPaginas}
+                aoMudar={setPagina}
+                alvoRolagem={inicioDaLista}
+              />
+            </div>
+          </section>
+        )}
+
+        {podeEditar && painel && (
+          <aside
+            ref={elementoPainel}
+            className="cartao painel-catalogo"
+            aria-labelledby="titulo-painel-catalogo"
+            onKeyDown={(evento) => {
+              if (evento.key === 'Escape') fecharPainel()
+            }}
+          >
+            <div className="cabecalho-painel-catalogo">
+              <h2 id="titulo-painel-catalogo">
+                {painel === 'novo' ? 'Novo produto' : 'Importar planilha'}
+              </h2>
               <button
                 type="button"
-                className="botao-limpar-busca"
-                aria-label="Limpar busca"
-                onClick={limparBusca}
+                className="fantasma botao-icone"
+                aria-label="Fechar"
+                onClick={fecharPainel}
               >
-                ×
+                <Icone nome="fechar" />
               </button>
+            </div>
+
+            {painel === 'novo' ? (
+              <>
+                <form className="formulario-coluna cadastro-produto" onSubmit={cadastrar}>
+                  {CAMPOS_DO_FORMULARIO.map(({ campo, rotulo, foiCortado }) => {
+                    const erroDoCampo = errosDeCampo[campo]
+                    const avisoDeColagem = avisosDeColagem[campo]
+                    const descricoes = [
+                      `contador-${campo}`,
+                      erroDoCampo ? `erro-${campo}` : null,
+                      avisoDeColagem ? `aviso-colagem-${campo}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+
+                    return (
+                      <div className="campo" key={campo}>
+                        <div className="rotulo-com-contador">
+                          <label htmlFor={campo}>{rotulo}</label>
+                          <span className="contador-caracteres" id={`contador-${campo}`}>
+                            {novo[campo].length}/{TAMANHO_MAXIMO_CAMPO_PRODUTO}
+                          </span>
+                        </div>
+                        <input
+                          id={campo}
+                          name={campo}
+                          required
+                          className={campo === 'codigoInterno' ? 'codigo' : undefined}
+                          placeholder={campo === 'codigoInterno' ? 'Ex.: PRF-021' : undefined}
+                          // A categoria sugere as que já existem e aceita uma
+                          // nova (T45): escolher da lista evita "Perfumaria" e
+                          // "perfumaria" como duas pílulas.
+                          list={campo === 'categoria' ? 'categorias-existentes' : undefined}
+                          autoComplete={campo === 'categoria' ? 'off' : undefined}
+                          maxLength={TAMANHO_MAXIMO_CAMPO_PRODUTO}
+                          aria-invalid={erroDoCampo ? true : undefined}
+                          aria-describedby={descricoes}
+                          value={novo[campo]}
+                          onChange={(evento) => editarCampo(campo, evento)}
+                          onPaste={(evento) => avisarColagemCortada(campo, foiCortado, evento)}
+                        />
+                        {avisoDeColagem && (
+                          <p
+                            className="nota-informativa"
+                            id={`aviso-colagem-${campo}`}
+                            role="status"
+                          >
+                            {avisoDeColagem}
+                          </p>
+                        )}
+                        {erroDoCampo && (
+                          <p className="erro" id={`erro-${campo}`} role="alert">
+                            {erroDoCampo}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <datalist id="categorias-existentes">
+                    {categorias.map((existente) => (
+                      <option key={existente} value={existente} />
+                    ))}
+                  </datalist>
+
+                  <button type="submit" aria-busy={salvando} disabled={salvando}>
+                    {salvando ? 'Cadastrando…' : 'Cadastrar produto'}
+                  </button>
+                </form>
+                <p className="troca-painel">
+                  Tem muitos produtos?{' '}
+                  <button type="button" className="botao-link" onClick={() => setPainel('importar')}>
+                    Importe uma planilha CSV
+                  </button>
+                  .
+                </p>
+              </>
+            ) : (
+              <>
+                <ImportacaoProdutos
+                  aoImportar={() => {
+                    void carregarCategorias()
+                    void carregar()
+                  }}
+                />
+                <p className="troca-painel">
+                  É um produto só?{' '}
+                  <button type="button" className="botao-link" onClick={() => setPainel('novo')}>
+                    Cadastre pelo formulário
+                  </button>
+                  .
+                </p>
+              </>
             )}
-          </div>
-        </div>
-        <label className="caixa-selecao">
-          <input
-            type="checkbox"
-            checked={incluirInativos}
-            onChange={(evento) => {
-              setPagina(1)
-              setIncluirInativos(evento.target.checked)
-            }}
-          />
-          Mostrar produtos inativos
-        </label>
-      </form>
-
-      {erro && (
-        <p className="erro" role="alert">
-          {erro}
-        </p>
-      )}
-
-      {produtos === null ? (
-        carregando && <p role="status">Carregando produtos…</p>
-      ) : produtos.length === 0 ? (
-        <p>Nenhum produto encontrado.</p>
-      ) : (
-        <table ref={inicioDaLista}>
-          <caption>
-            {total} produto(s) — página {pagina} de {totalPaginas}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Código</th>
-              <th scope="col">Nome</th>
-              <th scope="col">Marca</th>
-              <th scope="col">Categoria</th>
-              <th scope="col">Situação</th>
-              {podeEditar && <th scope="col">Ações</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {produtos.map((produto) => (
-              <tr key={produto.id} className={produto.ativo ? undefined : 'linha-inativa'}>
-                <td className="codigo">{produto.codigoInterno}</td>
-                <td>{produto.nome}</td>
-                <td>{produto.marca}</td>
-                <td>{produto.categoria}</td>
-                <td>{produto.ativo ? 'Ativo' : 'Inativo'}</td>
-                {podeEditar && (
-                  <td>
-                    <button type="button" onClick={() => void alternarSituacao(produto)}>
-                      {produto.ativo ? 'Inativar' : 'Reativar'}
-                    </button>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <Paginacao
-        pagina={pagina}
-        totalPaginas={totalPaginas}
-        aoMudar={setPagina}
-        alvoRolagem={inicioDaLista}
-      />
+          </aside>
+        )}
+      </div>
     </section>
   )
+}
+
+/**
+ * A contagem do cabeçalho, sobre a lista que está na tela: com filtro, é o
+ * que ele encontrou; com os inativos, conta os dois. O número é o `total` do
+ * servidor.
+ */
+function contagemDaLista(total: number, incluirInativos: boolean, filtrada: boolean): string {
+  const um = total === 1
+  return [
+    `${total} ${um ? 'produto' : 'produtos'}`,
+    incluirInativos ? null : um ? 'ativo' : 'ativos',
+    filtrada ? (um ? 'encontrado' : 'encontrados') : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 /**

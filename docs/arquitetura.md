@@ -284,7 +284,8 @@ traduz um no outro na mesma consulta que ordena a fila por validade.
 |---|---|---|---|
 | POST | `/auth/login` | público | Autentica, retorna cookie JWT |
 | POST | `/produtos` | GESTOR | Cria SKU (RF02) |
-| GET | `/produtos` | qualquer autenticado | Lista/busca produtos |
+| GET | `/produtos` | qualquer autenticado | Lista/busca produtos; filtros `busca`, `categoria` (igualdade exata, T45), `incluirInativos`, `pagina` |
+| GET | `/produtos/categorias` | qualquer autenticado | Categorias existentes, sem repetição, em ordem alfabética do português, inclusive as de produto inativo (T45) |
 | POST | `/produtos/importar` | GESTOR | Importa o catálogo de uma planilha CSV (T24) — ver abaixo |
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |

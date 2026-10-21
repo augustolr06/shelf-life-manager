@@ -10,6 +10,7 @@ export type DadosProduto = {
 
 export type FiltrosListagem = {
   busca?: string | undefined
+  categoria?: string | undefined
   incluirInativos: boolean
   pagina: number
   tamanhoPagina: number
@@ -59,12 +60,15 @@ export async function criarProduto(dados: DadosProduto): Promise<ResultadoEscrit
 }
 
 export async function listarProdutos(filtros: FiltrosListagem): Promise<PaginaDeProdutos> {
-  const { busca, incluirInativos, pagina, tamanhoPagina } = filtros
+  const { busca, categoria, incluirInativos, pagina, tamanhoPagina } = filtros
 
   const where: Prisma.ProdutoWhereInput = {
     // Inativos ficam fora por padrão: o uso corrente do catálogo é operacional
     // (cadastrar unidade, vender), e produto inativo não participa disso.
     ...(incluirInativos ? {} : { ativo: true }),
+    // Igualdade exata (T45): o valor vem das pílulas, que mostram as
+    // categorias como estão gravadas — ver `listarCategorias`.
+    ...(categoria ? { categoria } : {}),
     ...(busca
       ? {
           OR: [
@@ -86,6 +90,25 @@ export async function listarProdutos(filtros: FiltrosListagem): Promise<PaginaDe
   ])
 
   return { produtos, total, pagina, tamanhoPagina }
+}
+
+/**
+ * As categorias que existem no catálogo, sem repetição e em ordem alfabética
+ * (T45): são as pílulas do filtro e as sugestões do campo Categoria do
+ * cadastro. Inclui as de produto inativo, que continua aparecendo na lista com
+ * "Mostrar inativos" e pode ser reativado.
+ *
+ * A ordem é a do português, e não a do banco: a colação do Postgres depende de
+ * como o servidor foi criado (com `C`, "Óleos" viria depois de "Perfumaria").
+ * São poucas categorias, então ordenar aqui não custa nada.
+ */
+export async function listarCategorias(): Promise<string[]> {
+  const linhas = await prisma.produto.findMany({
+    distinct: ['categoria'],
+    select: { categoria: true },
+  })
+  const ordem = new Intl.Collator('pt-BR', { sensitivity: 'base' })
+  return linhas.map(({ categoria }) => categoria).sort(ordem.compare)
 }
 
 export async function buscarProduto(id: string): Promise<Produto | null> {

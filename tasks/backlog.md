@@ -291,7 +291,7 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 | T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | concluída | T41 | `tasks/T42-tela-inicio.md` |
 | T43 | Venda no novo layout | concluída | T41 | `tasks/T43-venda-novo-layout.md` |
 | T44 | Descarte e alertas em lista compacta | concluída | T41 | `tasks/T44-validade-lista-compacta.md` |
-| T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | pendente | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
+| T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | concluída | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
 
 **Ordem sugerida:** T40 → T41 → T42, T43, T44 e T45 em qualquer ordem.
 
@@ -326,6 +326,15 @@ unidade: nome, distintivo de faixa ("há N dias" vermelho; "vence em N dias" âm
 saíram da linha para o `title` (a revisar; `docs/decisoes.md`, T44, decisão 1). O alerta de
 unidade já vencida mantém, em uma linha, o aviso de que ela se resolve no Descarte. Capturas em
 `docs/redesign/T44/`.
+
+**Estado de T45 (2026-10-21).** Concluída. `GET /produtos` aceita `categoria` (igualdade exata) e
+`GET /produtos/categorias` devolve as existentes, inclusive de inativos, em ordem do português.
+Lista primeiro: busca, pílulas de categoria, tabela com menu "…" (`components/MenuLinha.tsx`) e
+"Mostrar inativos" com a paginação no rodapé. Cadastro e importação num painel fechado por
+padrão: ao lado no computador, acima no tablet, no lugar da lista no celular. Categoria do
+cadastro com sugestões (`<datalist>`). A contagem do cabeçalho descreve a lista filtrada, não o
+catálogo inteiro (a revisar; `docs/decisoes.md`, T45, decisão 5). Capturas em
+`docs/redesign/T45/`.
 
 ---
 

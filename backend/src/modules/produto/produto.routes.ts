@@ -6,6 +6,7 @@ import {
   buscarProduto,
   criarProduto,
   inativarProduto,
+  listarCategorias,
   listarProdutos,
   type DadosProduto,
 } from './produto.service.js'
@@ -56,6 +57,7 @@ const consultaListagem = {
   additionalProperties: false,
   properties: {
     busca: { type: 'string', maxLength: 120 },
+    categoria: { type: 'string', maxLength: 120 },
     incluirInativos: { type: 'boolean', default: false },
     pagina: { type: 'integer', minimum: 1, default: 1 },
     tamanhoPagina: {
@@ -86,6 +88,7 @@ const corpoImportacao = {
 
 type ConsultaListagem = {
   busca?: string
+  categoria?: string
   incluirInativos: boolean
   pagina: number
   tamanhoPagina: number
@@ -143,10 +146,18 @@ export async function rotasProduto(app: FastifyInstance): Promise<void> {
     '/produtos',
     { ...qualquerAutenticado, schema: { querystring: consultaListagem } },
     async (request) => {
-      const { busca, incluirInativos, pagina, tamanhoPagina } = request.query
-      return listarProdutos({ busca, incluirInativos, pagina, tamanhoPagina })
+      const { busca, categoria, incluirInativos, pagina, tamanhoPagina } = request.query
+      return listarProdutos({ busca, categoria, incluirInativos, pagina, tamanhoPagina })
     },
   )
+
+  // Rota própria, e não um campo de `GET /produtos` (T45): a lista de
+  // categorias não muda com a busca nem com a página, e a listagem sai a cada
+  // pausa na digitação (T26). A tela pede uma vez ao abrir e de novo depois de
+  // cadastrar ou importar. Estática, ganha de `/produtos/:id` no roteador.
+  app.get('/produtos/categorias', qualquerAutenticado, async () => ({
+    categorias: await listarCategorias(),
+  }))
 
   app.get<{ Params: { id: string } }>(
     '/produtos/:id',

@@ -23,6 +23,9 @@ type Props = {
  * Importação do catálogo por planilha CSV (T24). Só lê o arquivo e o envia:
  * interpretar o CSV, validar as linhas e decidir o que entra é do servidor, e a
  * tela mostra o que ele respondeu (RNF04).
+ *
+ * Desde T45 abre no painel lateral do Catálogo, que dá o título e a moldura:
+ * o componente é só o formulário.
  */
 export function ImportacaoProdutos({ aoImportar }: Props) {
   const campoArquivo = useRef<HTMLInputElement>(null)
@@ -60,9 +63,7 @@ export function ImportacaoProdutos({ aoImportar }: Props) {
   }
 
   return (
-    <form className="cartao formulario-linha importacao-produtos" onSubmit={importar}>
-      <h3>Importar produtos de planilha</h3>
-
+    <form className="formulario-coluna importacao-produtos" onSubmit={importar}>
       <p className="explicacao">
         Salve a planilha como CSV. A primeira linha precisa ter as colunas{' '}
         <strong>código interno</strong>, <strong>nome</strong>, <strong>marca</strong> e{' '}

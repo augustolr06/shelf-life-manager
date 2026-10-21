@@ -200,9 +200,11 @@
    cartão, fundo de distintivo). As classes de domínio entram na lista do tom
    que representam, para que o significado de cada cor fique escrito num lugar
    só. */
+/* `.distintivo` está na lista de atenção, logo abaixo: sem a classe dobrada,
+   o tom de atenção venceria por vir depois (o "Ativo" do Catálogo, T45). */
 .tom-sucesso,
 .nota-sucesso,
-.distintivo-sucesso,
+.distintivo.distintivo-sucesso,
 .resultado-confirmar {
   --tom-fundo: var(--cor-sucesso-fundo);
   --tom-texto: var(--cor-sucesso-texto);
@@ -1497,22 +1499,312 @@ button.item-barra.ativo {
 }
 
 /* ==========================================================================
-   Catálogo de produtos (T04, T24, T25)
-   ========================================================================== */
+   Catálogo de produtos (T04, T24, T25; layout de T45)
+   ==========================================================================
 
-/* Limite de caracteres do cadastro de produto (T25). O contador fica sempre à
-   vista, na linha do rótulo; o aviso de colagem cortada e a recusa do servidor
-   ficam embaixo do campo a que se referem. Como só o campo com mensagem
-   cresce, o formulário alinha pelo topo — alinhado pela base, o campo com
-   mensagem empurraria a caixa dos outros para baixo. O botão desce a altura
-   da linha do rótulo para ficar na linha das caixas. */
-.cadastro-produto {
-  --altura-rotulo: 1.3125rem;
-  align-items: flex-start;
+   A lista primeiro: um cartão com a busca, as pílulas de categoria, a tabela
+   e, no rodapé, "Mostrar inativos" e a paginação. Cadastro e importação
+   abrem num painel fechado por padrão: ao lado da lista no computador, acima
+   dela no tablet e no lugar dela no celular (`TelaProdutos`). */
+.cabecalho-catalogo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espaco-3) var(--espaco-4);
+  margin-bottom: var(--espaco-5);
 }
 
-.cadastro-produto > button {
-  margin-top: calc(var(--altura-rotulo) + var(--espaco-1));
+.cabecalho-catalogo .subtitulo {
+  margin: 0;
+}
+
+.cabecalho-catalogo .indicador-carregando {
+  margin-left: var(--espaco-2);
+}
+
+.acoes-catalogo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+/* No celular os dois botões dividem a linha: empilhados, ocupavam 100 px
+   antes da lista. O rótulo quebra se não couber, como o "Encerrar
+   atendimento" da Venda (T43). */
+.formato-celular .acoes-catalogo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+}
+
+.formato-celular .acoes-catalogo button {
+  padding: var(--espaco-1) var(--espaco-2);
+  font-size: var(--tamanho-apoio);
+  line-height: 1.2;
+}
+
+.corpo-catalogo {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fora do computador o painel vem antes da lista: depois dela, abriria lá
+   embaixo, abaixo de 20 linhas. */
+.corpo-catalogo > .painel-catalogo {
+  order: -1;
+}
+
+/* Painel de 280 px no mínimo, como na especificação. */
+.formato-computador .corpo-catalogo.com-painel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 22rem);
+  gap: var(--espaco-4);
+  align-items: start;
+}
+
+.formato-computador .corpo-catalogo > .painel-catalogo {
+  order: 0;
+}
+
+.lista-catalogo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  min-width: 0;
+}
+
+.lista-catalogo > .erro,
+.lista-catalogo > p {
+  margin: 0;
+}
+
+.lista-vazia {
+  color: var(--cor-texto-suave);
+}
+
+/* A lupa fica dentro da caixa, à esquerda; o × de limpar, à direita. */
+.busca-catalogo .campo-com-limpar > .icone {
+  position: absolute;
+  top: 50%;
+  left: var(--espaco-3);
+  translate: 0 -50%;
+  color: var(--cor-texto-suave);
+  pointer-events: none;
+}
+
+.busca-catalogo input {
+  width: 100%;
+  padding-left: calc(var(--espaco-3) + 18px + var(--espaco-2));
+}
+
+/* Pílulas de categoria: botões de alternância (`aria-pressed`). Quebram a
+   linha quando não cabem, em vez de rolar para o lado. */
+.pilulas-categoria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-2);
+}
+
+button.pilula {
+  min-height: 2.25rem;
+  padding: 0 var(--espaco-3);
+  border-color: var(--cor-borda-campo);
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+button.pilula:hover:not(:disabled) {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria-escura);
+}
+
+button.pilula[aria-pressed='true'] {
+  border-color: var(--cor-primaria);
+  background: var(--cor-primaria);
+  color: var(--cor-texto-inverso);
+}
+
+/* No celular a pílula volta ao alvo de toque inteiro. */
+.formato-celular button.pilula {
+  min-height: var(--alvo-toque);
+}
+
+/* A rolagem horizontal é da tabela, dentro do cartão; a largura mínima
+   impede que as colunas se espremam em vez de rolar. Posicionado para que o
+   "Ações" fora da vista (`.visualmente-oculto`, absoluto) fique preso aqui
+   dentro: sem isso, ele se posiciona pela página e a faz rolar de lado. */
+.rolagem-tabela {
+  position: relative;
+  overflow-x: auto;
+  margin-inline: calc(-1 * var(--espaco-4));
+}
+
+.tabela-catalogo {
+  min-width: 34rem;
+}
+
+.tabela-catalogo th:first-child,
+.tabela-catalogo td:first-child {
+  padding-left: var(--espaco-4);
+}
+
+.tabela-catalogo th {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+  font-weight: var(--peso-destaque);
+}
+
+.tabela-catalogo td {
+  vertical-align: middle;
+}
+
+/* O código não quebra no hífen: ele é lido em voz alta inteiro, e a tabela
+   já rola de lado quando não cabe. */
+.tabela-catalogo td.codigo {
+  white-space: nowrap;
+}
+
+.nome-produto {
+  display: block;
+  font-weight: var(--peso-destaque);
+}
+
+.marca-produto {
+  display: block;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
+.linha-inativa .nome-produto {
+  color: var(--cor-texto-suave);
+}
+
+.tabela-catalogo .distintivo {
+  margin-left: 0;
+}
+
+.acoes-linha {
+  width: var(--alvo-toque);
+  padding-block: 0;
+  text-align: right;
+}
+
+.rodape-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2) var(--espaco-4);
+}
+
+.intervalo-lista {
+  margin-left: auto;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A `.paginacao` é contêiner (T27): sem uma base, não teria largura. */
+.rodape-lista .paginacao {
+  flex: 1 1 12rem;
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+/* --- Menu "…" da linha ---------------------------------------------------
+   Vai para o `body` (`MenuLinha`), com posição fixa calculada a partir do
+   botão. */
+.menu-linha {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 10rem;
+  padding: var(--espaco-1);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-controle);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-flutuante);
+}
+
+button.item-menu-linha {
+  justify-content: flex-start;
+  border-radius: var(--raio-pequeno);
+  background: transparent;
+  color: var(--cor-texto);
+  font-weight: var(--peso-forte);
+}
+
+button.item-menu-linha:hover:not(:disabled),
+button.item-menu-linha:focus-visible {
+  background: var(--cor-fundo);
+}
+
+button.item-menu-linha.perigo {
+  color: var(--cor-perigo-texto);
+}
+
+button.item-menu-linha.perigo:hover:not(:disabled),
+button.item-menu-linha.perigo:focus-visible {
+  background: var(--cor-perigo-fundo);
+}
+
+/* --- Painel "Novo produto" / "Importar planilha" ------------------------- */
+.painel-catalogo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+}
+
+.cabecalho-painel-catalogo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco-2);
+  margin: calc(-1 * var(--espaco-2)) calc(-1 * var(--espaco-2)) 0 0;
+}
+
+.painel-catalogo h2 {
+  margin: 0;
+  font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
+}
+
+.painel-catalogo .formulario-coluna {
+  max-width: none;
+}
+
+.painel-catalogo .formulario-coluna > button {
+  align-self: stretch;
+}
+
+.troca-painel {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+/* Botão com cara de link, no meio de uma frase: troca o conteúdo do painel,
+   não leva a outro endereço. Sai do alvo de toque de todo botão para não
+   abrir um vão na linha do texto. */
+button.botao-link {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cor-primaria);
+  font: inherit;
+  font-weight: var(--peso-destaque);
+  text-decoration: underline;
+}
+
+button.botao-link:hover:not(:disabled) {
+  background: transparent;
+  color: var(--cor-primaria-escura);
 }
 
 /* Importação do catálogo por planilha (T24). O resultado pode ser uma lista

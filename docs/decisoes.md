@@ -2788,3 +2788,77 @@ sem rolagem horizontal, console sem erro. O distintivo âmbar de `NA_JANELA` nã
 navegador (não há alerta na janela no banco local); está coberto pelo Vitest. Resolver e marcar
 como lido não foram executados no navegador, para não mexer nos dados locais, e estão cobertos
 pelo Vitest. Capturas em `docs/redesign/T44/` (`celular-descarte-7-unidades.png` tem as cópias).
+
+## 2026-10-21 — T45: catálogo com a lista primeiro
+
+Aplica a seção "Catálogo" da especificação do redesign (`docs/redesign/claude-design/README.md`)
+e revisa T04 e T24: cadastro e importação deixam de ficar sempre abertos acima da lista. Nenhum
+comportamento de cadastro, importação, inativação ou reativação mudou. O que a especificação e
+o arquivo da tarefa não fixavam e foi decidido aqui:
+
+1. **Categorias numa rota própria, `GET /produtos/categorias`** (qualquer autenticado), e não
+   na resposta de `GET /produtos`. A lista não muda com a busca nem com a página, e a listagem
+   sai a cada pausa na digitação (T26): repetir o `DISTINCT` em cada uma seria trabalho jogado
+   fora. A tela pede ao abrir e de novo depois de cadastrar ou importar, que podem criar
+   categoria. Entram as categorias de produto inativo, que aparece com "Mostrar inativos" e
+   pode ser reativado. Falha nessa rota não vira aviso: a tela perde as pílulas e as sugestões,
+   e a lista continua.
+2. **Ordem alfabética do português, feita no servidor com `Intl.Collator('pt-BR')`**, e não
+   com `ORDER BY`: a colação do Postgres depende de como o banco foi criado, e com `C`
+   "Óleos" viria depois de "Perfumaria" e "cabelos" depois de todas as maiúsculas.
+3. **Filtro `categoria` por igualdade exata, com o valor como está gravado.** Categoria é texto
+   livre desde T04, então "Perfumaria" e "perfumaria" são duas pílulas. Normalizar (como o
+   `codigoInterno`) mudaria dados existentes e fica fora do escopo; o que esta tarefa faz para
+   não piorar é o campo Categoria do cadastro sugerir as existentes (decisão 4).
+4. **Campo Categoria é texto com `<datalist>`, não `<select>`** como no mockup: a tarefa pede as
+   categorias existentes **e** a opção de digitar uma nova. Continua um `<input>`, então o
+   contador, o limite e o aviso de colagem cortada de T25 valem sem mudança.
+5. **A contagem do cabeçalho descreve a lista que está na tela**, pelo `total` do servidor:
+   "26 produtos ativos"; com busca ou categoria, "4 produtos ativos encontrados"; com os
+   inativos, "30 produtos". A especificação fala em "contagem de produtos ativos", mas o
+   número do catálogo inteiro exigiria outra consulta, e mostrá-lo ao lado de uma lista
+   filtrada confundiria. O resumo de página virou "1–20 de 26" no rodapé, ao lado da
+   paginação, como no mockup; o `<caption>` saiu.
+6. **Painel: ao lado da lista no computador (grade com coluna de 280 a 352 px), acima dela no
+   tablet e no lugar dela no celular.** No tablet não há largura para os dois lado a lado, e
+   abaixo da lista ele abriria depois de 20 linhas. No celular, "tela cheia" foi lido como a
+   tela do Catálogo trocar a lista e o cabeçalho pelo painel, com a barra inferior visível; um
+   painel por cima de tudo exigiria a mesma maquinaria de diálogo modal só para isto. O foco
+   vai ao primeiro campo ao abrir e volta ao botão que abriu ao fechar (botão Fechar ou Esc).
+   O que foi digitado continua lá se o painel fechar e reabrir; depois de um cadastro aceito, o
+   painel fica aberto e vazio para o próximo.
+7. **Menu "…" (`components/MenuLinha.tsx`) no `body`, com posição fixa**, porque dentro da
+   célula ele seria cortado pelo contêiner que rola a tabela no celular. Fecha ao rolar,
+   redimensionar, tocar fora, Tab ou Esc; escolher uma ação devolve o foco ao "…" antes de
+   executá-la, para a confirmação de T39 devolver o foco a ele. A variante `perigo` ficou no
+   item "Inativar" (texto vermelho); o botão de confirmar do diálogo continua o primário, como
+   em T39.
+8. **Texto da busca continua "Buscar por nome ou código"**, e não "nome, marca ou código" como no
+   mockup: o servidor não busca por marca (T26), e a tela não promete o que ele não faz.
+9. **Título continua "Catálogo"**, o rótulo do menu (T41, decisão 3), e não "Catálogo de
+   produtos" do mockup. O título do painel é `<h2>`, como as seções do Início (T42, decisão 13).
+10. **`.distintivo.distintivo-sucesso` com a classe dobrada** na lista de tom de sucesso:
+    `.distintivo` está na lista de atenção, que vem depois, e vencia — o "Ativo" saía âmbar.
+    Nenhuma tela usava o distintivo de sucesso até aqui.
+11. **"Ações" fora da vista dentro de um contêiner posicionado.** `.visualmente-oculto` é
+    absoluto; sem ancestral posicionado ele escapava do contêiner da tabela e a página rolava de
+    lado no celular (506 px a 360). O código interno não quebra linha no hífen.
+12. O item 8 da tarefa (`?busca=` pela URL) já tinha sido feito em T42 e não mudou.
+
+**Verificação.** Backend: 8 casos novos em `tests/produto.test.ts` (categoria exata, combinada
+com busca e inativos, inexistente → lista vazia, vazia → sem filtro, acima de 120 → 400; a rota
+de categorias com ordem do português, ATENDENTE e 401). Frontend: `TelaProdutos.test.tsx`
+reescrito para o painel e o menu (13 casos novos: pílulas, contagem, painel, foco, datalist,
+perigo) e `MenuLinha.test.tsx` (5 casos). Frontend 335/335 e backend 548/548; typecheck e build
+limpos; os dois erros não tratados da suíte do frontend vêm de `TelaInicio.test.tsx` e já
+existiam. `curl` na rota contra o Postgres local.
+`playwright-cli` a 1280×900 e 360×740 como gestor: lista, filtro "Perfumaria" combinado com a
+contagem, painel de cadastro e de importação, menu "…" aberto, inativar com confirmação e
+reativar pelo menu (o produto de teste T05-SMOKE voltou a ativo), painel em tela cheia no
+celular com o foco devolvido a "Novo produto" ao fechar, página sem rolagem horizontal a 360 px,
+console sem erro. A atendente não foi aberta no navegador: está coberta pelo Vitest e pelo 403
+do backend. Capturas em `docs/redesign/T45/`.
+
+**Tarefa relacionada:** T04, T24, T25, T26, T27, T39, T41, T42
+
+**Data:** 2026-10-21
