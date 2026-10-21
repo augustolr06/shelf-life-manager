@@ -345,12 +345,13 @@ export function TelaDashboard() {
                   <div className="dados-saida">
                     <h4>{saida.unidade.produto.nome}</h4>
                     <p className="subtitulo">
-                      {saida.unidade.produto.marca} · {saida.unidade.produto.codigoInterno}
+                      {saida.unidade.produto.marca} ·{' '}
+                      <span className="codigo">{saida.unidade.produto.codigoInterno}</span>
                     </p>
 
                     <dl className="dados-unidade">
                       <dt>Etiqueta</dt>
-                      <dd>{saida.unidade.codigoQr}</dd>
+                      <dd className="codigo">{saida.unidade.codigoQr}</dd>
                       <dt>Validade</dt>
                       {/* Data de calendário: fatiada, nunca convertida por fuso (RNF01). */}
                       <dd>{formatarData(saida.unidade.dataValidade)}</dd>

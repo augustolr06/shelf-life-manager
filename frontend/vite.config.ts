@@ -17,6 +17,11 @@ export default defineConfig({
         // teste por trás. O arquivo vive em `public/sw-push.js` e é copiado
         // para a raiz do build.
         importScripts: ['sw-push.js'],
+        // O padrão do plugin é `js,css,html`: sem o `woff2`, o app instalado
+        // abriria offline na fonte do sistema (T40). O `woff` que o
+        // `@fontsource` também emite fica de fora, porque todo navegador que
+        // instala o PWA lê `woff2`.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
         // Duas razões, ambas de T10. (a) O app instalado precisa abrir sem
         // rede para mostrar o bloqueio explícito da tela de leitura, em vez do
         // erro de rede do navegador, que não explica nada. (b) Cada tela tem
@@ -46,12 +51,12 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
-        // As duas cores repetem tokens de `src/estilos.css` (T35): o fundo da
-        // página (`--cor-fundo`), para a tela de abertura emendar no app, e a
-        // barra do topo (`--cor-barra`), para a barra de status do celular
-        // continuar a do app. O manifest é JSON e não lê variável CSS.
-        background_color: '#f3f4f6',
-        theme_color: '#115e59',
+        // As duas cores repetem o fundo da página (`--cor-fundo` de
+        // `src/estilos.css`): a tela de abertura e a barra de status do celular
+        // emendam no app, que desde T40 não tem barra colorida no topo. O
+        // manifest é JSON e não lê variável CSS.
+        background_color: '#f6f7f5',
+        theme_color: '#f6f7f5',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

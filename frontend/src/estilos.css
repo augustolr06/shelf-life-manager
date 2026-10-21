@@ -13,103 +13,149 @@
 
    As cores são nomeadas por **papel** (`--cor-fundo`, `--cor-texto`), e não
    por tom (`--cinza-100`): um modo escuro, se vier, redefine só este bloco.
+   Os valores são os da especificação do redesign
+   (`docs/redesign/claude-design/README.md`, "Linguagem visual"), desde T40.
 
-   Paleta semântica. Cada tom tem três cores: `-fundo` (área), `-texto` (texto
-   sobre o fundo do mesmo tom) e `-forte` (borda de destaque, e fundo de
-   distintivo com texto branco). Contraste conferido em T35 (WCAG AA pede 4,5:1
-   para texto normal):
+   Escala de validade: as cinco faixas que o servidor devolve (RNF04 — a tela
+   nunca classifica a data). Cada faixa tem três cores: `-texto` e `-fundo`
+   (o distintivo) e `-barra` (a barra do estoque). Os tons semânticos são
+   apelidos de faixa: `perigo` é a vencida, `atencao` a de 8 a 30 dias (a
+   janela de alerta) e `sucesso` a de 31 a 90. O `-forte` de cada tom, que é
+   faixa lateral de cartão e fundo com texto branco, é o próprio `-texto`.
 
-     tom       texto sobre -fundo     branco sobre -forte
-     sucesso   #065f46/#ecfdf5 7,29   #047857 5,48
-     atencao   #92400e/#fffbeb 6,84   #b45309 5,02
-     perigo    #991b1b/#fee2e2 6,80   #b91c1c 6,47
-     inativo   #4b5563/#f3f4f6 6,87   #4b5563 7,56
-     vencido   #5b21b6/#f5f3ff 8,19   #6d28d9 7,10
+   Contraste conferido em T40 (WCAG AA pede 4,5:1 para texto normal, e 3:1
+   para borda de controle):
 
-   E os pares de uso geral: texto #1f2937 sobre o fundo da página 13,34;
-   texto suave #4b5563 sobre o fundo da página 6,87 (era #6b7280, com 4,39 —
-   abaixo do AA, e é a cor de todo `.subtitulo`); branco sobre a primária
-   5,47; primária sobre branco 5,47.
+     faixa / tom              texto sobre -fundo   branco sobre -texto
+     vencida  / perigo        #A8231A/#FDECEA 6,29  7,19
+     ate 7 dias               #9A3C06/#FEF0E1 6,21  6,95
+     8 a 30   / atencao       #7A5600/#FDF6DC 6,14  6,65
+     31 a 90  / sucesso       #1F6F4A/#E6F3EC 5,36  6,12
+     acima de 90              #0F5C52/#E3F0EC 6,71  7,86
+     inativo                  #5B6763/#F6F7F5 5,48  5,89
 
-   `vencido` não está entre os quatro tons do escopo de T35: é o roxo que o
-   sistema já usava para a unidade vencida (balcão, fila de descarte, alerta
-   que não funcionou), e virou token para não ser valor solto. Quando e onde
-   ele aparece é regra de T38. */
+   E os pares de uso geral: texto #16201E sobre o fundo da página 15,52 e
+   sobre branco 16,67; texto suave #5B6763 sobre o fundo 5,48 e sobre branco
+   5,89; texto do menu #3B4643 sobre branco 9,80; branco sobre a primária
+   7,86; primária sobre a primária suave 6,71; borda de controle #66726E
+   sobre branco 5,00; foco #1d4ed8 sobre branco 6,70.
+
+   As cores de barra das faixas do meio ficam abaixo de 3:1 sobre branco
+   (8 a 30 dias, 2,10; 31 a 90, 2,71). Só servem onde a barra nunca aparece
+   sem a legenda, que repete cada faixa com nome e número. */
 :root {
   /* Superfícies, texto e bordas */
-  --cor-fundo: #f3f4f6;
+  --cor-fundo: #f6f7f5;
   --cor-superficie: #ffffff;
-  --cor-superficie-suave: #f9fafb;
-  --cor-texto: #1f2937;
-  --cor-texto-suave: #4b5563;
+  --cor-superficie-suave: var(--cor-fundo);
+  --cor-texto: #16201e;
+  --cor-texto-suave: #5b6763;
+  /* Itens do menu não ativos (T41). */
+  --cor-texto-menu: #3b4643;
   --cor-texto-inverso: #ffffff;
-  --cor-borda: #d1d5db;
-  /* Borda de campo de formulário: 4,83:1 sobre branco. A `--cor-borda`, com
-     1,5:1, deixava a caixa do campo quase invisível ao sol do balcão. */
-  --cor-borda-campo: #6b7280;
+  --cor-borda: #e2e6e3;
+  /* Borda de controle: campos, botões secundários, filtros e paginação.
+     5,00:1 sobre branco. A `--cor-borda`, decorativa, deixava a caixa do
+     campo quase invisível ao sol do balcão (T35). */
+  --cor-borda-campo: #66726e;
   --cor-foco: #1d4ed8;
   --cor-veu: rgb(0 0 0 / 45%);
 
   /* Marca */
-  --cor-primaria: #0f766e;
-  --cor-primaria-escura: #115e59;
-  --cor-primaria-suave: #f0fdfa;
-  /* A barra do topo. É também o `theme_color` do manifest do PWA
-     (`vite.config.ts`) e o fundo do ícone: a barra de status do celular
-     continua a barra do app. */
-  --cor-barra: #115e59;
-  /* O traço claro do ícone, repetido no nome do app na barra. */
+  --cor-primaria: #0f5c52;
+  --cor-primaria-escura: #0a3f38;
+  --cor-primaria-suave: #e3f0ec;
+  /* O traço claro do ícone, repetido no nome do app na barra do topo. */
   --cor-acento: #5eead4;
 
-  /* Semânticas — ver tabela de contraste acima */
-  --cor-sucesso-fundo: #ecfdf5;
-  --cor-sucesso-texto: #065f46;
-  --cor-sucesso-forte: #047857;
-  --cor-atencao-fundo: #fffbeb;
-  --cor-atencao-texto: #92400e;
-  --cor-atencao-forte: #b45309;
-  --cor-perigo-fundo: #fee2e2;
-  --cor-perigo-texto: #991b1b;
-  --cor-perigo-forte: #b91c1c;
-  --cor-inativo-fundo: #f3f4f6;
-  --cor-inativo-texto: #4b5563;
-  --cor-inativo-forte: #4b5563;
-  --cor-vencido-fundo: #f5f3ff;
-  --cor-vencido-texto: #5b21b6;
-  --cor-vencido-forte: #6d28d9;
+  /* Escala de validade — ver tabela de contraste acima */
+  --cor-faixa-vencida-texto: #a8231a;
+  --cor-faixa-vencida-fundo: #fdecea;
+  --cor-faixa-vencida-barra: #c4321f;
+  --cor-faixa-ate-7-texto: #9a3c06;
+  --cor-faixa-ate-7-fundo: #fef0e1;
+  --cor-faixa-ate-7-barra: #e0731a;
+  --cor-faixa-8-a-30-texto: #7a5600;
+  --cor-faixa-8-a-30-fundo: #fdf6dc;
+  --cor-faixa-8-a-30-barra: #e3a92b;
+  --cor-faixa-31-a-90-texto: #1f6f4a;
+  --cor-faixa-31-a-90-fundo: #e6f3ec;
+  --cor-faixa-31-a-90-barra: #6fa89a;
+  --cor-faixa-acima-90-texto: var(--cor-primaria);
+  --cor-faixa-acima-90-fundo: var(--cor-primaria-suave);
+  --cor-faixa-acima-90-barra: var(--cor-primaria);
+
+  /* Semânticas: apelidos da escala */
+  --cor-sucesso-fundo: var(--cor-faixa-31-a-90-fundo);
+  --cor-sucesso-texto: var(--cor-faixa-31-a-90-texto);
+  --cor-sucesso-forte: var(--cor-faixa-31-a-90-texto);
+  --cor-atencao-fundo: var(--cor-faixa-8-a-30-fundo);
+  --cor-atencao-texto: var(--cor-faixa-8-a-30-texto);
+  --cor-atencao-forte: var(--cor-faixa-8-a-30-texto);
+  --cor-perigo-fundo: var(--cor-faixa-vencida-fundo);
+  --cor-perigo-texto: var(--cor-faixa-vencida-texto);
+  --cor-perigo-forte: var(--cor-faixa-vencida-texto);
+  /* Hover do botão de perigo, como a `--cor-primaria-escura` é do primário:
+     branco sobre ela 9,59:1. */
+  --cor-perigo-escura: #861c15;
+  --cor-inativo-fundo: var(--cor-fundo);
+  --cor-inativo-texto: var(--cor-texto-suave);
+  --cor-inativo-forte: var(--cor-texto-suave);
 
   /* Impressão de etiquetas: papel branco, guia de corte cinza, texto preto */
   --cor-papel: #ffffff;
   --cor-impressao-texto: #000000;
   --cor-impressao-guia: #999999;
 
-  /* Tipografia. Cinco tamanhos, nomeados pelo uso. */
-  --fonte-base: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --fonte-mono: ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+  /* Tipografia. Manrope para o texto e JetBrains Mono para os códigos,
+     empacotadas no build (`main.tsx`) e não pelo Google Fonts: o PWA abre
+     offline (RNF07). A fonte do sistema é a reserva enquanto o arquivo
+     carrega. Tamanhos nomeados pelo uso, da tabela "Tipografia" da
+     especificação; os de celular estão no fim deste bloco. */
+  --fonte-base: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fonte-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+  --tamanho-titulo-tela: 1.875rem;
+  --tamanho-titulo-secao: 1rem;
+  --tamanho-corpo: 0.875rem;
+  /* Campos de texto não descem de 16 px no celular: abaixo disso, o Safari
+     do iPhone aproxima a página ao tocar no campo. */
+  --tamanho-campo: 0.875rem;
+  --tamanho-rotulo-grupo: 0.6875rem;
+  --tamanho-item-menu: 0.875rem;
+  --tamanho-item-barra-inferior: 0.75rem;
+  --tamanho-numero: 2.25rem;
+  --tamanho-distintivo: 0.75rem;
+  --tamanho-codigo: 0.8125rem;
+  /* Texto de apoio e legenda, abaixo do corpo; título de veredito e de
+     diálogo, entre o de seção e o de tela; e o código que a atendente vai
+     procurar na prateleira. */
+  --tamanho-apoio: 0.8125rem;
   --tamanho-legenda: 0.75rem;
-  --tamanho-apoio: 0.875rem;
-  --tamanho-corpo: 1rem;
   --tamanho-titulo: 1.25rem;
   --tamanho-destaque: 1.75rem;
   --peso-normal: 400;
+  --peso-medio: 500;
   --peso-forte: 600;
   --peso-destaque: 700;
+  --peso-titulo: 800;
+  --espacamento-titulo: -0.02em;
+  --espacamento-rotulo-grupo: 0.08em;
   --altura-linha: 1.5;
 
-  /* Espaçamento: 4, 8, 12, 16, 24 e 32 px */
+  /* Espaçamento: 4, 8, 12, 16, 24 e 32 px; e a margem lateral do conteúdo */
   --espaco-1: 0.25rem;
   --espaco-2: 0.5rem;
   --espaco-3: 0.75rem;
   --espaco-4: 1rem;
   --espaco-5: 1.5rem;
   --espaco-6: 2rem;
+  --margem-conteudo: 2.5rem;
 
-  /* Raio, sombra e alvo de toque */
+  /* Raio, sombra e alvo de toque. Cartão sem sombra: a borda basta. */
   --raio-pequeno: 0.375rem;
-  --raio-medio: 0.5rem;
-  --raio-grande: 0.75rem;
+  --raio-controle: 0.625rem;
+  --raio-cartao: 0.875rem;
   --raio-pilula: 999px;
-  --sombra-cartao: 0 1px 2px rgb(0 0 0 / 6%);
   --sombra-flutuante: 0 4px 12px rgb(0 0 0 / 12%);
   --sombra-dialogo: 0 10px 30px rgb(0 0 0 / 25%);
   /* 44 px, o mínimo de alvo de toque. Vale para todo botão, inclusive os de
@@ -123,19 +169,31 @@
   --tom-forte: var(--cor-borda-campo);
 
   font-family: var(--fonte-base);
+  font-weight: var(--peso-medio);
   line-height: var(--altura-linha);
   color: var(--cor-texto);
 }
 
+/* Celular (< 600 px, o mesmo corte da navegação na especificação). */
+@media (max-width: 599.98px) {
+  :root {
+    --tamanho-titulo-tela: 1.5rem;
+    --tamanho-corpo: 0.9375rem;
+    --tamanho-campo: 1rem;
+    --tamanho-numero: 2rem;
+    --margem-conteudo: 1.25rem;
+  }
+}
+
 /* ==========================================================================
-   Tons semânticos
+   Tons semânticos e faixas de validade
    ==========================================================================
 
    Uma classe de tom só define `--tom-fundo`, `--tom-texto` e `--tom-forte`;
    o componente decide onde usar cada um (fundo de aviso, faixa lateral de
    cartão, fundo de distintivo). As classes de domínio entram na lista do tom
    que representam, para que o significado de cada cor fique escrito num lugar
-   só. T38 aplica `tom-*` onde faltar destaque. */
+   só. */
 .tom-sucesso,
 .nota-sucesso,
 .distintivo-sucesso,
@@ -158,6 +216,10 @@
   --tom-forte: var(--cor-atencao-forte);
 }
 
+/* Perigo é a faixa vencida. A unidade vencida, vista de cada lugar do sistema
+   — o resultado do balcão, o descarte que a resolveu, a fila do gestor e o
+   alerta que não chegou a tempo —, entra aqui: até T40 ela tinha um roxo
+   próprio (`tom-vencido`), e a classe continua existindo com a cor nova. */
 .tom-perigo,
 .erro,
 .aviso,
@@ -166,7 +228,12 @@
 .resultado-override,
 .bloqueio-offline,
 .marca-override,
-.faixa-vencida {
+.tom-vencido,
+.distintivo-vencido,
+.resultado-vencido,
+.resultado-descarte,
+.pendente,
+.alerta.vencido {
   --tom-fundo: var(--cor-perigo-fundo);
   --tom-texto: var(--cor-perigo-texto);
   --tom-forte: var(--cor-perigo-forte);
@@ -184,18 +251,43 @@
   --tom-forte: var(--cor-inativo-forte);
 }
 
-/* A unidade vencida, vista de cada lugar do sistema: o resultado do balcão,
-   o descarte que a resolveu, a fila do gestor e o alerta que não chegou a
-   tempo. É perda consumada, e por isso tem cor própria. */
-.tom-vencido,
-.distintivo-vencido,
-.resultado-vencido,
-.resultado-descarte,
-.pendente,
-.alerta.vencido {
-  --tom-fundo: var(--cor-vencido-fundo);
-  --tom-texto: var(--cor-vencido-texto);
-  --tom-forte: var(--cor-vencido-forte);
+/* As cinco faixas de validade, com o nome que o servidor dá a cada uma em
+   minúsculas (`VENCIDA` → `faixa-vencida`): a tela monta a classe da chave que
+   recebeu, sem tabela de tradução. Além do tom, cada faixa define
+   `--tom-barra`, a cor dela na barra do estoque. */
+.faixa-vencida {
+  --tom-fundo: var(--cor-faixa-vencida-fundo);
+  --tom-texto: var(--cor-faixa-vencida-texto);
+  --tom-forte: var(--cor-faixa-vencida-texto);
+  --tom-barra: var(--cor-faixa-vencida-barra);
+}
+
+.faixa-ate_7_dias {
+  --tom-fundo: var(--cor-faixa-ate-7-fundo);
+  --tom-texto: var(--cor-faixa-ate-7-texto);
+  --tom-forte: var(--cor-faixa-ate-7-texto);
+  --tom-barra: var(--cor-faixa-ate-7-barra);
+}
+
+.faixa-de_8_a_30_dias {
+  --tom-fundo: var(--cor-faixa-8-a-30-fundo);
+  --tom-texto: var(--cor-faixa-8-a-30-texto);
+  --tom-forte: var(--cor-faixa-8-a-30-texto);
+  --tom-barra: var(--cor-faixa-8-a-30-barra);
+}
+
+.faixa-de_31_a_90_dias {
+  --tom-fundo: var(--cor-faixa-31-a-90-fundo);
+  --tom-texto: var(--cor-faixa-31-a-90-texto);
+  --tom-forte: var(--cor-faixa-31-a-90-texto);
+  --tom-barra: var(--cor-faixa-31-a-90-barra);
+}
+
+.faixa-acima_de_90_dias {
+  --tom-fundo: var(--cor-faixa-acima-90-fundo);
+  --tom-texto: var(--cor-faixa-acima-90-texto);
+  --tom-forte: var(--cor-faixa-acima-90-texto);
+  --tom-barra: var(--cor-faixa-acima-90-barra);
 }
 
 /* ==========================================================================
@@ -209,6 +301,7 @@
 body {
   margin: 0;
   background: var(--cor-fundo);
+  font-size: var(--tamanho-corpo);
 }
 
 /* Controles de formulário não herdam a fonte do documento por padrão; sem
@@ -253,8 +346,9 @@ a:hover {
    ========================================================================== */
 
 /* --- Botão ---------------------------------------------------------------
-   Sem classe, o botão é o primário. Variantes: `secundario` (contorno),
-   `perigo` (ação destrutiva — quem aplica é T38) e `fantasma` (sem caixa,
+   Sem classe, o botão é o primário. Variantes: `secundario` (contorno na
+   borda de controle), `perigo` (ação destrutiva, branco sobre o vermelho da
+   faixa vencida) e `fantasma` (sem caixa,
    para ação de apoio). `aria-busy="true"` é o estado carregando: a tela já
    troca o rótulo ("Salvando…") e desabilita o botão; o atributo acrescenta o
    indicador girando e avisa o leitor de tela. */
@@ -266,11 +360,11 @@ button {
   min-height: var(--alvo-toque);
   padding: 0 var(--espaco-4);
   border: 1px solid transparent;
-  border-radius: var(--raio-pequeno);
+  border-radius: var(--raio-controle);
   background: var(--cor-primaria);
   color: var(--cor-texto-inverso);
   font-size: var(--tamanho-corpo);
-  font-weight: var(--peso-forte);
+  font-weight: var(--peso-destaque);
   cursor: pointer;
 }
 
@@ -311,8 +405,8 @@ button[aria-busy='true']::before {
 
 button.secundario {
   background: var(--cor-superficie);
-  color: var(--cor-primaria);
-  border-color: var(--cor-primaria);
+  color: var(--cor-texto);
+  border-color: var(--cor-borda-campo);
 }
 
 button.secundario:hover:not(:disabled) {
@@ -325,7 +419,7 @@ button.perigo {
 }
 
 button.perigo:hover:not(:disabled) {
-  background: var(--cor-perigo-texto);
+  background: var(--cor-perigo-escura);
 }
 
 button.fantasma {
@@ -346,9 +440,9 @@ select,
 textarea {
   min-height: var(--alvo-toque);
   border: 1px solid var(--cor-borda-campo);
-  border-radius: var(--raio-pequeno);
+  border-radius: var(--raio-controle);
   background: var(--cor-superficie);
-  font-size: var(--tamanho-corpo);
+  font-size: var(--tamanho-campo);
 }
 
 input {
@@ -476,19 +570,20 @@ input[type='radio'] {
 /* --- Cartão --------------------------------------------------------------
    A superfície branca de tudo que agrupa: formulários, resultados, blocos do
    painel, itens das filas. Só a superfície — o arranjo de dentro é de quem
-   usa. Com um tom, ganha a faixa lateral da cor dele (`cartao-faixa`). */
+   usa. Com um tom, ganha a faixa lateral da cor dele (`cartao-faixa`). Sem
+   sombra desde T40: a borda separa o cartão do fundo. */
 .cartao {
   margin: 0 0 var(--espaco-4);
   padding: var(--espaco-4);
   border: 1px solid var(--cor-borda);
-  border-radius: var(--raio-medio);
+  border-radius: var(--raio-cartao);
   background: var(--cor-superficie);
-  box-shadow: var(--sombra-cartao);
 }
 
 .cartao h3 {
   margin: 0 0 var(--espaco-2);
-  font-size: var(--tamanho-corpo);
+  font-size: var(--tamanho-titulo-secao);
+  font-weight: var(--peso-titulo);
 }
 
 .cartao-faixa,
@@ -531,21 +626,33 @@ input[type='radio'] {
 }
 
 /* --- Distintivo ----------------------------------------------------------
-   Contagem ou situação em pílula. O padrão é de atenção (o contador de
-   alertas não lidos); `distintivo-sucesso`, `-perigo`, `-inativo` e
-   `-vencido` trocam o tom. */
+   Contagem ou situação em pílula, com o texto do tom sobre o fundo do tom.
+   O padrão é de atenção (o contador de alertas não lidos);
+   `distintivo-sucesso`, `-perigo`, `-inativo` e `-vencido` trocam o tom, e
+   uma classe de faixa (`faixa-ate_7_dias`…) também. O distintivo diz o estado
+   em texto, nunca só pela cor. */
 .distintivo {
   display: inline-block;
   margin-left: var(--espaco-2);
-  padding: 0 var(--espaco-2);
-  min-width: 1.25rem;
+  padding: 0.125rem 0.625rem;
+  min-width: 1.5rem;
   border-radius: var(--raio-pilula);
-  background: var(--tom-forte);
-  color: var(--cor-texto-inverso);
-  font-size: var(--tamanho-legenda);
-  font-weight: var(--peso-forte);
+  background: var(--tom-fundo);
+  color: var(--tom-texto);
+  font-size: var(--tamanho-distintivo);
+  font-weight: var(--peso-titulo);
   line-height: 1.25rem;
   text-align: center;
+}
+
+/* --- Código --------------------------------------------------------------
+   Código de etiqueta (`PRF-…`) e código interno do produto: sempre na fonte
+   mono, para que 0 e O, 1 e I não se confundam na leitura em voz alta. */
+.codigo {
+  font-family: var(--fonte-mono);
+  font-size: var(--tamanho-codigo);
+  font-weight: var(--peso-medio);
+  letter-spacing: 0.02em;
 }
 
 /* --- Tabela -------------------------------------------------------------- */
@@ -631,12 +738,12 @@ td button + button {
   width: 100%;
   max-width: 24rem;
   padding: var(--espaco-6);
-  border-radius: var(--raio-grande);
 }
 
 .cartao-login h1 {
   margin: 0;
   font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
   line-height: 1.3;
 }
 
@@ -649,9 +756,9 @@ td button + button {
   margin-top: var(--espaco-4);
 }
 
-/* A barra do topo leva a cor da marca: é a identidade mínima do app, e a
-   mesma cor do `theme_color`, que pinta a barra de status do celular com o
-   PWA instalado. */
+/* A barra do topo leva a cor da marca, até sair em T41 (a marca e o usuário
+   vão para o menu lateral). O `theme_color` já não é ela desde T40: é o fundo
+   da página. */
 .barra-topo {
   display: flex;
   flex-wrap: wrap;
@@ -659,7 +766,7 @@ td button + button {
   justify-content: space-between;
   gap: var(--espaco-3);
   padding: var(--espaco-2) var(--espaco-4);
-  background: var(--cor-barra);
+  background: var(--cor-primaria);
   color: var(--cor-texto-inverso);
 }
 
@@ -690,7 +797,7 @@ td button + button {
 }
 
 .barra-topo button:hover:not(:disabled) {
-  background: var(--cor-primaria);
+  background: var(--cor-primaria-escura);
 }
 
 .barra-topo :focus-visible {
@@ -743,7 +850,16 @@ td button + button {
    que ela serve. */
 .tela h2 {
   margin: 0 0 var(--espaco-1);
-  font-size: var(--tamanho-titulo);
+  font-size: var(--tamanho-titulo-tela);
+  font-weight: var(--peso-titulo);
+  letter-spacing: var(--espacamento-titulo);
+  line-height: 1.2;
+}
+
+/* Título de seção dentro da tela, fora de cartão. */
+.tela h3 {
+  font-size: var(--tamanho-titulo-secao);
+  font-weight: var(--peso-titulo);
 }
 
 .subtitulo {
@@ -779,7 +895,7 @@ td button + button {
   --error-bg: var(--cor-perigo-fundo);
   --error-border: var(--cor-perigo-forte);
   --error-text: var(--cor-perigo-texto);
-  --border-radius: var(--raio-medio);
+  --border-radius: var(--raio-controle);
   font-family: var(--fonte-base);
 }
 
@@ -806,7 +922,7 @@ td button + button {
      `<dialog>` é sempre clique no fundo (T39). */
   padding: 0;
   border: none;
-  border-radius: var(--raio-grande);
+  border-radius: var(--raio-cartao);
   color: var(--cor-texto);
   box-shadow: var(--sombra-dialogo);
 }
@@ -822,6 +938,7 @@ td button + button {
 .dialogo h2 {
   margin: 0 0 var(--espaco-2);
   font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
 }
 
 .dialogo p {
@@ -866,12 +983,11 @@ td button + button {
   padding: 0 var(--espaco-2);
 }
 
-/* Os números no estilo de `button.secundario`, com borda neutra, para a atual
-   se destacar. */
+/* Os números no estilo de `button.secundario`, para a atual se destacar. */
 .paginacao-numeros button {
   background: var(--cor-superficie);
-  color: var(--cor-primaria);
-  border-color: var(--cor-borda);
+  color: var(--cor-texto);
+  border-color: var(--cor-borda-campo);
 }
 
 .paginacao-numeros button:hover:not(:disabled) {
@@ -883,7 +999,7 @@ td button + button {
   align-items: center;
   justify-content: center;
   min-height: var(--alvo-toque);
-  border-radius: var(--raio-pequeno);
+  border-radius: var(--raio-controle);
   background: var(--cor-primaria);
   color: var(--cor-texto-inverso);
   font-weight: var(--peso-forte);
@@ -978,7 +1094,7 @@ td button + button {
   z-index: 10;
   margin-top: var(--espaco-1);
   border: 1px solid var(--cor-borda);
-  border-radius: var(--raio-pequeno);
+  border-radius: var(--raio-controle);
   background: var(--cor-superficie);
   box-shadow: var(--sombra-flutuante);
 }
@@ -1107,7 +1223,7 @@ td button + button {
   margin: 0;
   padding: var(--espaco-3) var(--espaco-4) var(--espaco-4);
   border: 1px solid var(--cor-borda);
-  border-radius: var(--raio-medio);
+  border-radius: var(--raio-cartao);
 }
 
 .validades legend {
@@ -1195,6 +1311,7 @@ td button + button {
 .resultado h3 {
   margin: 0 0 var(--espaco-2);
   font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
 }
 
 .resultado p {
@@ -1211,9 +1328,10 @@ td button + button {
 /* O que a atendente vai procurar na prateleira é o maior elemento da tela. */
 .codigo-correto {
   margin: var(--espaco-1) 0 var(--espaco-3);
+  font-family: var(--fonte-mono);
   font-size: var(--tamanho-destaque);
-  font-weight: var(--peso-destaque);
-  letter-spacing: 0.05em;
+  font-weight: var(--peso-medio);
+  letter-spacing: 0.04em;
 }
 
 .comparacao {
@@ -1259,6 +1377,7 @@ td button + button {
 
 .carrinho h3 {
   font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
 }
 
 .carrinho .contagem {
@@ -1314,7 +1433,7 @@ td button + button {
 .bloqueio-offline {
   padding: var(--espaco-4);
   border: 1px solid var(--tom-forte);
-  border-radius: var(--raio-medio);
+  border-radius: var(--raio-cartao);
   background: var(--tom-fundo);
   color: var(--tom-texto);
 }
@@ -1484,7 +1603,7 @@ td button + button {
   margin: 0;
   padding: var(--espaco-2) var(--espaco-3);
   border: 1px solid var(--cor-borda);
-  border-radius: var(--raio-medio);
+  border-radius: var(--raio-controle);
   background: var(--cor-superficie);
 }
 
@@ -1636,8 +1755,8 @@ td button + button {
 
 /* ==========================================================================
    Dashboard (RF13, T21). O painel é leitura, não operação: nenhum controle
-   aqui muda o estoque, e por isso ele é o lugar mais sóbrio do sistema — sem
-   cor de urgência além da que já distingue vencida do resto.
+   aqui muda o estoque, e por isso ele é o lugar mais sóbrio do sistema — a
+   única cor de urgência é a da escala de validade, nas barras do estoque.
    ========================================================================== */
 .bloco-painel {
   margin: var(--espaco-5) 0;
@@ -1648,7 +1767,8 @@ td button + button {
 }
 
 .indicador-destaque strong {
-  font-size: var(--tamanho-destaque);
+  font-size: var(--tamanho-numero);
+  font-weight: var(--peso-titulo);
   line-height: 1.2;
 }
 
@@ -1672,16 +1792,14 @@ td button + button {
   color: var(--cor-texto-suave);
 }
 
+/* Cada faixa na cor dela da escala de validade (ver "Tons semânticos e faixas
+   de validade"). As do meio ficam abaixo de 3:1 sobre branco, o que só é
+   aceitável porque a linha repete o nome e o número da faixa. */
 .barra-faixa {
   display: block;
   height: 1.25rem;
   border-radius: var(--espaco-1);
-  background: var(--cor-primaria);
-}
-
-/* A única faixa com cor própria: é a que representa prejuízo já consumado. */
-.faixa-vencida .barra-faixa {
-  background: var(--tom-forte);
+  background: var(--tom-barra, var(--cor-primaria));
 }
 
 .valor-faixa {
@@ -1716,8 +1834,8 @@ td button + button {
 }
 
 .valor-indicador {
-  font-size: var(--tamanho-destaque);
-  font-weight: var(--peso-forte);
+  font-size: var(--tamanho-numero);
+  font-weight: var(--peso-titulo);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }

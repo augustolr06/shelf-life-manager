@@ -47,16 +47,22 @@ novas, ainda na estrutura de abas de hoje.
 
 ## Critério de aceite
 
-- [ ] Nenhuma cor solta fora do `:root` (regra de T35 mantida)
-- [ ] Nenhum token roxo restante; `tom-vencido` resolve para a faixa vencida
-- [ ] Tabela de contraste atualizada, todos os pares de texto ≥ 4,5:1
-- [ ] Fontes servidas do próprio build: com a rede desligada (`network-state-set offline`)
+- [x] Nenhuma cor solta fora do `:root` (regra de T35 mantida)
+- [x] Nenhum token roxo restante; `tom-vencido` resolve para a faixa vencida
+- [x] Tabela de contraste atualizada, todos os pares de texto ≥ 4,5:1
+- [x] Fontes servidas do próprio build: com a rede desligada (`network-state-set offline`)
       depois do primeiro carregamento, o texto continua em Manrope
-- [ ] Testes de Vitest verdes sem mudar consulta por papel ou rótulo
-- [ ] `playwright-cli` a 1280×900: captura de Venda, Catálogo, Descarte e Relatórios,
+- [x] Testes de Vitest verdes sem mudar consulta por papel ou rótulo
+- [x] `playwright-cli` a 1280×900: captura de Venda, Catálogo, Descarte e Relatórios,
       guardada em `docs/redesign/T40/`
 
 ## Fora de escopo
 
 - Menu, barra do topo e layout de qualquer tela (T41 em diante).
 - Textos e rótulos (os rótulos novos do menu entram em T41).
+
+## Estado (2026-10-21)
+
+Concluída. Decisões que a especificação não cobria (nome das classes de faixa, `-forte` e
+`--tom-barra`, distintivo em texto sobre fundo, hover do `perigo`, campo de 16 px no celular,
+precache das fontes) em `docs/decisoes.md` (T40). Capturas em `docs/redesign/T40/`.

@@ -381,7 +381,7 @@ export function TelaProdutos({ usuario }: Props) {
           <tbody>
             {produtos.map((produto) => (
               <tr key={produto.id} className={produto.ativo ? undefined : 'linha-inativa'}>
-                <td>{produto.codigoInterno}</td>
+                <td className="codigo">{produto.codigoInterno}</td>
                 <td>{produto.nome}</td>
                 <td>{produto.marca}</td>
                 <td>{produto.categoria}</td>

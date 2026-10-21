@@ -2485,3 +2485,56 @@ de hoje: os dois entram na resposta de `GET /dashboard` (T42), em vez de o naveg
 datas. Nos alertas, a cor do distintivo sai da `situacao` que o servidor já devolve
 (`VENCIDA` ou `NA_JANELA`), sem classificar `diasParaVencer` no navegador. O filtro por
 categoria do catálogo é do servidor (T45).
+
+
+## 2026-10-21 — T40: linguagem visual (tokens, escala de validade, fontes e manifest)
+
+Aplica as decisões 1, 3, 4 (só o `theme_color`) e 6 da especificação do redesign
+(`docs/redesign/claude-design/README.md`). O que a especificação não fixava e foi decidido aqui:
+
+1. **Classes de faixa com o nome do servidor.** As cinco faixas viraram `faixa-vencida`,
+   `faixa-ate_7_dias`, `faixa-de_8_a_30_dias`, `faixa-de_31_a_90_dias` e
+   `faixa-acima_de_90_dias`: a chave que `GET /dashboard` devolve, em minúsculas. É a classe que o
+   Dashboard já montava desde T21 (`faixa-${faixa.toLowerCase()}`), e assim nenhuma tela precisa
+   de tabela de tradução entre a faixa do servidor e a cor (RNF04). O nome com sublinhado destoa
+   do resto do CSS; foi o preço de não ter uma segunda fonte de verdade. Efeito colateral aceito:
+   as barras do Dashboard ganharam a cor de cada faixa, e não só a vencida. A legenda (nome e
+   número na mesma linha) já existia, que é a condição da especificação para as cores de barra
+   abaixo de 3:1.
+2. **`-forte` de cada tom é o `-texto` da faixa.** A especificação dá texto, fundo e cor de barra;
+   o `-forte` de T35 (faixa lateral de cartão, fundo com texto branco) precisava de um valor que
+   aguente texto branco, e as cores de barra do meio não aguentam (8 a 30 dias, 2,10:1). O texto
+   da faixa aguenta em todas (6,12 a 7,86:1). A barra virou um quarto valor de tom, `--tom-barra`,
+   definido só pelas classes de faixa.
+3. **Distintivo passa a texto do tom sobre fundo do tom**, como na tabela da escala, e não mais
+   branco sobre o `-forte`. Vale para o contador de alertas da aba, que fica âmbar-claro até T41
+   decidir a cor dele no menu.
+4. **`--cor-perigo-escura` (`#861C15`)**, cor nova fora da especificação, só para o hover do botão
+   `perigo`, no mesmo papel da `--cor-primaria-escura` (branco sobre ela 9,59:1).
+5. **Tom `inativo` nos neutros novos** (`#5B6763` sobre `#F6F7F5`, 5,48:1), e
+   `--cor-superficie-suave` virou apelido do fundo da página: os cinzas frios de T35 destoavam da
+   paleta esverdeada. A especificação só diz que o inativo "continua neutro".
+6. **Botão secundário e paginação com texto na cor do texto** e borda de controle, como nos
+   mockups; até aqui eram contorno na cor primária.
+7. **Campo de texto com 16 px no celular**, e não os 15 px do corpo: abaixo de 16 px, o Safari do
+   iPhone aproxima a página ao tocar no campo. É também o tamanho do campo de código no mockup da
+   Venda.
+8. **Só o subconjunto latino e só os pesos usados** (Manrope 400–800, JetBrains Mono 500): seis
+   arquivos `woff2`, 92 kB no total. O `globPatterns` do Workbox ganhou `woff2`, porque o padrão
+   do plugin (`js,css,html`) deixava as fontes fora do precache, e o app instalado abriria offline
+   na fonte do sistema.
+9. **Tamanho de apoio desceu para 13 px** (era 14 px), para continuar abaixo do corpo, que agora
+   é 14 px. O título de veredito e de diálogo (20 px) e o código em destaque da Venda (28 px)
+   ficaram com os tamanhos de T35, em peso 800 e em mono, respectivamente: a especificação não os
+   cobre, e o layout da Venda é de T43.
+10. **Raios por papel:** `--raio-controle` (10 px) e `--raio-cartao` (14 px) substituem
+    `--raio-medio` e `--raio-grande`; `--raio-pequeno` (6 px) fica para avisos inline.
+    `--sombra-cartao` saiu, com a sombra do cartão. `--cor-barra` saiu; a barra do topo usa a
+    primária até ser removida em T41.
+
+**Verificação.** Vitest 283/283 verdes sem mudar consulta, `npm run typecheck` e `npm run build`
+limpos (precache com as seis fontes). `playwright-cli` a 1280×900: capturas de Venda, Catálogo,
+Fila de descarte e Dashboard em `docs/redesign/T40/`. No build servido por `vite preview`, com
+`network-state-set offline` e a página recarregada, o título continua em Manrope, servida pelo
+cache do service worker. Console sem erro além do 401 esperado de `/auth/me` antes do login e do
+`ERR_INTERNET_DISCONNECTED` esperado offline.

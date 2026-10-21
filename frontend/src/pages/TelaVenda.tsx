@@ -638,7 +638,7 @@ function PendenciaDoItem({
       </p>
       {pendencia.veredito === 'BLOQUEAR_FIFO' && (
         <p>
-          Saia com esta: <strong>{pendencia.unidadeCorreta.codigoQr}</strong>
+          Saia com esta: <strong className="codigo">{pendencia.unidadeCorreta.codigoQr}</strong>
         </p>
       )}
       {pendencia.veredito === 'EXCECAO_VENCIDO' && (
@@ -764,7 +764,9 @@ function Resultado({
               : 'Unidade já baixada'}
           </h3>
           <p>{resposta.mensagem}</p>
-          <p className="subtitulo">Código lido: {resposta.codigoQr}</p>
+          <p className="subtitulo">
+            Código lido: <span className="codigo">{resposta.codigoQr}</span>
+          </p>
         </section>
       )
   }
@@ -808,7 +810,7 @@ function DadosDaUnidade({ unidade }: { unidade: UnidadeLida }) {
       <dt>Validade</dt>
       <dd>{formatarData(unidade.dataValidade)}</dd>
       <dt>Código</dt>
-      <dd>{unidade.codigoQr}</dd>
+      <dd className="codigo">{unidade.codigoQr}</dd>
     </dl>
   )
 }

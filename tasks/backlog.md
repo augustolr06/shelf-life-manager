@@ -286,7 +286,7 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T40 | Linguagem visual: tokens, escala de validade, fontes e manifest | pendente | T35 | `tasks/T40-linguagem-visual.md` |
+| T40 | Linguagem visual: tokens, escala de validade, fontes e manifest | concluída | T35 | `tasks/T40-linguagem-visual.md` |
 | T41 | Navegação por tarefa: menu lateral, barra inferior e fim da barra do topo | pendente | T40 | `tasks/T41-navegacao-por-tarefa.md` |
 | T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | pendente | T41 | `tasks/T42-tela-inicio.md` |
 | T43 | Venda no novo layout | pendente | T41 | `tasks/T43-venda-novo-layout.md` |
@@ -294,6 +294,11 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 | T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | pendente | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
 
 **Ordem sugerida:** T40 → T41 → T42, T43, T44 e T45 em qualquer ordem.
+
+**Estado de T40 (2026-10-21).** Concluída. Paleta, escala de validade (classes `faixa-*` com o
+nome da faixa do servidor), Manrope e JetBrains Mono no precache do PWA, e `theme_color` no fundo
+da página. A barra do topo continua, na cor primária, até T41. Decisões em `docs/decisoes.md`
+(T40); capturas em `docs/redesign/T40/`.
 
 ---
 

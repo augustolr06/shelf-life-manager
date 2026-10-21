@@ -196,7 +196,7 @@ export function TelaRecebimento() {
             <tbody>
               {recebido.resultado.unidades.map((unidade) => (
                 <tr key={unidade.id}>
-                  <td>{unidade.codigoQr}</td>
+                  <td className="codigo">{unidade.codigoQr}</td>
                   <td>{formatarData(unidade.dataValidade)}</td>
                   <td>{unidade.status === 'EM_ESTOQUE' ? 'Em estoque' : unidade.status}</td>
                 </tr>

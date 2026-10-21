@@ -152,12 +152,13 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
                 <div className="dados-alerta">
                   <h3>{alerta.unidade.produto.nome}</h3>
                   <p className="subtitulo">
-                    {alerta.unidade.produto.marca} · {alerta.unidade.produto.codigoInterno}
+                    {alerta.unidade.produto.marca} ·{' '}
+                    <span className="codigo">{alerta.unidade.produto.codigoInterno}</span>
                   </p>
 
                   <dl className="dados-unidade">
                     <dt>Etiqueta</dt>
-                    <dd>{alerta.unidade.codigoQr}</dd>
+                    <dd className="codigo">{alerta.unidade.codigoQr}</dd>
                     <dt>Validade</dt>
                     <dd>{formatarData(alerta.unidade.dataValidade)}</dd>
                     <dt>{alerta.situacao === 'VENCIDA' ? 'Vencida há' : 'Vence em'}</dt>

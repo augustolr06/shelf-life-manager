@@ -194,7 +194,7 @@ export function SeletorProduto({ valor, aoEscolher }: Props) {
                       ser distinguíveis na lista. */}
                   <span className="seletor-produto-nome">{produto.nome}</span>
                   <span className="seletor-produto-detalhe">
-                    {produto.marca} · {produto.codigoInterno}
+                    {produto.marca} · <span className="codigo">{produto.codigoInterno}</span>
                   </span>
                 </li>
               ))}

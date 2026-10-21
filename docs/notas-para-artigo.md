@@ -1868,3 +1868,30 @@ natural de conferir também a tela.
 **Tarefa relacionada:** T35, RNF08
 
 **Data:** 2026-10-20
+
+## A cor da urgência também é do servidor
+
+**Contexto do problema:** no controle manual, a urgência de um frasco é uma conta que alguém faz
+de cabeça olhando a data impressa, e cada pessoa faz a conta de um jeito. Uma interface que pinta
+o frasco de vermelho ou âmbar comparando datas no próprio celular repetiria esse problema: a cor
+dependeria do relógio e do fuso do aparelho, e poderia discordar do veredito que o servidor dá na
+leitura.
+
+**Solução adotada:** no redesign, a escala de cores de validade tem exatamente as cinco faixas que
+o servidor já calcula (vencida, até 7 dias, 8 a 30, 31 a 90, mais de 90), e a tela escolhe a cor
+pelo nome da faixa que recebeu, sem tabela intermediária. Os tons de erro, atenção e sucesso do
+resto da interface passaram a ser apelidos dessas faixas: a unidade vencida, que antes tinha um
+roxo próprio, agora é o mesmo vermelho do bloqueio de venda. A cor nunca aparece sozinha: o
+distintivo diz o estado em texto.
+
+**Por que importa / trade-offs:** estende a regra de que o frontend não decide o veredito (RNF04)
+da decisão para a sua representação visual. O custo é que toda tela nova que quiser mostrar
+urgência precisa que o servidor mande a faixa pronta, o que já obrigou a acrescentar campos ao
+backend nas tarefas seguintes do redesign (o próximo vencimento da tela inicial). Também é
+limitação a mencionar: as cores intermediárias da barra de estoque ficam abaixo do contraste
+recomendado para elementos gráficos, e só são aceitáveis porque a legenda repete cada faixa com
+nome e número.
+
+**Tarefa relacionada:** T40, RNF04
+
+**Data:** 2026-10-21

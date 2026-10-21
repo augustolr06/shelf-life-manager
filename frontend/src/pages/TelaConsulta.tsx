@@ -210,7 +210,7 @@ function ResultadoDaConsulta({ consulta }: { consulta: ConsultaUnidade }) {
         <dt>Categoria</dt>
         <dd>{unidade.produto.categoria}</dd>
         <dt>Código interno</dt>
-        <dd>{unidade.produto.codigoInterno}</dd>
+        <dd className="codigo">{unidade.produto.codigoInterno}</dd>
         <dt>Validade</dt>
         <dd>{formatarData(unidade.dataValidade)}</dd>
         {!vencida && (
@@ -224,7 +224,7 @@ function ResultadoDaConsulta({ consulta }: { consulta: ConsultaUnidade }) {
         <dt>Entrada</dt>
         <dd>{formatarInstante(unidade.dataEntrada)}</dd>
         <dt>Código</dt>
-        <dd>{unidade.codigoQr}</dd>
+        <dd className="codigo">{unidade.codigoQr}</dd>
       </dl>
     </section>
   )

@@ -91,13 +91,14 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
                 <div className="dados-pendente">
                   <h3>{unidade.produto.nome}</h3>
                   <p className="subtitulo">
-                    {unidade.produto.marca} · {unidade.produto.codigoInterno}
+                    {unidade.produto.marca} ·{' '}
+                    <span className="codigo">{unidade.produto.codigoInterno}</span>
                   </p>
                   {/* Mesma lista de definição das telas de leitura: o CSS
                       de `.dados-unidade` é uma grade de dt/dd diretos. */}
                   <dl className="dados-unidade">
                     <dt>Etiqueta</dt>
-                    <dd>{unidade.codigoQr}</dd>
+                    <dd className="codigo">{unidade.codigoQr}</dd>
                     <dt>Validade</dt>
                     <dd>{formatarData(unidade.dataValidade)}</dd>
                     <dt>Vencida há</dt>

@@ -12,6 +12,8 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
     "downshift": "^9.4.0",
     "html5-qrcode": "^2.3.8",
     "react": "^19.1.1",
