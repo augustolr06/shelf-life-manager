@@ -63,6 +63,11 @@ Cada uma revisa uma decisão de T35 e está registrada em `docs/decisoes.md` (20
    atendente continua em `/venda`.
 6. **Borda de controle `#66726E`** (5,00:1 sobre branco) em campos, botões secundários,
    filtros e botões de paginação. Mantém o critério de T35 para o balcão ao sol.
+7. **O app se chama ShelfLife Manager** (decisão do orientando, 2026-10-21), no lugar de
+   "Controle de Estoque FIFO por Validade" e "Estoque FIFO". É o nome na marca do menu, no
+   login, no título da aba e no manifest do PWA (`short_name` "ShelfLife", que cabe embaixo do
+   ícone na tela inicial do celular). O lema "Primeiro que vence, primeiro que sai" continua.
+   Implementação em T46.
 
 ## Linguagem visual
 
@@ -157,7 +162,7 @@ papel não alcança não aparece, e grupo vazio também não.
 ### Por tamanho de tela
 
 - **Computador (> 1024 px):** menu lateral fixo de 232 px, branco, com borda à direita. No
-  topo, a marca (quadrado de 34 px na cor primária com o ícone, "Estoque FIFO" e o lema
+  topo, a marca (quadrado de 34 px na cor primária com o ícone, "ShelfLife Manager" e o lema
   "Primeiro que vence, primeiro que sai"); no rodapé, as iniciais, o nome, o papel, o link
   "Minha senha" e o botão de sair. Item ativo com fundo `--cor-primaria-suave` e texto na cor
   primária.
@@ -269,5 +274,6 @@ tokens e as fontes (T40) e o menu novo (T41), e só. A folha de impressão de et
 | T43 | Venda no novo layout | T41 |
 | T44 | Descarte e alertas em lista compacta | T41 |
 | T45 | Catálogo com a lista primeiro | T41 |
+| T46 | Nome do app: ShelfLife Manager | T41 |
 
 T42 a T45 podem ser feitas em qualquer ordem depois de T41.

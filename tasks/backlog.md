@@ -292,8 +292,10 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 | T43 | Venda no novo layout | concluída | T41 | `tasks/T43-venda-novo-layout.md` |
 | T44 | Descarte e alertas em lista compacta | concluída | T41 | `tasks/T44-validade-lista-compacta.md` |
 | T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | concluída | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
+| T46 | Nome do app: ShelfLife Manager | pendente | T41 | `tasks/T46-nome-do-app.md` |
 
-**Ordem sugerida:** T40 → T41 → T42, T43, T44 e T45 em qualquer ordem.
+**Ordem sugerida:** T40 → T41 → T42, T43, T44, T45 e T46 em qualquer ordem. T46 (2026-10-21)
+troca o nome do app para ShelfLife Manager, escolhido pelo orientando.
 
 **Estado de T40 (2026-10-21).** Concluída. Paleta, escala de validade (classes `faixa-*` com o
 nome da faixa do servidor), Manrope e JetBrains Mono no precache do PWA, e `theme_color` no fundo
