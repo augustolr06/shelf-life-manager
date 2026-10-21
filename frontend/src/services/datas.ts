@@ -32,6 +32,21 @@ export function formatarDataPorExtenso(iso: string): string {
 }
 
 /**
+ * O texto do distintivo da unidade vencida (T44): `há 1 dia`, `há 49 dias`.
+ * A contagem é a que o servidor devolveu (`diasVencida`, ou o módulo de um
+ * `diasParaVencer` negativo); daqui só sai a concordância.
+ */
+export function formatarDiasVencida(dias: number): string {
+  return `há ${dias} dia${dias === 1 ? '' : 's'}`
+}
+
+/** O par de `formatarDiasVencida` para a unidade que ainda não venceu. */
+export function formatarDiasParaVencer(dias: number): string {
+  if (dias === 0) return 'vence hoje'
+  return `vence em ${dias} dia${dias === 1 ? '' : 's'}`
+}
+
+/**
  * Instante ISO para `01/03/2027 14:32`.
  *
  * Existe separado de `formatarData` porque os dois formatos do sistema são

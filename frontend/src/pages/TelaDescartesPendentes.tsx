@@ -4,7 +4,7 @@ import { PainelExcecaoVencido } from '../components/PainelExcecaoVencido'
 import { ErroApi } from '../services/api'
 import { avisar } from '../services/avisos'
 import type { Usuario } from '../services/auth'
-import { formatarData } from '../services/datas'
+import { formatarData, formatarDiasVencida } from '../services/datas'
 import { listarDescartesPendentes, type UnidadePendente } from '../services/descartes'
 
 /**
@@ -74,10 +74,7 @@ export function TelaDescartesPendentes({ usuario, aoAtualizarPendentes }: Props)
   return (
     <section className="tela tela-descartes">
       <h1>Descarte</h1>
-      <p className="subtitulo">
-        Unidades que já venceram e continuam no estoque. Elas não saem pelo fluxo normal de
-        venda — ficam aqui até serem resolvidas.
-      </p>
+      <p className="subtitulo frase-contexto">Vencidas não saem na venda. Decida o destino.</p>
 
       {erro && (
         <p className="erro" role="alert">
@@ -96,29 +93,27 @@ export function TelaDescartesPendentes({ usuario, aoAtualizarPendentes }: Props)
             {total} unidade(s) vencida(s) em estoque — página {pagina} de {totalPaginas}
           </p>
 
-          <ul className="fila-descarte">
+          {/* Lista compacta (T44): uma linha por unidade, para a fila inteira
+              caber na tela do celular. Marca e validade ficam no `title`; a
+              validade também está no painel de resolução, que é onde ela é
+              corrigida. */}
+          <ul className="cartao lista-compacta">
             {unidades.map((unidade) => (
-              <li key={unidade.id} className="cartao pendente">
-                <div className="dados-pendente">
-                  <h3>{unidade.produto.nome}</h3>
-                  <p className="subtitulo">
-                    {unidade.produto.marca} ·{' '}
-                    <span className="codigo">{unidade.produto.codigoInterno}</span>
-                  </p>
-                  {/* Mesma lista de definição das telas de leitura: o CSS
-                      de `.dados-unidade` é uma grade de dt/dd diretos. */}
-                  <dl className="dados-unidade">
-                    <dt>Etiqueta</dt>
-                    <dd className="codigo">{unidade.codigoQr}</dd>
-                    <dt>Validade</dt>
-                    <dd>{formatarData(unidade.dataValidade)}</dd>
-                    <dt>Vencida há</dt>
+              <li
+                key={unidade.id}
+                className="linha-compacta"
+                title={`${unidade.produto.marca} · validade ${formatarData(unidade.dataValidade)}`}
+              >
+                <div className="dados-linha">
+                  <span className="nome-linha">{unidade.produto.nome}</span>
+                  <span className="detalhe-linha">
                     {/* Contagem do servidor: comparar datas no navegador
                         dependeria do fuso do aparelho (RNF01). */}
-                    <dd>
-                      {unidade.diasVencida} dia{unidade.diasVencida > 1 ? 's' : ''}
-                    </dd>
-                  </dl>
+                    <span className="distintivo faixa-vencida">
+                      {formatarDiasVencida(unidade.diasVencida)}
+                    </span>
+                    <span className="codigo">{unidade.codigoQr}</span>
+                  </span>
                 </div>
 
                 {emResolucao === unidade.id ? (
@@ -177,7 +172,11 @@ export function TelaDescartesPendentes({ usuario, aoAtualizarPendentes }: Props)
                     aoCairConexao={() => void carregar()}
                   />
                 ) : (
-                  <button type="button" onClick={() => setEmResolucao(unidade.id)}>
+                  <button
+                    type="button"
+                    className="secundario"
+                    onClick={() => setEmResolucao(unidade.id)}
+                  >
                     Resolver
                   </button>
                 )}

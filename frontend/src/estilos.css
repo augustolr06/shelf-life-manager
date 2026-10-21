@@ -215,8 +215,7 @@
 .nota-atencao,
 .distintivo,
 .resultado-bloqueio,
-.item-com-pendencia,
-.alerta {
+.item-com-pendencia {
   --tom-fundo: var(--cor-atencao-fundo);
   --tom-texto: var(--cor-atencao-texto);
   --tom-forte: var(--cor-atencao-forte);
@@ -237,9 +236,7 @@
 .tom-vencido,
 .distintivo-vencido,
 .resultado-vencido,
-.resultado-descarte,
-.pendente,
-.alerta.vencido {
+.resultado-descarte {
   --tom-fundo: var(--cor-perigo-fundo);
   --tom-texto: var(--cor-perigo-texto);
   --tom-forte: var(--cor-perigo-forte);
@@ -250,7 +247,6 @@
 .tom-inativo,
 .nota-informativa,
 .distintivo-inativo,
-.alerta.lido,
 .linha-inativa {
   --tom-fundo: var(--cor-inativo-fundo);
   --tom-texto: var(--cor-inativo-texto);
@@ -616,9 +612,7 @@ input[type='radio'] {
 }
 
 .cartao-faixa,
-.resultado,
-.pendente,
-.alerta {
+.resultado {
   border-left: 6px solid var(--tom-forte);
 }
 
@@ -2126,10 +2120,17 @@ button.esvaziar-carrinho {
 }
 
 /* ==========================================================================
-   Fila de descarte pendente (RF11, T13) e alertas (RF08, T19). Lista longa,
-   lida em pé na prateleira: cada unidade é um cartão inteiro, não uma linha de
-   tabela. A faixa lateral é a do tom (vencido na fila, atenção no alerta).
+   Fila de descarte pendente (RF11, T13) e alertas (RF08, T19). Desde T44, lista
+   compacta: um cartão só, uma linha por unidade separada por divisória, e o
+   estado no distintivo de faixa. É para a fila inteira caber na tela do
+   celular, lida em pé na prateleira.
    ========================================================================== */
+.frase-contexto {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .resumo-fila,
 .resumo-alertas {
   margin: 0 0 var(--espaco-3);
@@ -2137,54 +2138,92 @@ button.esvaziar-carrinho {
   font-size: var(--tamanho-apoio);
 }
 
-.fila-descarte,
-.lista-alertas {
+.lista-compacta {
   list-style: none;
-  margin: 0;
+  margin: 0 0 var(--espaco-4);
   padding: 0;
-  display: grid;
-  gap: var(--espaco-3);
+  overflow: hidden;
 }
 
-.fila-descarte > .cartao,
-.lista-alertas > .cartao {
-  margin: 0;
+.linha-compacta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-1) var(--espaco-3);
+  padding: 0.625rem var(--espaco-3) 0.625rem var(--espaco-4);
+  border-bottom: 1px solid var(--cor-borda);
 }
 
-.pendente h3,
-.alerta h3 {
-  margin: 0;
+.linha-compacta:last-child {
+  border-bottom: 0;
 }
 
-.dados-pendente > .subtitulo,
-.dados-alerta > .subtitulo {
-  margin: 0 0 var(--espaco-2);
+.dados-linha {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
 }
 
-.pendente > button {
-  margin-top: var(--espaco-3);
+.nome-linha {
+  font-weight: var(--peso-destaque);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.detalhe-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-2);
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
+/* Mais baixo que o distintivo padrão (20 px, como no mockup): são os 4 px por
+   linha que fazem a fila de 7 caber acima da barra inferior a 360×740. */
+.detalhe-linha .distintivo {
+  margin-left: 0;
+  padding: 0.125rem 0.5rem;
+  line-height: 1rem;
+}
+
+/* Ocupa a linha inteira, por baixo do botão, para não estreitar os dados. */
+.nota-linha {
+  flex-basis: 100%;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
+.linha-compacta > button,
+.marca-lido {
+  flex: none;
+}
+
+/* "Marcar como lido" inteiro ocupa metade da linha a 360 px e espreme o nome;
+   em duas linhas, como o "Encerrar atendimento" da Venda (T43). */
+.formato-celular .linha-compacta > button {
+  max-width: 6.5rem;
+  padding: var(--espaco-1) var(--espaco-3);
+  line-height: 1.2;
+}
+
+/* O painel de resolução abre na própria linha, por baixo dos dados. */
+.linha-compacta > .caminhos-excecao {
+  flex-basis: 100%;
+}
+
+/* Alerta lido: continua na lista (é o desfazer de quem clicou por engano),
+   mas para de disputar atenção. O distintivo mantém a cor: o estado da
+   unidade não mudou porque alguém leu o aviso. */
+.linha-compacta.lida .nome-linha {
+  color: var(--cor-texto-suave);
+  font-weight: var(--peso-medio);
 }
 
 .filtro-alertas {
   margin: 0 0 var(--espaco-3);
-}
-
-.alerta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--espaco-3);
-}
-
-.alerta.lido {
-  background: var(--cor-superficie-suave);
-}
-
-.nota-vencida {
-  margin: var(--espaco-2) 0 0;
-  color: var(--cor-texto-suave);
-  font-size: var(--tamanho-apoio);
 }
 
 .marca-lido {

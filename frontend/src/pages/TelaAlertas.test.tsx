@@ -75,10 +75,13 @@ describe('TelaAlertas (RF08)', () => {
 
     expect(await screen.findByText('Eau de Parfum 50ml')).toBeInTheDocument()
     expect(screen.getByText('PRF-JC95FJ')).toBeInTheDocument()
-    expect(screen.getByText('21/09/2026')).toBeInTheDocument()
-    expect(screen.getByText('Vence em')).toBeInTheDocument()
-    expect(screen.getByText('12 dias')).toBeInTheDocument()
-    expect(screen.getByText('avisado 30 dias antes')).toBeInTheDocument()
+    // Na janela, o distintivo é o da faixa de 8 a 30 dias, pela `situacao`.
+    expect(screen.getByText('vence em 12 dias')).toHaveClass('distintivo', 'faixa-de_8_a_30_dias')
+    // Lista compacta (T44): marca, validade e janela saem da linha para o `title`.
+    expect(screen.getByText('PRF-JC95FJ').closest('li')).toHaveAttribute(
+      'title',
+      'Marca Exemplo · validade 21/09/2026 · avisado 30 dias antes',
+    )
   })
 
   it('marca o alerta cuja unidade venceu e aponta para a fila de descarte', async () => {
@@ -86,10 +89,17 @@ describe('TelaAlertas (RF08)', () => {
 
     renderizarComAvisos(<TelaAlertas />)
 
-    // O rótulo vem de `situacao`, não de a tela comparar datas (RNF01/RNF04).
-    expect(await screen.findByText('Vencida há')).toBeInTheDocument()
-    expect(screen.getByText('3 dias')).toBeInTheDocument()
-    expect(screen.getByText(/está na fila de descarte/i)).toBeInTheDocument()
+    // A frase e a cor vêm de `situacao`, não de a tela comparar datas (RNF01/RNF04).
+    expect(await screen.findByText('há 3 dias')).toHaveClass('distintivo', 'faixa-vencida')
+    expect(screen.getByText(/resolva no descarte/i)).toBeInTheDocument()
+  })
+
+  it('a unidade que vence hoje ainda está na janela', async () => {
+    buscar.mockResolvedValueOnce(pagina([{ ...NA_JANELA, diasParaVencer: 0 }]))
+
+    renderizarComAvisos(<TelaAlertas />)
+
+    expect(await screen.findByText('vence hoje')).toHaveClass('faixa-de_8_a_30_dias')
   })
 
   it('não decide nada sobre validade: exibe o alerta lido do jeito que o servidor mandou', async () => {
@@ -99,6 +109,7 @@ describe('TelaAlertas (RF08)', () => {
 
     expect(await screen.findByText('Lido')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Marcar como lido' })).not.toBeInTheDocument()
+    expect(screen.getByText('PRF-JC95FJ').closest('li')).toHaveClass('lida')
   })
 
   it('estado vazio é o desejado, não erro', async () => {

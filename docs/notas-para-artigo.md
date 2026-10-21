@@ -1968,3 +1968,29 @@ nome e marca, que a linha de cima do item já mostra, e é mais longa que a do m
 **Tarefa relacionada:** T43, RNF03, RNF04
 
 **Data:** 2026-10-21
+
+
+## Duas réguas de urgência: a janela que o gestor configura e a escala fixa
+
+**Contexto do problema:** no controle manual, "perto de vencer" é um julgamento de quem olha a
+prateleira, e cada pessoa usa uma régua. O sistema tem duas, e as duas são do servidor: a janela
+de alerta, que o gestor configura em dias (T17), e a escala de cinco faixas (vencida, até 7, 8 a
+30, 31 a 90, acima de 90 dias), que é fixa e pinta a barra do estoque e os distintivos (T40).
+
+**Solução adotada:** na lista de alertas (T44), a cor do distintivo segue a situação que o
+servidor atribuiu ao alerta — na janela ou já vencida —, e não os dias: todo alerta na janela é
+âmbar, a cor que a escala dá à faixa de 8 a 30 dias. O número exato de dias está escrito no
+próprio distintivo.
+
+**Por que importa / trade-offs:** a mesma unidade pode aparecer com cores diferentes em telas
+diferentes. Com uma janela de 60 dias, um frasco a 50 dias do vencimento é âmbar nos alertas e
+verde na barra do estoque; um a 3 dias é âmbar nos alertas e laranja na escala. Fazer a tela
+escolher a cor pelos dias resolveria isso, mas seria a interface classificando validade, que é
+justamente o que a solução proíbe (RNF04). A coerência visual completa depende de o servidor
+passar a devolver a faixa também no alerta — trabalho futuro, pequeno, que vale citar como
+limitação: duas réguas configuradas em lugares diferentes podem dizer coisas diferentes sobre o
+mesmo frasco.
+
+**Tarefa relacionada:** T44, T17, T40, RF08, RNF04
+
+**Data:** 2026-10-21

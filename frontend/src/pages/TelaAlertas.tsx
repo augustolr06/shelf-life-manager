@@ -3,7 +3,7 @@ import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
 import { avisar } from '../services/avisos'
 import { listarAlertas, marcarAlertaComoLido, type Alerta } from '../services/alertas'
-import { formatarData } from '../services/datas'
+import { formatarData, formatarDiasParaVencer, formatarDiasVencida } from '../services/datas'
 
 /**
  * Os alertas proativos que a varredura emitiu (RF08), entregues a quem pode
@@ -95,10 +95,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
   return (
     <section className="tela tela-alertas">
       <h1>Alertas</h1>
-      <p className="subtitulo">
-        Unidades que entraram na janela de antecedência configurada. Ainda dá tempo de decidir
-        o que fazer com elas — promoção, destaque na vitrine — antes da perda.
-      </p>
+      <p className="subtitulo frase-contexto">Ainda dá tempo: promoção ou vitrine antes da perda.</p>
 
       {erro && (
         <p className="erro" role="alert">
@@ -137,66 +134,59 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
             {total} alerta(s) — {naoLidos} não lido(s) — página {pagina} de {totalPaginas}
           </p>
 
-          <ul className="lista-alertas">
-            {alertas.map((alerta) => (
-              <li
-                key={alerta.id}
-                className={
-                  alerta.situacao === 'VENCIDA'
-                    ? 'cartao alerta vencido'
-                    : alerta.lidoEm
-                      ? 'cartao alerta lido'
-                      : 'cartao alerta'
-                }
-              >
-                <div className="dados-alerta">
-                  <h3>{alerta.unidade.produto.nome}</h3>
-                  <p className="subtitulo">
-                    {alerta.unidade.produto.marca} ·{' '}
-                    <span className="codigo">{alerta.unidade.produto.codigoInterno}</span>
-                  </p>
+          {/* Mesma lista compacta da fila de descarte (T44). A janela que
+              gerou o alerta, a marca e a validade ficam no `title`. */}
+          <ul className="cartao lista-compacta">
+            {alertas.map((alerta) => {
+              const vencida = alerta.situacao === 'VENCIDA'
+              return (
+                <li
+                  key={alerta.id}
+                  className={alerta.lidoEm ? 'linha-compacta lida' : 'linha-compacta'}
+                  title={`${alerta.unidade.produto.marca} · validade ${formatarData(alerta.unidade.dataValidade)} · avisado ${alerta.janela.diasAntecedencia} dias antes`}
+                >
+                  <div className="dados-linha">
+                    <span className="nome-linha">{alerta.unidade.produto.nome}</span>
+                    <span className="detalhe-linha">
+                      {/* Contagem do servidor, nos dois casos: a tela não
+                          compara datas (RNF01), e nem decide qual das duas
+                          frases e cores usar — quem decide é `situacao`. A
+                          janela de alerta é a faixa de 8 a 30 dias da escala. */}
+                      <span
+                        className={
+                          vencida ? 'distintivo faixa-vencida' : 'distintivo faixa-de_8_a_30_dias'
+                        }
+                      >
+                        {vencida
+                          ? formatarDiasVencida(Math.abs(alerta.diasParaVencer))
+                          : formatarDiasParaVencer(alerta.diasParaVencer)}
+                      </span>
+                      <span className="codigo">{alerta.unidade.codigoQr}</span>
+                    </span>
+                  </div>
 
-                  <dl className="dados-unidade">
-                    <dt>Etiqueta</dt>
-                    <dd className="codigo">{alerta.unidade.codigoQr}</dd>
-                    <dt>Validade</dt>
-                    <dd>{formatarData(alerta.unidade.dataValidade)}</dd>
-                    <dt>{alerta.situacao === 'VENCIDA' ? 'Vencida há' : 'Vence em'}</dt>
-                    {/* Contagem do servidor, nos dois casos: a tela não compara
-                        datas (RNF01), e nem decide qual dos dois rótulos usar —
-                        quem decide é `situacao`. */}
-                    <dd>
-                      {Math.abs(alerta.diasParaVencer)} dia
-                      {Math.abs(alerta.diasParaVencer) === 1 ? '' : 's'}
-                    </dd>
-                    <dt>Janela</dt>
-                    <dd>avisado {alerta.janela.diasAntecedencia} dias antes</dd>
-                  </dl>
-
-                  {alerta.situacao === 'VENCIDA' && (
-                    <p className="nota-vencida" role="note">
-                      Esta unidade venceu depois do aviso. O destino dela — descarte, correção
-                      de validade — está na fila de descarte.
-                    </p>
-                  )}
-                </div>
-
-                <div className="acoes-alerta">
                   {alerta.lidoEm ? (
                     <span className="marca-lido">Lido</span>
                   ) : (
                     <button
                       aria-busy={marcando === alerta.id}
                       type="button"
+                      className="secundario"
                       disabled={marcando === alerta.id}
                       onClick={() => void marcarComoLido(alerta)}
                     >
                       {marcando === alerta.id ? 'Marcando…' : 'Marcar como lido'}
                     </button>
                   )}
-                </div>
-              </li>
-            ))}
+
+                  {/* O alerta não resolve unidade (ver o comentário do topo):
+                      a vencida se resolve no Descarte, e a linha diz onde. */}
+                  {vencida && (
+                    <span className="nota-linha">Venceu depois do aviso: resolva no Descarte.</span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </>
       )}

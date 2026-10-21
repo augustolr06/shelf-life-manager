@@ -2732,3 +2732,59 @@ de vencida com correção → descarte → override na ordem do PRD 6.1 (gestor)
 (atendente); "Encerrar atendimento" some com itens no carrinho; console sem erro além do 401 de
 `/auth/me` antes do login. Câmera ligada não foi conferida: o `playwright-cli` não tem câmera, e
 isso entra na verificação em celular real. Capturas em `docs/redesign/T43/`.
+
+## 2026-10-21 — T44: descarte e alertas em lista compacta
+
+Aplica a seção "Validade: descarte e alertas" da especificação do redesign
+(`docs/redesign/claude-design/README.md`) e troca o cartão por unidade de T13 e T19 pela linha.
+Nenhum comportamento de resolver, descartar, corrigir ou marcar como lido mudou; o que a
+especificação e o arquivo da tarefa não fixavam e foi decidido aqui:
+
+1. **Marca, validade e janela saem da linha e vão para o `title` do item.** A especificação
+   descreve a linha só com nome, distintivo e código; o arquivo da tarefa pede que a janela do
+   alerta fique em `title`. A marca e a data de validade seguiram o mesmo caminho, nas duas telas
+   ("Marca · validade 01/07/2026", e no alerta também "· avisado 30 dias antes"). No descarte a
+   validade continua visível no painel de resolução, que é onde ela é corrigida. O código
+   interno do produto saiu de vez: a linha já tem o código da etiqueta. **Limitação:** `title`
+   não aparece no toque, e no celular esses dados deixaram de ser visíveis nos alertas; para o
+   leitor de tela ele vira o nome do item da lista, então nada se perde ali. **Ponto para o
+   orientando revisar.** O arquivo da tarefa fala em "data de entrada", que a linha antiga não
+   mostrava; foi lido como a data de validade.
+2. **O alerta de unidade já vencida mantém o aviso de que ela se resolve no Descarte**, numa
+   linha curta de legenda por baixo da linha inteira ("Venceu depois do aviso: resolva no
+   Descarte."). A especificação não o mostra, mas sem ele o alerta vencido vira um beco sem
+   saída: a tela de alertas não resolve unidade (T19), e era essa frase que dizia onde ir.
+3. **Cor do distintivo do alerta pela `situacao`, não pelos dias.** `NA_JANELA` é sempre âmbar
+   (faixa de 8 a 30 dias, "a janela de alerta" da especificação), mesmo quando faltam 3 dias (que
+   na escala seria laranja) ou 50 (verde, numa janela configurada de 60). Classificar pela
+   contagem seria a tela escolhendo faixa, e a faixa é do servidor (RNF04); o alerta não traz
+   `faixa`, só `situacao`. A contagem exata está no texto do distintivo. Se a cor tiver de seguir
+   a escala, o caminho é o servidor devolver `faixa` no alerta, como já faz no dashboard (T42).
+4. **Concordância do texto em `services/datas.ts`** (`formatarDiasVencida`,
+   `formatarDiasParaVencer`): "há 1 dia", "vence em N dias", e "vence hoje" com 0, a mesma borda
+   do FIFO que o Início escreve como "Hoje" (T42, decisão 2). Só texto; a contagem é a do servidor.
+5. **Distintivo da linha mais baixo que o padrão** (20 px, como no mockup, contra 24 px): com o
+   padrão, 7 linhas passavam 14 px por baixo da barra inferior a 360×740. Com 20 px a lista
+   termina 29 px acima dela.
+6. **"Marcar como lido" em duas linhas no celular**, num botão de até 6,5 rem, pelo mesmo motivo
+   e com a mesma regra do "Encerrar atendimento" da Venda (T43, decisão 8): inteiro, ele ocupava
+   metade da linha a 360 px e o nome e o código quebravam em três linhas.
+7. **Frase de contexto encurtada para caber numa linha a 360 px** ("Vencidas não saem na venda.
+   Decida o destino." e "Ainda dá tempo: promoção ou vitrine antes da perda."), com corte por
+   reticências se ainda assim não couber. O resumo com total e página continua, porque é o alvo
+   de rolagem da paginação (T27) e o único lugar com o número de não lidos.
+8. **Alerta lido**: o nome passa ao texto suave e o "Lido" fica no lugar do botão; o distintivo
+   mantém a cor, porque ler o aviso não muda o estado da unidade. Sai o fundo cinza do cartão
+   lido e a faixa lateral de cor dos dois cartões, e com eles as classes `.pendente` e `.alerta`
+   das listas de tom de `estilos.css`.
+
+**Verificação.** Vitest 317/317 no frontend (dois casos novos: "há 1 dia" no descarte e "vence
+hoje" no alerta; asserções de texto trocadas para o distintivo e para o `title`); os dois erros
+não tratados vêm de `TelaInicio.test.tsx` e já existiam. `npm run typecheck` limpo.
+`playwright-cli` a 360×740 e 1280×900 como gestor, com o banco local (4 vencidas, 3 alertas, todos
+de unidade já vencida): fila com 7 linhas (as 4 reais e 3 cópias no DOM) acima da barra
+inferior, painel de resolução aberto dentro da linha, alertas com "Lido" e "Marcar como lido",
+sem rolagem horizontal, console sem erro. O distintivo âmbar de `NA_JANELA` não foi visto no
+navegador (não há alerta na janela no banco local); está coberto pelo Vitest. Resolver e marcar
+como lido não foram executados no navegador, para não mexer nos dados locais, e estão cobertos
+pelo Vitest. Capturas em `docs/redesign/T44/` (`celular-descarte-7-unidades.png` tem as cópias).

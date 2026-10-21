@@ -74,13 +74,25 @@ describe('TelaDescartesPendentes (RF11)', () => {
 
     expect(await screen.findByText('PRF-JC95FJ')).toBeInTheDocument()
     expect(screen.getByText('Eau de Parfum 50ml')).toBeInTheDocument()
-    expect(screen.getByText('01/07/2026')).toBeInTheDocument()
     // A contagem vem pronta do servidor — a tela não subtrai datas (RNF01).
-    expect(screen.getByText('69 dias')).toBeInTheDocument()
+    expect(screen.getByText('há 69 dias')).toHaveClass('distintivo', 'faixa-vencida')
+    // Lista compacta (T44): marca e validade saem da linha para o `title`.
+    expect(screen.getByText('PRF-JC95FJ').closest('li')).toHaveAttribute(
+      'title',
+      'Marca Exemplo · validade 01/07/2026',
+    )
     expect(buscar).toHaveBeenCalledWith(
       'http://localhost:3333/descartes/pendentes',
       expect.objectContaining({ credentials: 'include' }),
     )
+  })
+
+  it('concorda o distintivo com a contagem do servidor', async () => {
+    buscar.mockResolvedValueOnce(fila([{ ...VENCIDA, diasVencida: 1 }]))
+
+    renderizarComAvisos(<TelaDescartesPendentes usuario={GESTOR} />)
+
+    expect(await screen.findByText('há 1 dia')).toBeInTheDocument()
   })
 
   it('fila vazia é o estado desejado, não uma falha', async () => {

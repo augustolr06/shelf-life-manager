@@ -33,12 +33,13 @@ com o estado num distintivo.
 
 ## Critério de aceite
 
-- [ ] Nenhuma classificação no navegador: dias e situação vêm do servidor
-- [ ] A 360×740, a fila de 7 unidades do banco de produção cabe sem rolar (com a barra
-      inferior)
-- [ ] Resolver e marcar como lido funcionam como antes
-- [ ] Testes de Vitest de `TelaDescartesPendentes` e `TelaAlertas` verdes
-- [ ] `playwright-cli` a 360×740 e 1280×900; capturas em `docs/redesign/T44/`
+- [x] Nenhuma classificação no navegador: dias e situação vêm do servidor
+- [x] A 360×740, a fila de 7 unidades do banco de produção cabe sem rolar (com a barra
+      inferior) — medido com 7 linhas no banco local (4 reais e 3 cópias no DOM), não com o
+      banco de produção: a lista termina 29 px acima da barra
+- [x] Resolver e marcar como lido funcionam como antes
+- [x] Testes de Vitest de `TelaDescartesPendentes` e `TelaAlertas` verdes
+- [x] `playwright-cli` a 360×740 e 1280×900; capturas em `docs/redesign/T44/`
 
 ## Fora de escopo
 
