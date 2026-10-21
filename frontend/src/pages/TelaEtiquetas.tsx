@@ -132,7 +132,7 @@ export function TelaEtiquetas() {
     <section className="tela tela-etiquetas">
       {/* Tudo o que é controle sai da folha impressa: ver `@media print`. */}
       <div className="controles-etiquetas">
-        <h2>Etiquetas para impressão</h2>
+        <h1>Etiquetas</h1>
         <p className="subtitulo">
           Recorte e cole cada etiqueta na sua unidade. A folha sai na ordem de validade — a
           mesma ordem em que os frascos serão vendidos.

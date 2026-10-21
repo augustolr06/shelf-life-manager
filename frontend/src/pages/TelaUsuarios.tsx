@@ -175,7 +175,7 @@ export function TelaUsuarios({ usuario }: Props) {
 
   return (
     <section className="tela tela-usuarios">
-      <h2>Contas de acesso</h2>
+      <h1>Contas de acesso</h1>
 
       <form className="cartao formulario-coluna" onSubmit={cadastrar}>
         <h3>Criar conta</h3>

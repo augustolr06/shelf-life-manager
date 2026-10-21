@@ -156,7 +156,7 @@ export function TelaDashboard() {
 
   return (
     <section className="tela tela-dashboard">
-      <h2>Dashboard</h2>
+      <h1>Relatórios</h1>
       <p className="subtitulo">
         A consolidação do que o sistema registrou. Os números do estoque são de agora; os de
         movimento são do período selecionado.

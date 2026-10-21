@@ -23,7 +23,17 @@ import { listarDescartesPendentes, type UnidadePendente } from '../services/desc
  * override, que é ato de venda e não existe numa varredura de estoque.
  */
 
-export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
+type Props = {
+  usuario: Usuario
+  /**
+   * O `total` da fila a cada recarga, para o distintivo da navegação (T41).
+   * Opcional pelo mesmo motivo do `aoAtualizarNaoLidos` dos alertas: a tela
+   * funciona sozinha nos testes.
+   */
+  aoAtualizarPendentes?: (pendentes: number) => void
+}
+
+export function TelaDescartesPendentes({ usuario, aoAtualizarPendentes }: Props) {
   const [unidades, setUnidades] = useState<UnidadePendente[]>([])
   const [total, setTotal] = useState(0)
   const [tamanhoPagina, setTamanhoPagina] = useState(20)
@@ -43,6 +53,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
       const fila = await listarDescartesPendentes(pagina)
       setUnidades(fila.unidades)
       setTotal(fila.total)
+      aoAtualizarPendentes?.(fila.total)
       setTamanhoPagina(fila.tamanhoPagina)
       setEmResolucao(null)
     } catch (falha) {
@@ -52,7 +63,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
     } finally {
       setCarregando(false)
     }
-  }, [pagina])
+  }, [pagina, aoAtualizarPendentes])
 
   useEffect(() => {
     void carregar()
@@ -62,7 +73,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
 
   return (
     <section className="tela tela-descartes">
-      <h2>Fila de descarte pendente</h2>
+      <h1>Descarte</h1>
       <p className="subtitulo">
         Unidades que já venceram e continuam no estoque. Elas não saem pelo fluxo normal de
         venda — ficam aqui até serem resolvidas.
@@ -150,6 +161,7 @@ export function TelaDescartesPendentes({ usuario }: { usuario: Usuario }) {
                       avisar.sucesso(resolucao.mensagem)
                       setUnidades((atuais) => atuais.filter((u) => u.id !== resolucao.unidade.id))
                       setTotal((atual) => Math.max(0, atual - 1))
+                      aoAtualizarPendentes?.(Math.max(0, total - 1))
                       setEmResolucao(null)
                     }}
                     // Lista velha: outra pessoa resolveu esta unidade desde que a

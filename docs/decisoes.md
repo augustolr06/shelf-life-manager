@@ -2538,3 +2538,71 @@ Fila de descarte e Dashboard em `docs/redesign/T40/`. No build servido por `vite
 `network-state-set offline` e a página recarregada, o título continua em Manrope, servida pelo
 cache do service worker. Console sem erro além do 401 esperado de `/auth/me` antes do login e do
 `ERR_INTERNET_DISCONNECTED` esperado offline.
+
+
+## 2026-10-21 — T41: navegação por tarefa (menu lateral, barra inferior e fim da barra do topo)
+
+Aplica a seção "Navegação" da especificação do redesign (`docs/redesign/claude-design/README.md`)
+e remove a barra do topo (revê T10 e T35, decisão 12). O que a especificação não fixava e foi
+decidido aqui:
+
+1. **O formato é decidido em JavaScript, não só em `@media`.** `useFormatoDaTela` consulta
+   `matchMedia` com os cortes da especificação (< 600 px, até 1024 px, acima) e o `App` monta
+   *ou* o menu lateral *ou* a barra inferior, e põe `formato-*` na `.aplicacao` para o CSS. Com
+   as duas navegações no DOM e uma escondida pelo CSS, os links ficariam em dobro para quem não
+   enxerga o CSS — leitor de tela durante a troca e o jsdom dos testes, em que todo `getByRole`
+   de link passaria a achar dois. Sem `matchMedia` (jsdom), o formato é o de computador; os
+   testes do tablet e do celular simulam a largura com um dublê de `matchMedia`.
+2. **Metadados de navegação em `TELAS`.** Cada tela ganhou `grupo`, `icone` e, quando tem atalho
+   no celular, `barraInferior` (rótulo e ícone próprios, e `ativoTambemEm`). A ordem de `TELAS`
+   passou a ser a do menu. A "Minha senha" fica sem grupo: o link mora no rodapé do usuário. O
+   item **Início** não entrou, porque a rota `/inicio` nasce em T42.
+3. **Títulos viraram `<h1>`, todos com o rótulo do menu.** Sem a barra do topo, a marca deixou de
+   ser o `<h1>` da página. A especificação cita quatro rótulos novos (Recebimento, Catálogo,
+   Descarte, Relatórios), mas diz que o título "acompanha o rótulo do menu"; por isso Alertas,
+   Configurar alertas e Etiquetas também mudaram ("Alertas de vencimento", "Alertas de vencimento
+   próximo", "Etiquetas para impressão"). **Lacuna conhecida:** as seções internas das telas
+   continuam em `<h3>`, e a hierarquia pula do 1 para o 3. Renumerar todas as telas agora seria
+   adiantar T42–T45, que refazem esses cabeçalhos; as telas fora delas ficam para uma tarefa à
+   parte, se o orientando quiser.
+4. **Abas de validade são links com `aria-current`, não `role="tab"`.** O mockup usa o padrão de
+   abas do ARIA, que promete trocar o painel no lugar e navegar pelas setas; aqui cada aba troca
+   de rota. As abas são montadas pelo `App` acima das telas (`AbasValidade`), e só no celular,
+   para não mexer no layout de descarte e alertas, que é de T44. Cada aba mostra a contagem
+   mesmo quando é zero.
+5. **"Validade" em `/alertas` leva `aria-current="true"`, não `"page"`.** O atalho aparece
+   marcado nas duas telas de validade, mas o link aponta para o descarte; dizer "página atual"
+   em `/alertas` seria falso.
+6. **Contador da fila de descarte** buscado ao autenticar o gestor (`GET /descartes/pendentes`,
+   `total` da primeira página) e atualizado pela tela de descarte a cada recarga e a cada
+   descarte (`aoAtualizarPendentes`), como o de alertas (T19). Sem polling. Fica desatualizado
+   quando uma unidade vencida é descartada na Venda, até a fila ser aberta; mesmo critério do
+   contador de alertas: é conveniência, não dado de decisão.
+7. **Cores dos distintivos.** Alertas em laranja (`distintivo-alerta`, que entra no tom da faixa
+   de até 7 dias) e descarte no tom de perigo, como pede a especificação. Fecha a pendência de
+   T40, decisão 3. Onde a contagem fica por cima do ícone (menu recolhido e barra inferior), a
+   pílula é cheia: branco sobre o `-forte` do tom, como no mockup.
+8. **Folha "Mais".** Contém tudo o que não tem atalho na barra, nos mesmos grupos — inclusive
+   Alertas, que no celular também está a uma aba do descarte — e o rodapé do usuário. Feita
+   sobre `<dialog>` com `showModal()`, como o `Dialogo` de T30, mas componente próprio: o
+   `Dialogo` exige botões de ação e descrição, que a folha não tem. O foco volta ao "Mais"
+   num efeito, **depois** de a folha sair do DOM: chamado no mesmo clique, o `focus()` caía na
+   página ainda inerte do modal e se perdia. O jsdom não implementa a inércia; o erro só
+   apareceu no `playwright-cli`.
+9. **Tablet.** O menu recolhido mostra os ícones com o nome no `title` e no `aria-label` (com a
+   contagem, quando há), e um botão "Menu" com `aria-expanded` o abre por cima do conteúdo, com
+   véu. Fecham: escolher um item, Esc, toque no véu ou o próprio botão. Recolhido, o rodapé
+   mostra só a "Minha senha" (ícone de chave, ícone novo fora dos mockups) e o sair.
+10. **Rodapé do usuário.** O nome quebra linha em vez de ser cortado com reticências: nos 232 px
+    do menu, ao lado das iniciais e do botão de sair, sobram cerca de 100 px.
+11. **Toasts acima da barra inferior.** `mobileOffset` do `sonner`, cujo corte de celular
+    (600 px) coincide com o da navegação.
+12. **`--cor-acento` saiu**, com a barra do topo, que era o único uso.
+
+**Verificação.** Vitest 293/293 (dez casos novos: grupos e rótulos do gestor e da atendente,
+distintivo de descarte, `aria-current` com o `end` de `/alertas`, menu recolhido no tablet,
+barra inferior do gestor e da atendente, folha "Mais" com foco, abas de validade, e o total da
+fila informado pela tela de descarte); `npm run typecheck` limpo. `playwright-cli` em 1280×900,
+768×1024 e 360×740, como gestor e como atendente: sem rolagem horizontal nos três tamanhos,
+foco visível no menu lateral, Esc fechando o menu do tablet e a folha, console sem erro além do
+401 esperado de `/auth/me` antes do login. Capturas em `docs/redesign/T41/`.

@@ -141,7 +141,7 @@ export function TelaConfiguracaoAlerta() {
 
   return (
     <section className="tela tela-configuracao-alerta">
-      <h2>Alertas de vencimento próximo</h2>
+      <h1>Configurar alertas</h1>
       <p className="subtitulo">
         Quantos dias antes do vencimento o sistema deve avisar. O número depende do giro do
         produto — 30 dias dá tempo de decidir uma promoção; 7 dias é última chamada.

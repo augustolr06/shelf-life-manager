@@ -165,6 +165,37 @@ describe('TelaDescartesPendentes (RF11)', () => {
     expect(JSON.parse(envio.body as string)).toEqual({ unidadeId: VENCIDA.id })
   })
 
+  it('informa à navegação o total da fila ao carregar e a cada descarte (T41)', async () => {
+    // `total` 12 com duas linhas: o distintivo conta a fila inteira, não a
+    // página que a tela mostra.
+    buscar.mockResolvedValueOnce(fila([VENCIDA, OUTRA_VENCIDA], 12))
+    buscar.mockResolvedValueOnce(
+      respostaFalsa(201, {
+        resultado: 'DESCARTE_REGISTRADO',
+        unidade: VENCIDA,
+        descarte: {
+          id: '66666666-6666-6666-6666-666666666666',
+          dataHora: '2026-09-08T18:00:00.000Z',
+          motivo: 'Unidade vencida constatada na leitura de saída.',
+        },
+        mensagem: 'Descarte registrado. A unidade saiu do estoque.',
+      }),
+    )
+    const aoAtualizarPendentes = vi.fn()
+
+    renderizarComAvisos(
+      <TelaDescartesPendentes usuario={GESTOR} aoAtualizarPendentes={aoAtualizarPendentes} />,
+    )
+    await screen.findByText('PRF-JC95FJ')
+    expect(aoAtualizarPendentes).toHaveBeenLastCalledWith(12)
+
+    resolver('PRF-JC95FJ')
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar descarte' }))
+    await responderConfirmacao('Descartar unidade?', 'Descartar')
+
+    await waitFor(() => expect(aoAtualizarPendentes).toHaveBeenLastCalledWith(11))
+  })
+
   it('correção recarrega a fila em vez de a tela adivinhar o novo estado', async () => {
     buscar.mockResolvedValueOnce(fila([VENCIDA]))
     buscar.mockResolvedValueOnce(

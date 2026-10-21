@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
@@ -86,10 +86,12 @@ describe('App — guardião de sessão', () => {
 
     montar()
 
-    expect(await screen.findByText(/gestora de loja — gestor/i)).toBeInTheDocument()
+    // Nome e papel no rodapé do menu desde T41, que tirou a barra do topo.
+    expect(await screen.findByText('Gestora de Loja')).toBeInTheDocument()
+    expect(screen.getByText(/^gestor ·/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/senha/i)).not.toBeInTheDocument()
     // A tela de domínio de T04 é renderizada dentro do ramo autenticado.
-    expect(screen.getByRole('heading', { name: /catálogo de produtos/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /^catálogo$/i })).toBeInTheDocument()
   })
 
   it('separa a lista de alertas da configuração na navegação, com o contador de não lidos', async () => {
@@ -192,13 +194,13 @@ describe('App — guardião de sessão', () => {
       rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
 
       montar()
-      fireEvent.click(await screen.findByRole('link', { name: /registrar recebimento/i }))
+      fireEvent.click(await screen.findByRole('link', { name: /^recebimento$/i }))
 
       expect(
-        await screen.findByRole('heading', { name: /registrar recebimento/i }),
+        await screen.findByRole('heading', { level: 1, name: /^recebimento$/i }),
       ).toBeInTheDocument()
       expect(
-        screen.queryByRole('heading', { name: /catálogo de produtos/i }),
+        screen.queryByRole('heading', { level: 1, name: /^catálogo$/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -208,7 +210,7 @@ describe('App — guardião de sessão', () => {
       montar('/')
 
       expect(
-        await screen.findByRole('heading', { name: /catálogo de produtos/i }),
+        await screen.findByRole('heading', { level: 1, name: /^catálogo$/i }),
       ).toBeInTheDocument()
     })
 
@@ -258,7 +260,7 @@ describe('App — guardião de sessão', () => {
       // backend (RF03), coberto por `backend/tests/unidade.test.ts`.
       expect(await screen.findByRole('heading', { name: /^venda$/i })).toBeInTheDocument()
       expect(
-        screen.queryByRole('link', { name: /registrar recebimento/i }),
+        screen.queryByRole('link', { name: /recebimento/i }),
       ).not.toBeInTheDocument()
     })
 
@@ -269,6 +271,249 @@ describe('App — guardião de sessão', () => {
 
       expect(await screen.findByLabelText(/senha/i)).toBeInTheDocument()
       expect(screen.queryByRole('heading', { name: /^venda$/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('navegação por tarefa (T41)', () => {
+    const SEM_ALERTAS = () =>
+      respostaFalsa(200, { alertas: [], total: 0, naoLidos: 0, pagina: 1, tamanhoPagina: 1 })
+    const TRES_NAO_LIDOS = () =>
+      respostaFalsa(200, { alertas: [], total: 4, naoLidos: 3, pagina: 1, tamanhoPagina: 1 })
+    const SETE_NA_FILA = () =>
+      respostaFalsa(200, { unidades: [], total: 7, pagina: 1, tamanhoPagina: 20 })
+
+    /**
+     * O formato da navegação vem de `matchMedia`, que o jsdom não tem. Sem
+     * este dublê, o `App` monta o menu do computador.
+     */
+    function simularLargura(largura: number) {
+      vi.stubGlobal('matchMedia', (consulta: string) => ({
+        matches: largura <= Number(/max-width:\s*([\d.]+)px/.exec(consulta)?.[1]),
+        media: consulta,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    }
+
+    /** Os rótulos das listas de um grupo do menu, na ordem. */
+    function itensDoGrupo(grupo: string) {
+      return within(screen.getByRole('list', { name: grupo }))
+        .getAllByRole('link')
+        .map((link) => link.textContent)
+    }
+
+    it('agrupa as telas do gestor por tarefa, com os rótulos novos e as mesmas rotas', async () => {
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /produtos': CATALOGO_VAZIO,
+        'GET /alertas?tamanhoPagina=1': SEM_ALERTAS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar()
+      await screen.findByRole('navigation', { name: 'Menu principal' })
+
+      expect(itensDoGrupo('Operação')).toEqual([
+        'Venda',
+        'Consultar produto',
+        'Recebimento',
+        'Etiquetas',
+      ])
+      expect(itensDoGrupo('Gestão')).toEqual([
+        'Relatórios',
+        'Catálogo',
+        'Contas de acesso',
+        'Configurar alertas',
+      ])
+      expect(screen.getByRole('link', { name: /^relatórios$/i })).toHaveAttribute(
+        'href',
+        '/dashboard',
+      )
+      expect(screen.getByRole('link', { name: /^catálogo$/i })).toHaveAttribute('aria-current', 'page')
+      expect(screen.getByRole('link', { name: 'Minha senha' })).toHaveAttribute(
+        'href',
+        '/minha-senha',
+      )
+    })
+
+    it('mostra à atendente só Venda, Consultar e Catálogo, sem grupo de validade', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+      montar('/venda')
+      await screen.findByRole('navigation', { name: 'Menu principal' })
+
+      expect(itensDoGrupo('Operação')).toEqual(['Venda', 'Consultar produto'])
+      expect(itensDoGrupo('Gestão')).toEqual(['Catálogo'])
+      expect(screen.queryByRole('list', { name: 'Validade' })).not.toBeInTheDocument()
+      expect(screen.getByText('Atendente de Balcão')).toBeInTheDocument()
+    })
+
+    it('conta a fila de descarte no distintivo, pelo total de GET /descartes/pendentes', async () => {
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /produtos': CATALOGO_VAZIO,
+        'GET /alertas?tamanhoPagina=1': TRES_NAO_LIDOS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar()
+
+      expect(await screen.findByLabelText('7 unidade(s) na fila de descarte')).toHaveTextContent('7')
+      expect(within(screen.getByRole('list', { name: 'Validade' })).getAllByRole('link')).toHaveLength(2)
+      expect(await screen.findByLabelText('3 alerta(s) não lido(s)')).toBeInTheDocument()
+    })
+
+    it('não marca Alertas como atual enquanto a tela é a configuração deles', async () => {
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /alertas?tamanhoPagina=1': SEM_ALERTAS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+        'GET /configuracao-alerta': () => respostaFalsa(200, { configuracoes: [] }),
+      })
+
+      montar('/alertas/configuracao')
+
+      expect(await screen.findByRole('link', { name: /configurar alertas/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+      expect(screen.getByRole('link', { name: /^alertas$/i })).not.toHaveAttribute('aria-current')
+    })
+
+    it('no tablet, recolhe o menu aos ícones com o nome no aria-label e expande pelo botão', async () => {
+      simularLargura(768)
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /produtos': CATALOGO_VAZIO,
+        'GET /alertas?tamanhoPagina=1': SEM_ALERTAS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar()
+
+      const descarte = await screen.findByRole('link', {
+        name: 'Descarte, 7 unidade(s) na fila de descarte',
+      })
+      expect(descarte).toHaveAttribute('title', 'Descarte')
+      expect(descarte).not.toHaveTextContent('Descarte')
+
+      const menu = screen.getByRole('button', { name: 'Menu' })
+      expect(menu).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(menu)
+      expect(menu).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByRole('link', { name: /^descarte/i })).toHaveTextContent('Descarte')
+
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(menu).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('no celular, dá ao gestor a barra inferior com Venda, Consultar, Validade e Mais', async () => {
+      simularLargura(360)
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /health': BACKEND_DE_PE,
+        'GET /alertas?tamanhoPagina=1': TRES_NAO_LIDOS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar('/venda')
+
+      const barra = await screen.findByRole('navigation', { name: 'Menu principal' })
+      await within(barra).findByText('7')
+      expect(
+        within(barra)
+          .getAllByRole('link')
+          .map((link) => link.getAttribute('aria-label')),
+      ).toEqual(['Venda', 'Consultar', 'Validade, 7 unidade(s) na fila de descarte'])
+      expect(within(barra).getByRole('link', { name: 'Venda' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+      expect(within(barra).getByRole('link', { name: /^validade/i })).toHaveAttribute(
+        'href',
+        '/descartes',
+      )
+      expect(within(barra).getByRole('button', { name: 'Mais' })).toBeInTheDocument()
+    })
+
+    it('abre a folha "Mais" com o resto do menu e o rodapé, e devolve o foco ao fechar', async () => {
+      simularLargura(360)
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /health': BACKEND_DE_PE,
+        'GET /alertas?tamanhoPagina=1': TRES_NAO_LIDOS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar('/venda')
+      const mais = await screen.findByRole('button', { name: 'Mais' })
+      fireEvent.click(mais)
+
+      const folha = screen.getByRole('dialog', { name: 'Mais' })
+      expect(mais).toHaveAttribute('aria-expanded', 'true')
+      expect(within(folha).getByRole('button', { name: 'Fechar' })).toHaveFocus()
+      // Venda, Consultar e Descarte já estão na barra; os alertas, não.
+      expect(
+        within(within(folha).getByRole('list', { name: 'Operação' }))
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual(['Recebimento', 'Etiquetas'])
+      expect(within(folha).getByRole('link', { name: /^alertas/i })).toHaveAttribute(
+        'href',
+        '/alertas',
+      )
+      expect(within(folha).getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+
+      fireEvent.keyDown(folha, { key: 'Escape' })
+
+      expect(screen.queryByRole('dialog', { name: 'Mais' })).not.toBeInTheDocument()
+      expect(mais).toHaveFocus()
+    })
+
+    it('no celular, dá à atendente só Venda, Consultar e Mais', async () => {
+      simularLargura(360)
+      rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
+
+      montar('/venda')
+
+      const barra = await screen.findByRole('navigation', { name: 'Menu principal' })
+      expect(within(barra).getAllByRole('link').map((link) => link.textContent)).toEqual([
+        'Venda',
+        'Consultar',
+      ])
+      fireEvent.click(within(barra).getByRole('button', { name: 'Mais' }))
+      const folha = screen.getByRole('dialog', { name: 'Mais' })
+      // Só o grupo Gestão sobra para ela, com o Catálogo.
+      expect(within(folha).getAllByRole('list')).toHaveLength(1)
+      expect(within(folha).getByRole('link', { name: 'Catálogo' })).toBeInTheDocument()
+    })
+
+    it('no celular, põe as abas Descarte | Alertas no topo das telas de validade', async () => {
+      simularLargura(360)
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /alertas?tamanhoPagina=1': TRES_NAO_LIDOS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar('/descartes')
+
+      const abas = await screen.findByRole('navigation', { name: 'Validade' })
+      await within(abas).findByText('3')
+      expect(within(abas).getByRole('link', { name: /^descarte/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+      expect(within(abas).getByRole('link', { name: /^alertas/i })).toHaveAttribute(
+        'href',
+        '/alertas',
+      )
+      expect(within(abas).getByLabelText('7 unidade(s) na fila de descarte')).toBeInTheDocument()
+      // Em `/descartes`, o atalho "Validade" da barra fica marcado como página.
+      expect(screen.getByRole('link', { name: /^validade/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
     })
   })
 
@@ -333,7 +578,7 @@ describe('App — guardião de sessão', () => {
       // A rota inicial do GESTOR é o catálogo; voltar à configuração prova
       // que a rota veio do modal, e não do papel.
       expect(
-        await screen.findByRole('heading', { name: /alertas de vencimento próximo/i }),
+        await screen.findByRole('heading', { level: 1, name: /configurar alertas/i }),
       ).toBeInTheDocument()
       expect(await screen.findByText(/nenhuma janela de antecedência/i)).toBeInTheDocument()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

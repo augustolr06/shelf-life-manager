@@ -1895,3 +1895,28 @@ nome e número.
 **Tarefa relacionada:** T40, RNF04
 
 **Data:** 2026-10-21
+
+
+## A fila de vencidos ganha lugar fixo na navegação
+
+**Contexto do problema:** no controle manual, a unidade vencida que ninguém pediu fica num limbo:
+não é vendida, mas também não é retirada, porque só é notada quando alguém pega o frasco. A
+fila de descarte (T13) já resolvia isso em dados, mas até aqui era uma aba entre onze, do mesmo
+tamanho que "Contas de acesso", e no celular ficava abaixo de duas fileiras de abas.
+
+**Solução adotada:** o menu foi reorganizado por tarefa — Operação, Validade e Gestão — e a
+validade virou um grupo próprio. No celular, onde só cabem quatro atalhos, um deles é
+"Validade", com o número de unidades vencidas em estoque em vermelho por cima do ícone; alertas
+e descarte ficam a uma aba de distância um do outro. O número vem do servidor, como todo estado
+de validade (RNF04).
+
+**Por que importa / trade-offs:** é a interface trazendo para a frente o trabalho que o processo
+manual esquece: o gestor vê a fila crescer sem precisar abrir a tela. O custo é espaço: na barra
+do celular, "Validade" ocupou o lugar que poderia ser do Catálogo, que passou para a folha
+"Mais". Também é limitação a registrar: o número é buscado ao entrar e atualizado pela própria
+fila, sem consulta periódica ao servidor; um descarte feito no balcão só aparece nele quando a
+fila é aberta de novo.
+
+**Tarefa relacionada:** T41, T13, RF11
+
+**Data:** 2026-10-21

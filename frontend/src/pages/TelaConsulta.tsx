@@ -109,7 +109,7 @@ export function TelaConsulta() {
 
   return (
     <section className="tela tela-leitura">
-      <h2>Consultar produto</h2>
+      <h1>Consultar produto</h1>
       <p className="subtitulo">
         Leia o código de um frasco para ver o produto e a validade dele.{' '}
         <strong>Consultar não dá baixa:</strong> nada sai do estoque e nada é registrado. Para

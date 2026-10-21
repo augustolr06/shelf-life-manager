@@ -65,8 +65,6 @@
   --cor-primaria: #0f5c52;
   --cor-primaria-escura: #0a3f38;
   --cor-primaria-suave: #e3f0ec;
-  /* O traço claro do ícone, repetido no nome do app na barra do topo. */
-  --cor-acento: #5eead4;
 
   /* Escala de validade — ver tabela de contraste acima */
   --cor-faixa-vencida-texto: #a8231a;
@@ -262,7 +260,10 @@
   --tom-barra: var(--cor-faixa-vencida-barra);
 }
 
-.faixa-ate_7_dias {
+/* O distintivo de alertas não lidos é laranja, o tom da faixa de até 7 dias
+   (T41): é ela que mais aparece na lista de alertas. */
+.faixa-ate_7_dias,
+.distintivo-alerta {
   --tom-fundo: var(--cor-faixa-ate-7-fundo);
   --tom-texto: var(--cor-faixa-ate-7-texto);
   --tom-forte: var(--cor-faixa-ate-7-texto);
@@ -756,99 +757,409 @@ td button + button {
   margin-top: var(--espaco-4);
 }
 
-/* A barra do topo leva a cor da marca, até sair em T41 (a marca e o usuário
-   vão para o menu lateral). O `theme_color` já não é ela desde T40: é o fundo
-   da página. */
-.barra-topo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--espaco-3);
-  padding: var(--espaco-2) var(--espaco-4);
-  background: var(--cor-primaria);
-  color: var(--cor-texto-inverso);
-}
+/* ==========================================================================
+   Navegação por tarefa (T41)
+   ==========================================================================
 
-.barra-topo h1 {
-  margin: 0;
-  font-size: var(--tamanho-titulo);
-  font-weight: var(--peso-destaque);
-  letter-spacing: 0.01em;
-}
-
-.barra-topo h1 span {
-  color: var(--cor-acento);
-}
-
-.identidade {
-  display: flex;
-  align-items: center;
-  gap: var(--espaco-3);
-  font-size: var(--tamanho-apoio);
-}
-
-/* Sobre a barra escura, o botão vira contorno claro, e o anel de foco também:
-   o azul do foco não aparece sobre o verde-escuro. */
-.barra-topo button {
-  background: transparent;
-  border-color: var(--cor-texto-inverso);
-  color: var(--cor-texto-inverso);
-}
-
-.barra-topo button:hover:not(:disabled) {
-  background: var(--cor-primaria-escura);
-}
-
-.barra-topo :focus-visible {
-  outline-color: var(--cor-texto-inverso);
-}
-
-/* Navegação entre telas. Virou link em T10, quando cada tela ganhou URL
-   própria — antes eram botões trocando estado no App. */
-.abas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--espaco-1);
-  padding: 0 var(--espaco-4);
-  background: var(--cor-superficie);
-  border-bottom: 1px solid var(--cor-borda);
-}
-
-.aba {
-  display: flex;
-  align-items: center;
-  padding: 0 var(--espaco-3);
-  min-height: var(--alvo-toque);
-  border-bottom: 3px solid transparent;
-  color: var(--cor-texto-suave);
-  font-size: var(--tamanho-apoio);
-  text-decoration: none;
-}
-
-.aba:hover {
-  background: var(--cor-fundo);
-  color: var(--cor-texto);
-}
-
-.aba.ativa {
-  color: var(--cor-primaria);
-  border-bottom-color: var(--cor-primaria);
-  font-weight: var(--peso-forte);
-}
-
-/* O anel de foco por dentro da aba: por fora, ele cobriria a vizinha. */
-.aba:focus-visible {
-  outline-offset: -3px;
+   Computador: menu lateral fixo de 232 px. Tablet: o mesmo menu, recolhido
+   aos ícones (64 px), aberto por cima do conteúdo pelo botão de menu.
+   Celular: barra inferior fixa e a folha "Mais". Qual aparece é decidido em
+   `useFormatoDaTela`, que põe a classe `formato-*` na `.aplicacao`; os cortes
+   são os da especificação (600 e 1024 px). */
+:root {
+  --largura-menu: 14.5rem;
+  --largura-menu-recolhido: 4rem;
+  /* Item de 52 px mais o respiro de cima e de baixo. */
+  --altura-barra-inferior: 4.25rem;
 }
 
 .aplicacao > main {
   padding: var(--espaco-4);
 }
 
+.formato-computador > main {
+  margin-left: var(--largura-menu);
+}
+
+.formato-tablet > main {
+  margin-left: var(--largura-menu-recolhido);
+}
+
+/* O fim da página não fica atrás da barra inferior. */
+.formato-celular > main {
+  padding-bottom: calc(
+    var(--altura-barra-inferior) + env(safe-area-inset-bottom, 0px) + var(--espaco-4)
+  );
+}
+
+/* --- Menu lateral -------------------------------------------------------- */
+.menu-lateral {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-5);
+  width: var(--largura-menu);
+  padding: 1.25rem 0.875rem;
+  overflow-y: auto;
+  background: var(--cor-superficie);
+  border-right: 1px solid var(--cor-borda);
+}
+
+.menu-lateral.recolhido {
+  width: var(--largura-menu-recolhido);
+  padding-inline: var(--espaco-2);
+  align-items: center;
+}
+
+/* Tablet com o menu aberto: por cima do conteúdo, que não se mexe. */
+.menu-lateral.sobreposto {
+  box-shadow: var(--sombra-flutuante);
+}
+
+.veu-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: var(--cor-veu);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: var(--espaco-1) var(--espaco-2);
+}
+
+.recolhido .marca {
+  padding: var(--espaco-1) 0;
+}
+
+.marca-simbolo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: var(--raio-controle);
+  background: var(--cor-primaria);
+  color: var(--cor-texto-inverso);
+}
+
+.marca-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.marca-nome {
+  font-size: 1rem;
+  font-weight: var(--peso-titulo);
+  letter-spacing: -0.01em;
+}
+
+.marca-lema {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
+/* Botão só de ícone: menu do tablet, sair e fechar a folha. Quadrado no
+   alvo de toque. */
+button.botao-icone {
+  flex: none;
+  width: var(--alvo-toque);
+  padding: 0;
+}
+
+button.fantasma.botao-icone {
+  background: transparent;
+  color: var(--cor-texto-menu);
+}
+
+button.fantasma.botao-icone:hover:not(:disabled) {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.grupo-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.grupo-menu ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rotulo-grupo {
+  padding: 0 var(--espaco-3) 0.375rem;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-rotulo-grupo);
+  font-weight: var(--peso-destaque);
+  letter-spacing: var(--espacamento-rotulo-grupo);
+  text-transform: uppercase;
+}
+
+/* Recolhido, um traço separa os grupos no lugar do nome. */
+.recolhido .grupo-menu + .grupo-menu {
+  padding-top: var(--espaco-3);
+  border-top: 1px solid var(--cor-borda);
+}
+
+.item-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  min-height: var(--alvo-toque);
+  padding: 0.625rem var(--espaco-3);
+  border-radius: var(--raio-controle);
+  color: var(--cor-texto-menu);
+  font-size: var(--tamanho-item-menu);
+  font-weight: var(--peso-forte);
+  text-decoration: none;
+}
+
+.recolhido .item-menu {
+  justify-content: center;
+  width: var(--alvo-toque);
+  padding: 0;
+}
+
+.item-menu:hover {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.item-menu.ativo {
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-weight: var(--peso-destaque);
+}
+
+.rotulo-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-menu .distintivo {
+  margin-left: 0;
+}
+
+/* O ícone carrega a contagem por cima quando não há rótulo ao lado. */
+.icone-do-item {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.distintivo.distintivo-sobre-icone {
+  position: absolute;
+  top: -0.375rem;
+  right: -0.75rem;
+  min-width: 1.125rem;
+  margin: 0;
+  padding: 0 0.3125rem;
+  background: var(--tom-forte);
+  color: var(--cor-texto-inverso);
+  font-size: 0.6875rem;
+  line-height: 1.125rem;
+}
+
+/* --- Rodapé do usuário --------------------------------------------------- */
+.rodape-usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: auto;
+  padding: var(--espaco-3) var(--espaco-2);
+  border-top: 1px solid var(--cor-borda);
+}
+
+.rodape-usuario.recolhido {
+  flex-direction: column;
+  padding: var(--espaco-3) 0 0;
+}
+
+.iniciais {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 50%;
+  background: var(--cor-primaria-suave);
+  color: var(--cor-primaria);
+  font-weight: var(--peso-titulo);
+}
+
+.identidade-usuario {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* O nome quebra a linha em vez de ser cortado: nos 232 px do menu, ao lado
+   das iniciais e do sair, sobra pouco mais de 100 px para ele. */
+.nome-usuario {
+  font-weight: var(--peso-destaque);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.papel-usuario {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
+.rodape-usuario button.secundario {
+  border-color: var(--cor-borda);
+  color: var(--cor-texto-menu);
+}
+
+/* --- Barra inferior (celular) -------------------------------------------- */
+.barra-inferior {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 20;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  padding: 0.375rem var(--espaco-2) calc(0.375rem + env(safe-area-inset-bottom, 0px));
+  background: var(--cor-superficie);
+  border-top: 1px solid var(--cor-borda);
+}
+
+.item-barra,
+button.item-barra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-1);
+  min-height: 3.25rem;
+  padding: 0.375rem 0;
+  border: 0;
+  border-radius: var(--raio-controle);
+  background: transparent;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-item-barra-inferior);
+  font-weight: var(--peso-destaque);
+  text-decoration: none;
+}
+
+button.item-barra:hover:not(:disabled),
+.item-barra:hover {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.item-barra.ativo,
+button.item-barra.ativo {
+  color: var(--cor-primaria);
+  font-weight: var(--peso-titulo);
+}
+
+/* O anel por dentro: por fora, ele sairia da barra. */
+.item-barra:focus-visible {
+  outline-offset: -3px;
+}
+
+/* --- Folha "Mais" (celular) ---------------------------------------------- */
+.folha {
+  width: 100%;
+  max-width: none;
+  max-height: 85vh;
+  margin: auto 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--raio-cartao) var(--raio-cartao) 0 0;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  box-shadow: var(--sombra-dialogo);
+}
+
+.folha::backdrop {
+  background: var(--cor-veu);
+}
+
+.folha-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+  padding: var(--espaco-3) var(--espaco-4) calc(var(--espaco-4) + env(safe-area-inset-bottom, 0px));
+}
+
+.folha-conteudo > nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+}
+
+.folha-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.folha-cabecalho h2 {
+  margin: 0;
+  padding-left: var(--espaco-3);
+  font-size: var(--tamanho-titulo);
+  font-weight: var(--peso-titulo);
+}
+
+.folha .rodape-usuario {
+  margin-top: 0;
+}
+
+/* --- Abas de validade (celular) ------------------------------------------ */
+.abas-validade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espaco-1);
+  margin-bottom: var(--espaco-4);
+  padding: var(--espaco-1);
+  border-radius: var(--raio-controle);
+  background: var(--cor-borda);
+}
+
+.aba-validade {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
+  min-height: var(--alvo-toque);
+  border-radius: var(--raio-pequeno);
+  color: var(--cor-texto-menu);
+  font-weight: var(--peso-destaque);
+  text-decoration: none;
+}
+
+.aba-validade.ativa {
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  font-weight: var(--peso-titulo);
+}
+
+.aba-validade .distintivo {
+  margin-left: 0;
+}
+
+.aba-validade:focus-visible {
+  outline-offset: -3px;
+}
+
 /* Cabeçalho de toda tela: título e, quando houver, a frase que explica para
    que ela serve. */
-.tela h2 {
+.tela h1 {
   margin: 0 0 var(--espaco-1);
   font-size: var(--tamanho-titulo-tela);
   font-weight: var(--peso-titulo);
@@ -1699,8 +2010,9 @@ td button + button {
     background: var(--cor-papel);
   }
 
-  .barra-topo,
-  .abas,
+  .menu-lateral,
+  .barra-inferior,
+  .abas-validade,
   .aviso,
   .controles-etiquetas,
   .paginacao,
@@ -1709,6 +2021,7 @@ td button + button {
   }
 
   .aplicacao > main {
+    margin-left: 0;
     padding: 0;
   }
 

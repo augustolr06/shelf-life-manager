@@ -43,16 +43,16 @@ conteúdo.
 
 ## Critério de aceite
 
-- [ ] Menu agrupado nos três tamanhos, com os rótulos novos e as mesmas rotas
-- [ ] Atendente vê só Venda, Consultar, Catálogo e o rodapé do usuário
-- [ ] Distintivos de alertas e de descarte visíveis nos três tamanhos
-- [ ] Item ativo marcado com `aria-current="page"`; `/alertas` não fica ativo em
+- [x] Menu agrupado nos três tamanhos, com os rótulos novos e as mesmas rotas
+- [x] Atendente vê só Venda, Consultar, Catálogo e o rodapé do usuário
+- [x] Distintivos de alertas e de descarte visíveis nos três tamanhos
+- [x] Item ativo marcado com `aria-current="page"`; `/alertas` não fica ativo em
       `/alertas/configuracao` (o `end` de hoje)
-- [ ] Sem rolagem horizontal da página a 360 px
-- [ ] Foco visível e ordem de tabulação coerente no menu lateral e na folha "Mais"
-- [ ] Testes de Vitest verdes (testes que procuram a aba pelo rótulo antigo são atualizados para
+- [x] Sem rolagem horizontal da página a 360 px
+- [x] Foco visível e ordem de tabulação coerente no menu lateral e na folha "Mais"
+- [x] Testes de Vitest verdes (testes que procuram a aba pelo rótulo antigo são atualizados para
       o rótulo novo)
-- [ ] `playwright-cli` em 1280×900, 768×1024 e 360×740, como gestor e como atendente; capturas
+- [x] `playwright-cli` em 1280×900, 768×1024 e 360×740, como gestor e como atendente; capturas
       em `docs/redesign/T41/`
 
 ## Fora de escopo

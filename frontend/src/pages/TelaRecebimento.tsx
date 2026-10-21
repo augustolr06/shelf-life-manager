@@ -102,7 +102,7 @@ export function TelaRecebimento() {
 
   return (
     <section className="tela tela-recebimento">
-      <h2>Registrar recebimento</h2>
+      <h1>Recebimento</h1>
       <p className="subtitulo">
         Cada unidade recebe um código próprio. Unidades do mesmo produto podem ter validades
         diferentes — adicione uma linha por validade.

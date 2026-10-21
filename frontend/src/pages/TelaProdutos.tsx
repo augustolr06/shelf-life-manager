@@ -247,7 +247,7 @@ export function TelaProdutos({ usuario }: Props) {
 
   return (
     <section className="tela tela-produtos">
-      <h2>Catálogo de produtos</h2>
+      <h1>Catálogo</h1>
 
       {podeEditar && (
         <form className="cartao formulario-linha cadastro-produto" onSubmit={cadastrar}>

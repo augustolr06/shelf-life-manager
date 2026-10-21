@@ -374,6 +374,6 @@ describe('TelaDashboard (RF13)', () => {
 
     const avisos = await screen.findAllByRole('alert')
     expect(avisos[0]).toHaveTextContent('Falha inesperada.')
-    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Relatórios' })).toBeInTheDocument()
   })
 })

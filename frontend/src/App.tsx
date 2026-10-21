@@ -1,8 +1,16 @@
 import { startTransition, useEffect, useState, type ReactElement } from 'react'
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Avisos } from './components/Avisos'
 import { Dialogo } from './components/Dialogo'
 import { ProvedorConfirmacao } from './components/DialogoConfirmacao'
+import {
+  AbasValidade,
+  BarraInferior,
+  MenuLateral,
+  type Contagens,
+  type ItemMenu,
+} from './components/Navegacao'
+import { useFormatoDaTela } from './hooks/useFormatoDaTela'
 import { TelaAlertas } from './pages/TelaAlertas'
 import { TelaConfiguracaoAlerta } from './pages/TelaConfiguracaoAlerta'
 import { TelaConsulta } from './pages/TelaConsulta'
@@ -18,7 +26,8 @@ import { TelaRecebimento } from './pages/TelaRecebimento'
 import { contarAlertasNaoLidos } from './services/alertas'
 import { aoExpirarSessao } from './services/api'
 import { avisar } from './services/avisos'
-import { buscarSessaoAtual, encerrarSessao, rotuloPapel, type Papel, type Usuario } from './services/auth'
+import { buscarSessaoAtual, encerrarSessao, type Papel, type Usuario } from './services/auth'
+import { listarDescartesPendentes } from './services/descartes'
 
 /**
  * Três situações mutuamente exclusivas. `verificando` existe para que a tela
@@ -39,28 +48,34 @@ type EstadoSessao =
  * interface — quem recusa de fato é o 403 do backend (RNF04).
  */
 /**
- * O que o `App` empresta a uma tela além do usuário. Hoje é só o contador de
- * alertas não lidos, que a tela de alertas recalcula e a navegação exibe (T19).
+ * O que o `App` empresta a uma tela além do usuário: os canais de volta para
+ * os contadores que a navegação exibe — alertas não lidos (T19) e unidades na
+ * fila de descarte (T41). Cada um é recalculado pela tela dona da lista.
  */
 type RecursosDaTela = {
   aoAtualizarNaoLidos: (naoLidos: number) => void
+  aoAtualizarPendentes: (pendentes: number) => void
 }
 
-type Tela = {
-  caminho: string
-  rotulo: string
+type Tela = ItemMenu & {
   papeis: readonly Papel[]
-  /** Distintivo numérico ao lado do rótulo, quando houver o que mostrar. */
-  distintivo?: 'alertasNaoLidos'
   elemento: (usuario: Usuario, recursos: RecursosDaTela) => ReactElement
 }
 
+/**
+ * Na ordem do menu da especificação do redesign (T41). O `rotulo` é o do menu
+ * e também o título (`<h1>`) da tela; as rotas não mudaram com os rótulos,
+ * porque testes, favoritos e o roteiro manual dependem delas.
+ */
 const TELAS: readonly Tela[] = [
   {
     // Era `/leitura` até T34, quando ler deixou de ser vender e a tela ganhou o
     // carrinho. O caminho antigo redireciona para cá (`REDIRECIONAMENTOS`).
     caminho: '/venda',
     rotulo: 'Venda',
+    grupo: 'Operação',
+    icone: 'venda',
+    barraInferior: { rotulo: 'Venda', icone: 'venda' },
     // Mesma lista das rotas `POST /saidas/ler` e `POST /saidas/finalizar`.
     papeis: ['ATENDENTE', 'GESTOR'],
     // O papel decide quais dos três caminhos da unidade vencida aparecem (T12).
@@ -69,6 +84,9 @@ const TELAS: readonly Tela[] = [
   {
     caminho: '/consulta',
     rotulo: 'Consultar produto',
+    grupo: 'Operação',
+    icone: 'consultar',
+    barraInferior: { rotulo: 'Consultar', icone: 'consultar' },
     // Mesma lista de `GET /unidades/consulta/:codigoQr`: conferir um frasco
     // para responder a um cliente é pergunta de balcão (T32).
     papeis: ['ATENDENTE', 'GESTOR'],
@@ -76,28 +94,30 @@ const TELAS: readonly Tela[] = [
     elemento: () => <TelaConsulta />,
   },
   {
-    caminho: '/produtos',
-    rotulo: 'Catálogo de produtos',
-    papeis: ['ATENDENTE', 'GESTOR'],
-    elemento: (usuario) => <TelaProdutos usuario={usuario} />,
-  },
-  {
-    caminho: '/descartes',
-    rotulo: 'Fila de descarte',
-    // Mesma lista da rota `GET /descartes/pendentes`: varredura de estoque é
-    // trabalho de gestão, não de balcão (RF11).
-    papeis: ['GESTOR'],
-    elemento: (usuario) => <TelaDescartesPendentes usuario={usuario} />,
-  },
-  {
     caminho: '/recebimento',
-    rotulo: 'Registrar recebimento',
+    rotulo: 'Recebimento',
+    grupo: 'Operação',
+    icone: 'recebimento',
     papeis: ['GESTOR'],
     elemento: () => <TelaRecebimento />,
   },
   {
+    caminho: '/etiquetas',
+    rotulo: 'Etiquetas',
+    grupo: 'Operação',
+    icone: 'etiquetas',
+    // Mesma lista da rota `GET /produtos/:id/unidades/etiquetas`: etiquetar é
+    // recebimento de mercadoria, não fluxo de balcão (RF04).
+    papeis: ['GESTOR'],
+    // Sem `usuario`: o produto e as unidades a imprimir chegam pelo estado de
+    // rota que a tela de recebimento manda, ou pelo seletor da própria tela.
+    elemento: () => <TelaEtiquetas />,
+  },
+  {
     caminho: '/alertas',
     rotulo: 'Alertas',
+    grupo: 'Validade',
+    icone: 'alertas',
     // Mesma lista de `GET /alertas`: a jornada J3 do PRD termina em decisão
     // comercial, que não é ato de balcão (RF08, T19).
     papeis: ['GESTOR'],
@@ -109,20 +129,29 @@ const TELAS: readonly Tela[] = [
     ),
   },
   {
-    caminho: '/alertas/configuracao',
-    // "Alertas" agora é a lista. O rótulo daqui diz o que esta tela faz: o
-    // parâmetro, não o aviso.
-    rotulo: 'Configurar alertas',
-    // Mesma lista das quatro rotas de `/configuracao-alerta`: a janela de
-    // antecedência é parâmetro de gestão, e mexer nela muda o que o sistema
-    // avisa a todo mundo (RF08).
+    caminho: '/descartes',
+    rotulo: 'Descarte',
+    grupo: 'Validade',
+    icone: 'descarte',
+    distintivo: 'descartesPendentes',
+    // No celular, o atalho "Validade" abre o descarte, e os alertas ficam na
+    // aba ao lado (`AbasValidade`).
+    barraInferior: { rotulo: 'Validade', icone: 'validade', ativoTambemEm: ['/alertas'] },
+    // Mesma lista da rota `GET /descartes/pendentes`: varredura de estoque é
+    // trabalho de gestão, não de balcão (RF11).
     papeis: ['GESTOR'],
-    // Sem `usuario`: a tela é GESTOR-only inteira, não tem ramo por papel.
-    elemento: () => <TelaConfiguracaoAlerta />,
+    elemento: (usuario, recursos) => (
+      <TelaDescartesPendentes
+        usuario={usuario}
+        aoAtualizarPendentes={recursos.aoAtualizarPendentes}
+      />
+    ),
   },
   {
     caminho: '/dashboard',
-    rotulo: 'Dashboard',
+    rotulo: 'Relatórios',
+    grupo: 'Gestão',
+    icone: 'relatorios',
     // Mesma lista das duas rotas de `/dashboard`: são decisão comercial e dado
     // de pesquisa, não ato de balcão (RF13).
     papeis: ['GESTOR'],
@@ -130,8 +159,18 @@ const TELAS: readonly Tela[] = [
     elemento: () => <TelaDashboard />,
   },
   {
+    caminho: '/produtos',
+    rotulo: 'Catálogo',
+    grupo: 'Gestão',
+    icone: 'catalogo',
+    papeis: ['ATENDENTE', 'GESTOR'],
+    elemento: (usuario) => <TelaProdutos usuario={usuario} />,
+  },
+  {
     caminho: '/usuarios',
     rotulo: 'Contas de acesso',
+    grupo: 'Gestão',
+    icone: 'contas',
     // Mesma lista das rotas de gestão de `/usuarios`: admitir, desligar e
     // trocar papel é ato de gestão, não de balcão (RF01, T22).
     papeis: ['GESTOR'],
@@ -140,23 +179,29 @@ const TELAS: readonly Tela[] = [
     elemento: (usuario) => <TelaUsuarios usuario={usuario} />,
   },
   {
+    caminho: '/alertas/configuracao',
+    // "Alertas" agora é a lista. O rótulo daqui diz o que esta tela faz: o
+    // parâmetro, não o aviso.
+    rotulo: 'Configurar alertas',
+    grupo: 'Gestão',
+    icone: 'configurar',
+    // Mesma lista das quatro rotas de `/configuracao-alerta`: a janela de
+    // antecedência é parâmetro de gestão, e mexer nela muda o que o sistema
+    // avisa a todo mundo (RF08).
+    papeis: ['GESTOR'],
+    // Sem `usuario`: a tela é GESTOR-only inteira, não tem ramo por papel.
+    elemento: () => <TelaConfiguracaoAlerta />,
+  },
+  {
     caminho: '/minha-senha',
     rotulo: 'Minha senha',
+    // Sem `grupo`: o link fica no rodapé do usuário, ao lado do nome.
+    icone: 'senha',
     // A única tela deste módulo que a atendente enxerga: trocar a própria
     // senha não é gestão de ninguém.
     papeis: ['ATENDENTE', 'GESTOR'],
     // Sem `usuario`: quem troca a senha é a sessão, e nenhum id sai da tela.
     elemento: () => <TelaMinhaSenha />,
-  },
-  {
-    caminho: '/etiquetas',
-    rotulo: 'Etiquetas',
-    // Mesma lista da rota `GET /produtos/:id/unidades/etiquetas`: etiquetar é
-    // recebimento de mercadoria, não fluxo de balcão (RF04).
-    papeis: ['GESTOR'],
-    // Sem `usuario`: o produto e as unidades a imprimir chegam pelo estado de
-    // rota que a tela de recebimento manda, ou pelo seletor da própria tela.
-    elemento: () => <TelaEtiquetas />,
   },
 ]
 
@@ -214,6 +259,14 @@ function Aplicacao() {
    */
   const [alertasNaoLidos, setAlertasNaoLidos] = useState(0)
   /**
+   * Quantas unidades vencidas esperam na fila de descarte (T41): o `total` da
+   * primeira página de `GET /descartes/pendentes`. Mesma política do contador
+   * de alertas — buscado ao autenticar, atualizado pela tela de descarte
+   * quando ela recarrega a fila, sem polling.
+   */
+  const [descartesPendentes, setDescartesPendentes] = useState(0)
+  const formato = useFormatoDaTela()
+  /**
    * Uma requisição autenticada voltou 401 `NAO_AUTENTICADO` (T30). A sessão
    * continua `autenticado` até a pessoa clicar em "Entrar novamente": a tela
    * fica onde estava, por baixo do modal, e é dela que se guarda a rota.
@@ -257,6 +310,7 @@ function Aplicacao() {
   useEffect(() => {
     if (!gestorAutenticado) {
       setAlertasNaoLidos(0)
+      setDescartesPendentes(0)
       return
     }
 
@@ -265,10 +319,15 @@ function Aplicacao() {
     // Falha aqui é silenciosa de propósito: o distintivo é conveniência, e um
     // alerta a mais ou a menos no número não justifica um aviso vermelho sobre
     // a tela que a gestora está usando. O erro de verdade aparece quando ela
-    // abre a lista.
+    // abre a lista. O mesmo vale para a fila de descarte.
     contarAlertasNaoLidos()
       .then((naoLidos) => {
         if (ativo) setAlertasNaoLidos(naoLidos)
+      })
+      .catch(() => {})
+    listarDescartesPendentes()
+      .then((fila) => {
+        if (ativo) setDescartesPendentes(fila.total)
       })
       .catch(() => {})
 
@@ -348,52 +407,31 @@ function Aplicacao() {
   const { usuario } = sessao
   const inicial = rotaInicial(usuario)
   const visiveis = TELAS.filter((tela) => tela.papeis.includes(usuario.papel))
+  const contagens: Contagens = { alertasNaoLidos, descartesPendentes }
+  const recursos: RecursosDaTela = {
+    aoAtualizarNaoLidos: setAlertasNaoLidos,
+    aoAtualizarPendentes: setDescartesPendentes,
+  }
+  const navegacao = { itens: visiveis, contagens, usuario, aoSair: sair }
 
+  // Desde T41 não há barra do topo: a marca, o usuário e o sair moram no menu
+  // lateral (computador e tablet) ou na folha "Mais" (celular). No celular a
+  // barra inferior vem depois do conteúdo, para que a ordem de tabulação siga
+  // a ordem em que ela aparece na tela.
   return (
-    <div className="aplicacao">
-      <header className="barra-topo">
-        {/* O nome curto do manifest do PWA (T35). O nome inteiro fica na tela
-            de login e no título da aba. */}
-        <h1>
-          Estoque <span>FIFO</span>
-        </h1>
-        <div className="identidade">
-          <span>
-            {usuario.nome} — {rotuloPapel(usuario.papel)}
-          </span>
-          <button type="button" onClick={sair}>
-            Sair
-          </button>
-        </div>
-      </header>
-
-      <nav className="abas" aria-label="Seções do sistema">
-        {visiveis.map((tela) => (
-          <NavLink
-            key={tela.caminho}
-            to={tela.caminho}
-            // `end` para que `/alertas` não fique marcada como ativa enquanto
-            // a tela aberta é `/alertas/configuracao`.
-            end
-            className={({ isActive }) => (isActive ? 'aba ativa' : 'aba')}
-          >
-            {tela.rotulo}
-            {tela.distintivo === 'alertasNaoLidos' && alertasNaoLidos > 0 && (
-              <span className="distintivo" aria-label={`${alertasNaoLidos} alerta(s) não lido(s)`}>
-                {alertasNaoLidos}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+    <div className={`aplicacao formato-${formato}`}>
+      {formato !== 'celular' && (
+        <MenuLateral {...navegacao} recolhivel={formato === 'tablet'} />
+      )}
 
       <main>
+        {formato === 'celular' && <AbasValidade itens={visiveis} contagens={contagens} />}
         <Routes>
           {visiveis.map((tela) => (
             <Route
               key={tela.caminho}
               path={tela.caminho}
-              element={tela.elemento(usuario, { aoAtualizarNaoLidos: setAlertasNaoLidos })}
+              element={tela.elemento(usuario, recursos)}
             />
           ))}
           {Object.entries(REDIRECIONAMENTOS).map(([antigo, novo]) => (
@@ -405,6 +443,8 @@ function Aplicacao() {
           <Route path="*" element={<Navigate to={inicial} replace />} />
         </Routes>
       </main>
+
+      {formato === 'celular' && <BarraInferior {...navegacao} />}
 
       {/* Sem `aoCancelar`: não há tela para onde voltar, porque toda ação a
           partir daqui falharia. */}

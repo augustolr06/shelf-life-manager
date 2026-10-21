@@ -47,7 +47,7 @@ export function TelaMinhaSenha() {
 
   return (
     <section className="tela tela-minha-senha">
-      <h2>Minha senha</h2>
+      <h1>Minha senha</h1>
 
       <form className="cartao formulario-coluna" onSubmit={enviar}>
         {(

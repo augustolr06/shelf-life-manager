@@ -94,7 +94,7 @@ export function TelaAlertas({ aoAtualizarNaoLidos }: { aoAtualizarNaoLidos?: (na
 
   return (
     <section className="tela tela-alertas">
-      <h2>Alertas de vencimento</h2>
+      <h1>Alertas</h1>
       <p className="subtitulo">
         Unidades que entraram na janela de antecedência configurada. Ainda dá tempo de decidir
         o que fazer com elas — promoção, destaque na vitrine — antes da perda.

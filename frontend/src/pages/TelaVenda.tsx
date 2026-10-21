@@ -401,7 +401,7 @@ export function TelaVenda({ usuario }: { usuario: Usuario }) {
 
   return (
     <section className="tela tela-leitura">
-      <h2>Venda</h2>
+      <h1>Venda</h1>
       <p className="subtitulo">
         Leia o código de cada frasco. O sistema confere se é a unidade que sai primeiro e, se for,
         coloca no carrinho. Nada sai do estoque até você confirmar a venda.
