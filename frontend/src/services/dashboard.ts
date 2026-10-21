@@ -20,17 +20,32 @@ export type Faixa =
 
 export type ContagemDaFaixa = { faixa: Faixa; unidades: number }
 
+/**
+ * A unidade não vencida que vence primeiro (T42). Dias e faixa vêm prontos:
+ * a tela Início só os exibe.
+ */
+export type ProximoVencimento = {
+  unidade: UnidadeLida
+  /** `0` quando vence hoje; nunca negativo. */
+  diasParaVencer: number
+  faixa: Faixa
+}
+
 /** Datas de calendário `AAAA-MM-DD`, no formato que a rota aceita e devolve. */
 export type Periodo = { de: string; ate: string }
 
 export type Dashboard = {
   /** O intervalo que o servidor de fato usou — inclusive quando não foi pedido. */
   periodo: Periodo
+  /** A data de hoje no servidor, `AAAA-MM-DD` (T42): a do cabeçalho do Início. */
+  hoje: string
   /** Fotografia do **agora**: ignora o período. */
   estoque: {
     unidadesEmEstoque: number
     /** As cinco faixas, sempre as cinco, inclusive zeradas. */
     porFaixaDeVencimento: ContagemDaFaixa[]
+    /** `null` sem unidade em estoque a vencer (vazio ou só vencidas). */
+    proximoVencimento: ProximoVencimento | null
   }
   saidas: {
     total: number
@@ -103,6 +118,21 @@ function comPeriodo(parametros: URLSearchParams, periodo?: PeriodoPedido | null)
 
 function comoConsulta(parametros: URLSearchParams): string {
   return parametros.size > 0 ? `?${parametros}` : ''
+}
+
+/**
+ * A taxa que o servidor calculou, como percentual de uma casa. Mudou da tela
+ * de Relatórios para cá em T42, quando o Início virou o segundo leitor dela:
+ * as duas telas mostram a mesma taxa com a mesma precisão.
+ *
+ * `null` **não** chega aqui: "sem saídas no período" e "0%" são fatos opostos
+ * (T20), e cada tela diz o primeiro com as próprias palavras.
+ */
+export function formatarTaxa(taxa: number): string {
+  return `${(taxa * 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}%`
 }
 
 export async function buscarDashboard(periodo?: PeriodoPedido | null): Promise<Dashboard> {

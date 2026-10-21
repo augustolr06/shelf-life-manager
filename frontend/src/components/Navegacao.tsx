@@ -26,9 +26,12 @@ export type ItemMenu = {
   rotulo: string
   /**
    * Sem grupo, a tela não entra na lista do menu: ela é alcançada por outro
-   * lugar, como a "Minha senha", que fica no rodapé do usuário.
+   * lugar, como a "Minha senha", que fica no rodapé do usuário. A exceção é
+   * `noTopo`.
    */
   grupo?: GrupoMenu
+  /** Fora dos grupos e acima deles, como o Início (T42). */
+  noTopo?: boolean
   icone: NomeIcone
   /** Contagem ao lado do rótulo, quando houver o que mostrar. */
   distintivo?: Distintivo
@@ -99,50 +102,60 @@ type PropsGrupos = {
 
 function GruposDoMenu({ itens, contagens, recolhido = false, aoNavegar }: PropsGrupos) {
   const idBase = useId()
+  const doTopo = itens.filter((item) => item.noTopo)
 
-  return GRUPOS.map((grupo, indice) => {
-    const doGrupo = itens.filter((item) => item.grupo === grupo)
-    // Grupo sem item que o papel alcance não aparece.
-    if (doGrupo.length === 0) return null
-    const idRotulo = `${idBase}-grupo-${indice}`
-
-    return (
-      <div key={grupo} className="grupo-menu">
-        {/* Recolhido aos ícones, o nome do grupo some da vista mas continua
-            dando nome à lista para o leitor de tela. */}
-        <span id={idRotulo} className={recolhido ? 'visualmente-oculto' : 'rotulo-grupo'}>
-          {grupo}
+  const itemDoMenu = (item: ItemMenu) => (
+    <li key={item.caminho}>
+      <NavLink
+        to={item.caminho}
+        // `end` para que `/alertas` não fique marcada como ativa
+        // enquanto a tela aberta é `/alertas/configuracao`.
+        end
+        className={({ isActive }) => (isActive ? 'item-menu ativo' : 'item-menu')}
+        title={recolhido ? item.rotulo : undefined}
+        aria-label={recolhido ? nomeAcessivel(item.rotulo, item, contagens) : undefined}
+        onClick={aoNavegar}
+      >
+        <span className="icone-do-item">
+          <Icone nome={item.icone} />
+          {recolhido && <Contador item={item} contagens={contagens} sobreIcone />}
         </span>
-        <ul aria-labelledby={idRotulo}>
-          {doGrupo.map((item) => (
-            <li key={item.caminho}>
-              <NavLink
-                to={item.caminho}
-                // `end` para que `/alertas` não fique marcada como ativa
-                // enquanto a tela aberta é `/alertas/configuracao`.
-                end
-                className={({ isActive }) => (isActive ? 'item-menu ativo' : 'item-menu')}
-                title={recolhido ? item.rotulo : undefined}
-                aria-label={recolhido ? nomeAcessivel(item.rotulo, item, contagens) : undefined}
-                onClick={aoNavegar}
-              >
-                <span className="icone-do-item">
-                  <Icone nome={item.icone} />
-                  {recolhido && <Contador item={item} contagens={contagens} sobreIcone />}
-                </span>
-                {!recolhido && (
-                  <>
-                    <span className="rotulo-item">{item.rotulo}</span>
-                    <Contador item={item} contagens={contagens} />
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
-  })
+        {!recolhido && (
+          <>
+            <span className="rotulo-item">{item.rotulo}</span>
+            <Contador item={item} contagens={contagens} />
+          </>
+        )}
+      </NavLink>
+    </li>
+  )
+
+  return (
+    <>
+      {doTopo.length > 0 && (
+        <div className="grupo-menu">
+          <ul>{doTopo.map(itemDoMenu)}</ul>
+        </div>
+      )}
+      {GRUPOS.map((grupo, indice) => {
+        const doGrupo = itens.filter((item) => item.grupo === grupo)
+        // Grupo sem item que o papel alcance não aparece.
+        if (doGrupo.length === 0) return null
+        const idRotulo = `${idBase}-grupo-${indice}`
+
+        return (
+          <div key={grupo} className="grupo-menu">
+            {/* Recolhido aos ícones, o nome do grupo some da vista mas continua
+                dando nome à lista para o leitor de tela. */}
+            <span id={idRotulo} className={recolhido ? 'visualmente-oculto' : 'rotulo-grupo'}>
+              {grupo}
+            </span>
+            <ul aria-labelledby={idRotulo}>{doGrupo.map(itemDoMenu)}</ul>
+          </div>
+        )
+      })}
+    </>
+  )
 }
 
 /** "Gestora de Loja" → "GL". */

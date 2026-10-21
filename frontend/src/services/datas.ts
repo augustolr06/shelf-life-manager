@@ -15,6 +15,23 @@ export function formatarData(iso: string): string {
 }
 
 /**
+ * `2026-10-21` para `Quarta-feira, 21 de outubro`, o cabeçalho da tela Início
+ * (T42). A data é a que o servidor devolveu; daqui só sai o nome do dia e do
+ * mês. O `Date` é montado em UTC e formatado em UTC, para que o fuso do
+ * aparelho não mude o dia da semana — a mesma cautela de `formatarData`.
+ */
+export function formatarDataPorExtenso(iso: string): string {
+  const [ano, mes, dia] = iso.slice(0, 10).split('-').map(Number) as [number, number, number]
+  const texto = new Date(Date.UTC(ano, mes - 1, dia)).toLocaleDateString('pt-BR', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+/**
  * Instante ISO para `01/03/2027 14:32`.
  *
  * Existe separado de `formatarData` porque os dois formatos do sistema são

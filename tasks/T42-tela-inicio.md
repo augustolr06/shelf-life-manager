@@ -43,13 +43,14 @@ o que precisa de ação.
 
 ## Critério de aceite
 
-- [ ] Teste de backend do próximo vencimento: sem unidades, só vencidas, empate de validade e
-      unidade de produto inativo (decidir e registrar se entra)
-- [ ] Nenhuma data comparada no navegador: dias, faixa e a data de hoje vêm do servidor
-- [ ] Gestor cai em `/inicio` depois do login; atendente cai em `/venda`
-- [ ] Os três cartões levam às telas certas; a busca leva à Consulta ou ao Catálogo preenchidos
-- [ ] Testes de Vitest da tela (estados: carregando, erro, sem próximo vencimento)
-- [ ] `playwright-cli` a 1280×900 e 360×740; capturas em `docs/redesign/T42/`
+- [x] Teste de backend do próximo vencimento: sem unidades, só vencidas, empate de validade e
+      unidade de produto inativo (decidir e registrar se entra) — entra
+      (`docs/decisoes.md`, T42, decisão 1)
+- [x] Nenhuma data comparada no navegador: dias, faixa e a data de hoje vêm do servidor
+- [x] Gestor cai em `/inicio` depois do login; atendente cai em `/venda`
+- [x] Os três cartões levam às telas certas; a busca leva à Consulta ou ao Catálogo preenchidos
+- [x] Testes de Vitest da tela (estados: carregando, erro, sem próximo vencimento)
+- [x] `playwright-cli` a 1280×900 e 360×740; capturas em `docs/redesign/T42/`
 
 ## Fora de escopo
 

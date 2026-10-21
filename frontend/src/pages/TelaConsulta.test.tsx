@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaConsulta } from './TelaConsulta'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
@@ -109,6 +110,18 @@ function definirConexao(online: boolean) {
   Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: online })
 }
 
+/**
+ * Dentro de um roteador desde T42, quando a tela passou a ler `?codigo=` da
+ * URL — é por ela que a busca e o "Ver unidade" do Início chegam aqui.
+ */
+function montar(rota = '/consulta') {
+  return render(
+    <MemoryRouter initialEntries={[rota]}>
+      <TelaConsulta />
+    </MemoryRouter>,
+  )
+}
+
 async function digitar(codigo: string) {
   fireEvent.change(await screen.findByLabelText(/digite o código/i), { target: { value: codigo } })
   fireEvent.click(screen.getByRole('button', { name: /^consultar$/i }))
@@ -140,7 +153,7 @@ describe('TelaConsulta (T32)', () => {
 
   it('deixa claro que consultar não dá baixa', async () => {
     simular({})
-    render(<TelaConsulta />)
+    montar()
 
     expect(await screen.findByText(/consultar não dá baixa/i)).toBeInTheDocument()
   })
@@ -148,7 +161,7 @@ describe('TelaConsulta (T32)', () => {
   describe('o cartão da unidade', () => {
     it('mostra produto, validade, dias para vencer e situação no estoque', async () => {
       simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA') })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-AAAAAA')
 
@@ -162,11 +175,20 @@ describe('TelaConsulta (T32)', () => {
       expect(screen.getByText('PRF-AAAAAA')).toBeInTheDocument()
     })
 
+    it('consulta sozinha o código que chega pela URL, vindo do Início (T42)', async () => {
+      simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA') })
+      montar('/consulta?codigo=PRF-AAAAAA')
+
+      expect(await screen.findByRole('heading', { name: 'Eau de Parfum 50ml' })).toBeInTheDocument()
+      // Uma consulta só: o código da URL não é repetido a cada render.
+      expect(consultasEnviadas()).toEqual(['/unidades/consulta/PRF-AAAAAA'])
+    })
+
     it('destaca a unidade vencida pelo campo situacao do servidor', async () => {
       simular({
         'PRF-VVVVVV': consulta('PRF-VVVVVV', { situacao: 'VENCIDA', diasParaVencer: -3 }),
       })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-VVVVVV')
 
@@ -186,7 +208,7 @@ describe('TelaConsulta (T32)', () => {
           unidade: { ...consulta('PRF-AAAAAA').unidade, dataValidade: '2000-01-01' },
         },
       })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-AAAAAA')
 
@@ -202,7 +224,7 @@ describe('TelaConsulta (T32)', () => {
       ['DESCARTADA', 'Descartada'],
     ] as const)('mostra a unidade %s, com o status real', async (status, rotulo) => {
       simular({ 'PRF-BBBBBB': consulta('PRF-BBBBBB', { status }) })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-BBBBBB')
 
@@ -211,7 +233,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('avisa quando o produto está inativo', async () => {
       simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA', { ativo: false }) })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-AAAAAA')
 
@@ -220,7 +242,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('mostra a mensagem do servidor para código inexistente, no lugar do resultado anterior', async () => {
       simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA') })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-AAAAAA')
       await screen.findByRole('heading', { name: 'Eau de Parfum 50ml' })
@@ -233,7 +255,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('envia o código como foi digitado, sem normalizar', async () => {
       simular({})
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('prf-aaaaaa')
 
@@ -246,7 +268,7 @@ describe('TelaConsulta (T32)', () => {
   describe('câmera contínua', () => {
     it('usa o leitor no modo contínuo', async () => {
       simular({})
-      render(<TelaConsulta />)
+      montar()
 
       await ligarCamera()
 
@@ -258,7 +280,7 @@ describe('TelaConsulta (T32)', () => {
         'PRF-AAAAAA': consulta('PRF-AAAAAA'),
         'PRF-BBBBBB': consulta('PRF-BBBBBB', { nome: 'Body Splash 200ml' }),
       })
-      render(<TelaConsulta />)
+      montar()
       await ligarCamera()
 
       apontarCamera('PRF-AAAAAA')
@@ -272,7 +294,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('ignora o mesmo código que já está na tela', async () => {
       simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA') })
-      render(<TelaConsulta />)
+      montar()
       await ligarCamera()
 
       apontarCamera('PRF-AAAAAA')
@@ -285,7 +307,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('também não repete a consulta do código que não foi encontrado', async () => {
       simular({})
-      render(<TelaConsulta />)
+      montar()
       await ligarCamera()
 
       apontarCamera('PRF-XXXXXX')
@@ -304,7 +326,7 @@ describe('TelaConsulta (T32)', () => {
           liberar = resolver
         })
       })
-      render(<TelaConsulta />)
+      montar()
       await ligarCamera()
 
       apontarCamera('PRF-AAAAAA')
@@ -318,7 +340,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('mostra a falha da câmera e mantém a digitação', async () => {
       simular({})
-      render(<TelaConsulta />)
+      montar()
       await ligarCamera()
 
       fireEvent.click(screen.getByRole('button', { name: /simular falha de câmera/i }))
@@ -333,7 +355,7 @@ describe('TelaConsulta (T32)', () => {
     it('bloqueia a consulta sem rede, sem enviar nada', async () => {
       definirConexao(false)
       simular({})
-      render(<TelaConsulta />)
+      montar()
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/sem conexão com o servidor/i)
       expect(screen.queryByLabelText(/digite o código/i)).toBeNull()
@@ -343,7 +365,7 @@ describe('TelaConsulta (T32)', () => {
 
     it('apaga o resultado ao perder a conexão', async () => {
       simular({ 'PRF-AAAAAA': consulta('PRF-AAAAAA') })
-      render(<TelaConsulta />)
+      montar()
 
       await digitar('PRF-AAAAAA')
       await screen.findByRole('heading', { name: 'Eau de Parfum 50ml' })
@@ -367,7 +389,7 @@ describe('TelaConsulta (T32)', () => {
         if (caminho === '/health' && saudavel) return respostaFalsa(200, { status: 'ok', uptime: 1 })
         throw new TypeError('Failed to fetch')
       })
-      render(<TelaConsulta />)
+      montar()
       await screen.findByLabelText(/digite o código/i)
       saudavel = false
 

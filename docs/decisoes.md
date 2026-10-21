@@ -2606,3 +2606,73 @@ fila informado pela tela de descarte); `npm run typecheck` limpo. `playwright-cl
 768×1024 e 360×740, como gestor e como atendente: sem rolagem horizontal nos três tamanhos,
 foco visível no menu lateral, Esc fechando o menu do tablet e a folha, console sem erro além do
 401 esperado de `/auth/me` antes do login. Capturas em `docs/redesign/T41/`.
+
+## 2026-10-21 — T42: tela Início do gestor (próximo vencimento e data de hoje no dashboard)
+
+Aplica a seção "Início do gestor" da especificação do redesign
+(`docs/redesign/claude-design/README.md`) e muda a `rotaInicial` do gestor de `/produtos` para
+`/inicio` (revê T10). O que a especificação e o arquivo da tarefa não fixavam e foi decidido aqui:
+
+1. **Unidade de produto inativo entra no próximo vencimento.** É a pergunta que o arquivo da
+   tarefa deixou aberta. Entra, pelo mesmo motivo da contagem por faixa (T20) e do pool do FIFO,
+   que não filtram por `ativo`: o frasco continua na prateleira e vence do mesmo jeito. Deixá-lo
+   de fora faria o cartão apontar uma unidade que não é a primeira da barra logo abaixo.
+2. **Forma da resposta igual à do alerta (T19):** `estoque.proximoVencimento` é `{ unidade,
+   diasParaVencer, faixa }`, com o `UnidadeNaResposta` de sempre, ou `null`. Desempate por
+   `codigoQr`, o mesmo da fila de descarte (T13): SKUs diferentes vencem no mesmo dia, e sem
+   critério total o cartão trocaria de frasco entre duas visitas. Borda do pool do FIFO
+   (`>= hoje`): a que vence hoje entra com 0 dias e a tela escreve "Hoje".
+3. **`faixaDosDias` lê a mesma cadeia de tetos da contagem** (`TETOS_DAS_FAIXAS`), em vez de uma
+   segunda tabela de bordas. Assim a faixa do cartão é sempre a faixa em que a unidade é contada
+   na barra; há um teste que confere isso nas seis bordas.
+4. **`hoje` no nível de cima da resposta**, ao lado de `periodo`, e não dentro de `estoque`: é a
+   data do servidor, que vale para a resposta inteira. `montarDashboard` lê `hojeComoData()` uma
+   vez para `hoje` e para o próximo vencimento, para que os dois não discordem na virada do dia.
+5. **A saudação usa a hora do aparelho** ("Bom dia" até 12h, "Boa tarde" até 18h, "Boa noite"
+   depois). A especificação diz "Bom dia, {primeiro nome}", e um "Bom dia" fixo às 19h pareceria
+   defeito. É a única leitura de relógio da tela e não decide nada; a data escrita no cabeçalho,
+   os dias e as faixas vêm do servidor (RNF04). Enquanto o painel não chega, a data não aparece,
+   em vez de vir do aparelho. **Ponto para o orientando revisar.**
+6. **Data por extenso formatada no navegador a partir do `hoje` do servidor**
+   (`formatarDataPorExtenso`): o `Date` é montado e formatado em UTC, para que o fuso do aparelho
+   não troque o dia da semana. É apresentação, como `formatarData`.
+7. **Busca: o prefixo `PRF-` só escolhe a tela.** Sem diferenciar maiúsculas; o texto vai para
+   a Consulta como foi digitado, e quem normaliza e confere o código continua sendo o backend
+   (T08). É a única repetição do prefixo do `codigoQr` no frontend fora de placeholders;
+   **limitação conhecida:** um produto cujo `codigoInterno` comece com `PRF-` cairia na Consulta
+   (e em "código não cadastrado") em vez do Catálogo. Os códigos fictícios usam `ZZ-`, e os da
+   loja não seguem esse prefixo.
+8. **Consulta e Catálogo aceitam o valor inicial pela URL** (`?codigo=` e `?busca=`), com
+   `useSearchParams`. A Consulta dispara a consulta sozinha; o Catálogo só preenche o campo, e a
+   primeira consulta já sai com o termo (o `useValorComAtraso` começa no valor inicial). Os
+   testes das duas telas passaram a montar dentro de um `MemoryRouter`.
+9. **Início no menu, sem grupo e acima deles:** `ItemMenu` ganhou `noTopo`. No celular ele fica
+   na folha "Mais" (a barra inferior é das tarefas de balcão e da validade), e o "Mais" aparece
+   marcado quando a tela aberta é o Início, como em toda tela só alcançada pela folha.
+10. **Cartão de vencidas zerado** troca o botão vermelho "Resolver descarte" por "Ver descarte",
+    secundário, e a frase por "Nenhuma unidade vencida esperando descarte". A especificação só
+    descreve o caso com vencidas; um botão de perigo chamando para uma fila vazia seria ruído.
+    O texto do cartão de alertas não cita "30 dias", como o mockup: as janelas são
+    configuráveis (T17).
+11. **Link com cara de botão (`a.botao`)** entrou nos componentes base, com as variantes
+    `secundario` e `perigo`. "Nova venda", "Resolver descarte", "Ver alertas" e "Ver unidade"
+    levam a outra tela, e por isso são links, não botões.
+12. **`formatarTaxa` saiu da tela de Relatórios para `services/dashboard.ts`**: o Início é o
+    segundo leitor, e as duas telas mostram a taxa com a mesma precisão (uma casa).
+13. **Seções do Início em `<h2>`.** A lacuna de T41 (decisão 3) fica só nas telas antigas; a
+    tela nova nasce com a hierarquia certa. O `<h1>` é a saudação, como na especificação, e não o
+    rótulo do menu.
+14. **Barra empilhada como componente (`BarraEstoque`) que inclui a legenda**, para que a barra
+    nunca seja usada sem ela (as cores do meio ficam abaixo de 3:1). `role="img"` com
+    `aria-label` que lista as cinco faixas; pedaço com no mínimo 4 px, para que uma faixa de uma
+    unidade entre centenas não suma.
+
+**Verificação.** Backend: dez casos novos em `tests/dashboard/dashboard.test.ts` (sem unidades,
+só vencidas, a mais próxima com dias e faixa, vence hoje, faixa coerente com a contagem nas
+bordas, empate de validade, vendida e descartada fora, produto inativo dentro, `hoje`, e os dois
+campos ignorando o período), 52/52 na pasta; `npm run typecheck` limpo. Frontend: Vitest 314/314
+(18 casos da tela Início, `?codigo=` na Consulta, `?busca=` no Catálogo, gestor caindo em
+`/inicio`, Início no topo do menu e ausente para a atendente); `npm run typecheck` limpo.
+`playwright-cli` em 1280×900 e 360×740 como gestor: login leva a `/inicio`; busca `prf-474mzj`
+abre a Consulta com a unidade; busca por nome abre o Catálogo filtrado; Início no topo da folha
+"Mais"; sem rolagem horizontal; console sem erro. Capturas em `docs/redesign/T42/`.

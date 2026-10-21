@@ -28,6 +28,26 @@ const SEM_SESSAO = () =>
 const CATALOGO_VAZIO = () =>
   respostaFalsa(200, { produtos: [], total: 0, pagina: 1, tamanhoPagina: 20 })
 const BACKEND_DE_PE = () => respostaFalsa(200, { status: 'ok', uptime: 1 })
+const PAINEL_VAZIO = () =>
+  respostaFalsa(200, {
+    periodo: { de: '2026-09-22', ate: '2026-10-21' },
+    hoje: '2026-10-21',
+    estoque: {
+      unidadesEmEstoque: 0,
+      porFaixaDeVencimento: [
+        'VENCIDA',
+        'ATE_7_DIAS',
+        'DE_8_A_30_DIAS',
+        'DE_31_A_90_DIAS',
+        'ACIMA_DE_90_DIAS',
+      ].map((faixa) => ({ faixa, unidades: 0 })),
+      proximoVencimento: null,
+    },
+    saidas: { total: 0, naPrimeiraLeitura: 0, taxaAcertoPrimeiraLeitura: null },
+    fifo: { alertasDisparados: 0, substituicoesEfetivas: 0 },
+    perdas: { descartes: 0, unidadesVencidasEmEstoque: 0 },
+    overrides: { total: 0 },
+  })
 const REDE_FORA = () => {
   throw new TypeError('Failed to fetch')
 }
@@ -204,14 +224,15 @@ describe('App — guardião de sessão', () => {
       ).not.toBeInTheDocument()
     })
 
-    it('leva o GESTOR ao catálogo quando entra pela raiz', async () => {
-      rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /produtos': CATALOGO_VAZIO })
+    it('leva o GESTOR ao Início quando entra pela raiz (T42)', async () => {
+      rotear({ 'GET /auth/me': SESSAO_ATIVA, 'GET /dashboard': PAINEL_VAZIO })
 
       montar('/')
 
       expect(
-        await screen.findByRole('heading', { level: 1, name: /^catálogo$/i }),
+        await screen.findByRole('heading', { level: 1, name: /, gestora$/i }),
       ).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Início' })).toHaveAttribute('aria-current', 'page')
     })
 
     it('leva a ATENDENTE direto à venda, que é o que ela faz no sistema', async () => {
@@ -336,6 +357,25 @@ describe('App — guardião de sessão', () => {
       )
     })
 
+    it('põe o Início do gestor no topo do menu, fora dos grupos (T42)', async () => {
+      rotear({
+        'GET /auth/me': SESSAO_ATIVA,
+        'GET /produtos': CATALOGO_VAZIO,
+        'GET /alertas?tamanhoPagina=1': SEM_ALERTAS,
+        'GET /descartes/pendentes': SETE_NA_FILA,
+      })
+
+      montar()
+      const menu = await screen.findByRole('navigation', { name: 'Menu principal' })
+
+      const links = within(menu).getAllByRole('link')
+      expect(links[0]).toHaveTextContent('Início')
+      expect(links[0]).toHaveAttribute('href', '/inicio')
+      for (const grupo of ['Operação', 'Validade', 'Gestão']) {
+        expect(itensDoGrupo(grupo)).not.toContain('Início')
+      }
+    })
+
     it('mostra à atendente só Venda, Consultar e Catálogo, sem grupo de validade', async () => {
       rotear({ 'GET /auth/me': SESSAO_ATENDENTE, 'GET /health': BACKEND_DE_PE })
 
@@ -345,6 +385,8 @@ describe('App — guardião de sessão', () => {
       expect(itensDoGrupo('Operação')).toEqual(['Venda', 'Consultar produto'])
       expect(itensDoGrupo('Gestão')).toEqual(['Catálogo'])
       expect(screen.queryByRole('list', { name: 'Validade' })).not.toBeInTheDocument()
+      // O Início é do gestor: tudo nele vem de `GET /dashboard`, que é GESTOR.
+      expect(screen.queryByRole('link', { name: 'Início' })).not.toBeInTheDocument()
       expect(screen.getByText('Atendente de Balcão')).toBeInTheDocument()
     })
 

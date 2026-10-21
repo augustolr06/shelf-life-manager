@@ -1920,3 +1920,29 @@ fila é aberta de novo.
 **Tarefa relacionada:** T41, T13, RF11
 
 **Data:** 2026-10-21
+
+
+## O que vence primeiro na loja inteira, e não só no SKU
+
+**Contexto do problema:** no controle manual, saber qual frasco vence primeiro exige olhar
+prateleira por prateleira, e a resposta costuma vir tarde — quando alguém pega o frasco. O FIFO
+do sistema responde a uma pergunta mais estreita: entre as unidades **deste** SKU, qual sai
+primeiro. Nenhuma tela respondia à pergunta do gestor ao abrir a loja: o que vence primeiro no
+estoque inteiro?
+
+**Solução adotada:** a tela Início (T42) mostra, antes de tudo, as vencidas que esperam
+descarte, os alertas não lidos e o **próximo vencimento** — a unidade não vencida, de qualquer
+SKU, com a validade mais próxima, com dias, faixa, produto e código. O servidor calcula tudo,
+com a mesma noção de "hoje" e a mesma borda do FIFO: a que vence hoje ainda é vendável e aparece
+como "Hoje"; a de ontem já está na fila de descarte. Até a data do cabeçalho vem do servidor.
+
+**Por que importa / trade-offs:** é uma visão que o processo manual não tem, e que só existe
+porque cada frasco tem registro próprio (QR por unidade, não por lote). O cartão mostra **uma**
+unidade: num dia em que várias vencem juntas, ele aponta uma delas (desempate pelo código), e a
+dimensão do problema está na barra do estoque por validade logo abaixo, não no cartão. O cartão
+não é veredito: ele leva à consulta do frasco, e a venda continua passando pela validação FIFO
+do balcão (RNF03).
+
+**Tarefa relacionada:** T42, RF13, RNF04
+
+**Data:** 2026-10-21

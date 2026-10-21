@@ -288,7 +288,7 @@ cadastro e importação sempre visíveis no catálogo (T04, T24).
 |---|---|---|---|---|
 | T40 | Linguagem visual: tokens, escala de validade, fontes e manifest | concluída | T35 | `tasks/T40-linguagem-visual.md` |
 | T41 | Navegação por tarefa: menu lateral, barra inferior e fim da barra do topo | concluída | T40 | `tasks/T41-navegacao-por-tarefa.md` |
-| T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | pendente | T41 | `tasks/T42-tela-inicio.md` |
+| T42 | Tela Início do gestor (backend: próximo vencimento e data de hoje no dashboard) | concluída | T41 | `tasks/T42-tela-inicio.md` |
 | T43 | Venda no novo layout | pendente | T41 | `tasks/T43-venda-novo-layout.md` |
 | T44 | Descarte e alertas em lista compacta | pendente | T41 | `tasks/T44-validade-lista-compacta.md` |
 | T45 | Catálogo com a lista primeiro (backend: filtro por categoria) | pendente | T41 | `tasks/T45-catalogo-lista-primeiro.md` |
@@ -305,6 +305,13 @@ tamanhos, barra do topo removida, distintivo da fila de descarte, abas Descarte 
 celular. Títulos das telas viraram `<h1>` com o rótulo do menu; as seções internas continuam em
 `<h3>` (hierarquia pula um nível, ver `docs/decisoes.md`, T41, decisão 3). O item Início entra
 com a rota, em T42. Capturas em `docs/redesign/T41/`.
+
+**Estado de T42 (2026-10-21).** Concluída. `GET /dashboard` devolve `hoje` e
+`estoque.proximoVencimento` (produto inativo entra; desempate por `codigoQr`). Tela `/inicio` é a
+inicial do gestor e o primeiro item do menu, fora dos grupos; Consulta e Catálogo aceitam
+`?codigo=` e `?busca=`; barra empilhada em `components/BarraEstoque.tsx`, sempre com a legenda;
+`a.botao` nos componentes base. A saudação usa a hora do aparelho (a revisar; `docs/decisoes.md`,
+T42, decisão 5). Capturas em `docs/redesign/T42/`.
 
 ---
 

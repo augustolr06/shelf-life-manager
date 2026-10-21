@@ -7,6 +7,7 @@ import {
   type ClipboardEvent,
   type FormEvent,
 } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useConfirmacao } from '../components/DialogoConfirmacao'
 import { ImportacaoProdutos } from '../components/ImportacaoProdutos'
 import { Paginacao } from '../components/Paginacao'
@@ -70,7 +71,10 @@ export function TelaProdutos({ usuario }: Props) {
   const [total, setTotal] = useState(0)
   const [tamanhoPagina, setTamanhoPagina] = useState(20)
   const [pagina, setPagina] = useState(1)
-  const [termoDigitado, setTermoDigitado] = useState('')
+  // `?busca=` chega da busca do Início (T42) e só preenche o campo: o resto
+  // segue como se o termo tivesse sido digitado aqui.
+  const [parametros] = useSearchParams()
+  const [termoDigitado, setTermoDigitado] = useState(() => parametros.get('busca') ?? '')
   const [incluirInativos, setIncluirInativos] = useState(false)
   const [carregando, setCarregando] = useState(true)
   // Só a falha ao carregar a lista: é estado da tela. Falha de ação vira

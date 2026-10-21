@@ -27,6 +27,7 @@ const ROTULOS_DAS_FAIXAS = [
 
 const PAINEL: Dashboard = {
   periodo: { de: '2026-08-11', ate: '2026-09-09' },
+  hoje: '2026-09-09',
   estoque: {
     unidadesEmEstoque: 13,
     porFaixaDeVencimento: [
@@ -36,6 +37,7 @@ const PAINEL: Dashboard = {
       { faixa: 'DE_31_A_90_DIAS', unidades: 3 },
       { faixa: 'ACIMA_DE_90_DIAS', unidades: 7 },
     ],
+    proximoVencimento: null,
   },
   saidas: { total: 13, naPrimeiraLeitura: 11, taxaAcertoPrimeiraLeitura: 0.8462 },
   fifo: { alertasDisparados: 5, substituicoesEfetivas: 2 },
@@ -45,12 +47,14 @@ const PAINEL: Dashboard = {
 
 const PAINEL_VAZIO: Dashboard = {
   periodo: { de: '2026-08-11', ate: '2026-09-09' },
+  hoje: '2026-09-09',
   estoque: {
     unidadesEmEstoque: 0,
     porFaixaDeVencimento: PAINEL.estoque.porFaixaDeVencimento.map(({ faixa }) => ({
       faixa,
       unidades: 0,
     })),
+    proximoVencimento: null,
   },
   saidas: { total: 0, naPrimeiraLeitura: 0, taxaAcertoPrimeiraLeitura: null },
   fifo: { alertasDisparados: 0, substituicoesEfetivas: 0 },

@@ -8,6 +8,7 @@
  */
 const TRACOS = {
   marca: <path d="M5 18h14M5 13h10M5 8h6" />,
+  inicio: <path d="M4 11l8-7 8 7v9h-5v-6h-6v6H4z" />,
   venda: (
     <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" />
   ),

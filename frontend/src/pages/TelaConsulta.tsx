@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { LeitorCamera } from '../components/LeitorCamera'
 import { PortaoOffline } from '../components/PortaoOffline'
 import { useConexao } from '../hooks/useConexao'
@@ -81,6 +82,17 @@ export function TelaConsulta() {
       setConsultando(false)
     }
   }
+
+  // `?codigo=` chega da busca e do "Ver unidade" do Início (T42): a consulta
+  // sai sozinha, como se o código tivesse sido digitado. Uma vez por código —
+  // o `emVoo` segura a segunda chamada do modo estrito do React.
+  const [parametros] = useSearchParams()
+  const codigoDaUrl = parametros.get('codigo')
+  useEffect(() => {
+    if (codigoDaUrl) void consultar(codigoDaUrl)
+    // `consultar` fica fora das dependências: ela muda a cada render, e o que
+    // dispara a consulta é o código.
+  }, [codigoDaUrl])
 
   function lerPelaCamera(texto: string) {
     if (texto.trim() === ultimoCodigo.current) return

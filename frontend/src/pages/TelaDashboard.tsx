@@ -4,6 +4,7 @@ import { Paginacao } from '../components/Paginacao'
 import { ErroApi } from '../services/api'
 import {
   buscarDashboard,
+  formatarTaxa,
   listarHistoricoDeSaidas,
   type Dashboard,
   type Faixa,
@@ -42,20 +43,6 @@ const ROTULO_DA_FAIXA: Record<Faixa, string> = {
   DE_8_A_30_DIAS: 'Vencem em 8 a 30 dias',
   DE_31_A_90_DIAS: 'Vencem em 31 a 90 dias',
   ACIMA_DE_90_DIAS: 'Vencem em mais de 90 dias',
-}
-
-/**
- * A taxa que o servidor calculou, como percentual de uma casa.
- *
- * `null` **não** vira `0%`: são fatos opostos (nenhuma venda no período versus
- * nenhum acerto de primeira), e essa distinção foi criada em T20 justamente
- * para a tela ter de dizer a verdade aqui.
- */
-function formatarTaxa(taxa: number): string {
-  return `${(taxa * 100).toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })}%`
 }
 
 export function TelaDashboard() {

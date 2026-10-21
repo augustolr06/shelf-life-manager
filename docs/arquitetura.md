@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-09-22 (seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-10-21 (seção 5 revisada em T42, que acrescentou `hoje` e `estoque.proximoVencimento` a `GET /dashboard` e a tela `/inicio` como segunda consumidora; seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -536,13 +536,20 @@ do schema, como `CORPO_INVALIDO`.
 ```json
 {
   "periodo": { "de": "2026-08-11", "ate": "2026-09-09" },
+  "hoje": "2026-09-09",
   "estoque": {
     "unidadesEmEstoque": 13,
     "porFaixaDeVencimento": [
       { "faixa": "VENCIDA", "unidades": 1 }, { "faixa": "ATE_7_DIAS", "unidades": 0 },
       { "faixa": "DE_8_A_30_DIAS", "unidades": 2 }, { "faixa": "DE_31_A_90_DIAS", "unidades": 3 },
       { "faixa": "ACIMA_DE_90_DIAS", "unidades": 7 }
-    ]
+    ],
+    "proximoVencimento": {
+      "unidade": { "id": "…", "codigoQr": "PRF-PC31SX", "dataValidade": "2026-09-25",
+                   "produto": { "id": "…", "codigoInterno": "…", "nome": "Loção Delta", "marca": "…" } },
+      "diasParaVencer": 16,
+      "faixa": "DE_8_A_30_DIAS"
+    }
   },
   "saidas": { "total": 2, "naPrimeiraLeitura": 2, "taxaAcertoPrimeiraLeitura": 1 },
   "fifo": { "alertasDisparados": 5, "substituicoesEfetivas": 0 },
@@ -566,6 +573,16 @@ do pool prioritário do passo 4 da seção 4: o que vence **hoje** abre `ATE_7_D
 de vencidas. `perdas.unidadesVencidasEmEstoque` é esse mesmo número, repetido no bloco onde
 ele é lido como prejuízo iminente e não como distribuição de estoque.
 
+**`estoque.proximoVencimento` e `hoje`** (T42) existem para a tela Início. O primeiro é a
+unidade `EM_ESTOQUE` de `dataValidade` mais próxima entre as que **não** venceram — a borda é a
+do pool do passo 4 da seção 4 (`>= hoje`), então a que vence hoje entra com `diasParaVencer: 0`
+—, no formato do alerta (`unidade`, `diasParaVencer`, `faixa`), ou `null` quando não há unidade a
+vencer. Produto inativo entra, como na contagem por faixa; o desempate é por `codigoQr`, como na
+fila de T13. A `faixa` sai da mesma cadeia de tetos da contagem (`faixaDosDias`), e por isso é
+sempre a faixa em que a unidade é contada. `hoje` é o `hojeComoData()` do servidor em
+`AAAA-MM-DD`: a data que a tela escreve no cabeçalho, para que ela não venha do relógio do
+aparelho. Os dois são fotografia do agora e ignoram `de`/`ate`, como o resto de `estoque`.
+
 `fifo.alertasDisparados` conta `ALERTA_FIFO_DISPARADO` no `EventoLog`; `substituicoesEfetivas`
 conta `Saida` com `alertaFifoDisparado`. As duas tabelas são diferentes de propósito — um
 bloqueio pode não terminar em venda —, e é essa diferença que o "vs." da RF13 pede para ver.
@@ -580,6 +597,12 @@ um número sem como olhar quais vendas o compõem. Cada linha traz o `UnidadeNaR
 sempre, `dataHora` (instante, não data de calendário), `tentativasAteAcerto`,
 `alertaFifoDisparado`, `vendaDeUnidadeVencida`, `justificativaOverride`, `sessaoVendaId`,
 `usuario` e `autorizadoPor` (`null` em toda saída comum).
+
+**O Início do gestor** (`frontend/src/pages/TelaInicio.tsx`, rota `/inicio`, `GESTOR`, T42) é o
+segundo consumidor de `GET /dashboard`, sempre sem `de`/`ate`: mostra vencidas, alertas não
+lidos (o contador do `App`), o próximo vencimento, a barra empilhada do estoque por faixa
+(`components/BarraEstoque.tsx`, sempre com a legenda) e o resumo do período padrão. É a tela
+inicial do gestor desde T42.
 
 **Quem consome as duas rotas é `frontend/src/pages/TelaDashboard.tsx`** (rota `/dashboard`,
 `GESTOR`, T21). A tela pede o painel **sem** `de`/`ate` na primeira carga e adota o intervalo

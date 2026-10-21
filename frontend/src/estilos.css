@@ -352,8 +352,14 @@ a:hover {
    faixa vencida) e `fantasma` (sem caixa,
    para ação de apoio). `aria-busy="true"` é o estado carregando: a tela já
    troca o rótulo ("Salvando…") e desabilita o botão; o atributo acrescenta o
-   indicador girando e avisa o leitor de tela. */
-button {
+   indicador girando e avisa o leitor de tela.
+
+   `a.botao` é o link com cara de botão (T42): a ação que leva a outra tela,
+   como "Nova venda" ou "Resolver descarte", continua sendo link — abre em
+   nova aba, aparece na lista de links do leitor de tela —, com as mesmas
+   variantes. */
+button,
+a.botao {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -369,8 +375,18 @@ button {
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
+a.botao {
+  text-decoration: none;
+}
+
+button:hover:not(:disabled),
+a.botao:hover {
   background: var(--cor-primaria-escura);
+}
+
+/* O `a:hover` da base troca a cor do texto; no link-botão ela fica a do botão. */
+a.botao:hover {
+  color: var(--cor-texto-inverso);
 }
 
 button:disabled {
@@ -404,22 +420,26 @@ button[aria-busy='true']::before {
   }
 }
 
-button.secundario {
+button.secundario,
+a.botao.secundario {
   background: var(--cor-superficie);
   color: var(--cor-texto);
   border-color: var(--cor-borda-campo);
 }
 
-button.secundario:hover:not(:disabled) {
+button.secundario:hover:not(:disabled),
+a.botao.secundario:hover {
   background: var(--cor-primaria-suave);
   color: var(--cor-primaria-escura);
 }
 
-button.perigo {
+button.perigo,
+a.botao.perigo {
   background: var(--cor-perigo-forte);
 }
 
-button.perigo:hover:not(:disabled) {
+button.perigo:hover:not(:disabled),
+a.botao.perigo:hover {
   background: var(--cor-perigo-escura);
 }
 
@@ -2227,4 +2247,272 @@ button.item-barra.ativo {
 
 .marca-override .autorizador {
   color: var(--cor-texto-suave);
+}
+
+/* ==========================================================================
+   Início do gestor (T42). Cabeçalho com a data do servidor e a busca; três
+   cartões de atenção que empilham no celular; o estoque por validade e o
+   resumo dos últimos 30 dias lado a lado, que também empilham.
+   ========================================================================== */
+.tela-inicio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-5);
+}
+
+.tela-inicio h1 {
+  margin: 0;
+}
+
+.tela-inicio h2 {
+  margin: 0;
+  font-size: var(--tamanho-titulo-secao);
+  font-weight: var(--peso-titulo);
+}
+
+.tela-inicio .cartao {
+  margin: 0;
+}
+
+.tela-inicio .subtitulo {
+  margin: 0;
+}
+
+.cabecalho-inicio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espaco-4);
+}
+
+.data-de-hoje {
+  margin: 0 0 var(--espaco-1);
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+.acoes-inicio {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-3);
+}
+
+/* A caixa é o formulário, com a lupa dentro; o anel de foco vai para ela,
+   e não para o campo sem borda que ela contém. */
+.busca-inicio {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  /* Largo o bastante para o exemplo do código no placeholder não ser cortado. */
+  min-width: 19rem;
+  min-height: var(--alvo-toque);
+  padding: 0 var(--espaco-3);
+  border: 1px solid var(--cor-borda-campo);
+  border-radius: var(--raio-controle);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.busca-inicio:focus-within {
+  outline: 3px solid var(--cor-foco);
+  outline-offset: 2px;
+}
+
+.busca-inicio input {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(var(--alvo-toque) - 2px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cor-texto);
+}
+
+.busca-inicio input:focus-visible {
+  outline: none;
+}
+
+.atencao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+}
+
+.cartoes-atencao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-4);
+}
+
+.cartao-atencao {
+  flex: 1 1 15rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  padding: var(--espaco-5);
+}
+
+.cartao-atencao .distintivo {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+/* O botão desce para o pé do cartão, e os três ficam na mesma linha. */
+.cartao-atencao a.botao {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.numero-com-rotulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espaco-2);
+  margin: 0;
+  color: var(--cor-texto-menu);
+  font-weight: var(--peso-forte);
+}
+
+.numero-destaque {
+  color: var(--cor-texto);
+  font-size: var(--tamanho-numero);
+  font-weight: var(--peso-titulo);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.paineis-inicio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-4);
+}
+
+.painel-estoque,
+.painel-periodo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+  padding: var(--espaco-5);
+}
+
+.painel-estoque {
+  flex: 2 1 26rem;
+}
+
+.painel-periodo {
+  flex: 1 1 16rem;
+}
+
+.cabecalho-painel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espaco-2);
+}
+
+.cabecalho-painel a {
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-destaque);
+}
+
+.numeros-periodo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espaco-4) var(--espaco-3);
+  margin: 0;
+}
+
+/* O número vem antes do rótulo na tela, como no mockup, mas depois dele no
+   HTML: o leitor de tela lê "saídas registradas, 4". */
+.numeros-periodo > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.125rem;
+}
+
+.numeros-periodo dt {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.numeros-periodo dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: var(--peso-titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Barra do estoque por validade (`BarraEstoque`) ----------------------
+   Os pedaços crescem na proporção das unidades (`flex-grow` vem da tela). As
+   cores do meio ficam abaixo de 3:1 sobre branco; a legenda logo abaixo, no
+   mesmo componente, repete cada faixa com nome e número. */
+.estoque-por-validade {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+}
+
+.barra-empilhada {
+  display: flex;
+  gap: 2px;
+  height: 1rem;
+  border-radius: var(--espaco-2);
+  overflow: hidden;
+  background: var(--cor-fundo);
+}
+
+.barra-empilhada .segmento {
+  flex-basis: 0;
+  min-width: 4px;
+  background: var(--tom-barra);
+}
+
+.legenda-validade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  gap: var(--espaco-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legenda-validade li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-1);
+}
+
+.rotulo-legenda {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+  font-weight: var(--peso-forte);
+}
+
+.amostra-faixa {
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 3px;
+  background: var(--tom-barra);
+}
+
+.valor-legenda {
+  font-size: 1.25rem;
+  font-weight: var(--peso-titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 599.98px) {
+  .busca-inicio {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }

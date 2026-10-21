@@ -17,6 +17,7 @@ import { TelaConsulta } from './pages/TelaConsulta'
 import { TelaDashboard } from './pages/TelaDashboard'
 import { TelaDescartesPendentes } from './pages/TelaDescartesPendentes'
 import { TelaEtiquetas } from './pages/TelaEtiquetas'
+import { TelaInicio } from './pages/TelaInicio'
 import { TelaLogin } from './pages/TelaLogin'
 import { TelaProdutos } from './pages/TelaProdutos'
 import { TelaUsuarios } from './pages/TelaUsuarios'
@@ -48,11 +49,13 @@ type EstadoSessao =
  * interface — quem recusa de fato é o 403 do backend (RNF04).
  */
 /**
- * O que o `App` empresta a uma tela além do usuário: os canais de volta para
- * os contadores que a navegação exibe — alertas não lidos (T19) e unidades na
- * fila de descarte (T41). Cada um é recalculado pela tela dona da lista.
+ * O que o `App` empresta a uma tela além do usuário: os contadores que a
+ * navegação exibe — alertas não lidos (T19) e unidades na fila de descarte
+ * (T41) — e os canais de volta para eles. Cada um é recalculado pela tela
+ * dona da lista; o Início (T42) só lê.
  */
 type RecursosDaTela = {
+  contagens: Contagens
   aoAtualizarNaoLidos: (naoLidos: number) => void
   aoAtualizarPendentes: (pendentes: number) => void
 }
@@ -68,6 +71,19 @@ type Tela = ItemMenu & {
  * porque testes, favoritos e o roteiro manual dependem delas.
  */
 const TELAS: readonly Tela[] = [
+  {
+    caminho: '/inicio',
+    rotulo: 'Início',
+    // Sem grupo, acima deles. No celular fica na folha "Mais": a barra
+    // inferior é das tarefas de balcão e da validade.
+    noTopo: true,
+    icone: 'inicio',
+    // Mesma lista de `GET /dashboard`, de onde vem tudo o que a tela mostra.
+    papeis: ['GESTOR'],
+    elemento: (usuario, recursos) => (
+      <TelaInicio usuario={usuario} alertasNaoLidos={recursos.contagens.alertasNaoLidos} />
+    ),
+  },
   {
     // Era `/leitura` até T34, quando ler deixou de ser vender e a tela ganhou o
     // carrinho. O caminho antigo redireciona para cá (`REDIRECIONAMENTOS`).
@@ -215,11 +231,11 @@ const REDIRECIONAMENTOS: Readonly<Record<string, string>> = {
 
 /**
  * Para onde `/` leva. A atendente cai na venda porque é a única coisa que
- * ela faz no sistema; o gestor cai no catálogo, que é de onde o trabalho dele
- * começa.
+ * ela faz no sistema; o gestor cai no Início, que mostra primeiro o que
+ * precisa de ação (T42 — até ali, era o catálogo).
  */
 function rotaInicial(usuario: Usuario): string {
-  return usuario.papel === 'ATENDENTE' ? '/venda' : '/produtos'
+  return usuario.papel === 'ATENDENTE' ? '/venda' : '/inicio'
 }
 
 /**
@@ -409,6 +425,7 @@ function Aplicacao() {
   const visiveis = TELAS.filter((tela) => tela.papeis.includes(usuario.papel))
   const contagens: Contagens = { alertasNaoLidos, descartesPendentes }
   const recursos: RecursosDaTela = {
+    contagens,
     aoAtualizarNaoLidos: setAlertasNaoLidos,
     aoAtualizarPendentes: setDescartesPendentes,
   }

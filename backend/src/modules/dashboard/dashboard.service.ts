@@ -62,12 +62,38 @@ const TETOS_DAS_FAIXAS: { faixa: Faixa; ateDias: number | null }[] = [
   { faixa: 'ACIMA_DE_90_DIAS', ateDias: null },
 ]
 
+/**
+ * A faixa de uma distância em dias até a validade, lida da mesma cadeia de
+ * tetos que a contagem usa — e não de uma segunda tabela de bordas, que
+ * poderia discordar dela. A última faixa não tem teto, então sempre há uma.
+ */
+export function faixaDosDias(dias: number): Faixa {
+  for (const { faixa, ateDias } of TETOS_DAS_FAIXAS) {
+    if (ateDias === null || dias <= ateDias) return faixa
+  }
+  return 'ACIMA_DE_90_DIAS'
+}
+
+const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000
+
 /** Quantos dias o período cobre quando `de`/`ate` não vêm na consulta. */
 export const DIAS_DO_PERIODO_PADRAO = 30
 
 export type Periodo = { de: string; ate: string }
 
 export type ContagemDaFaixa = { faixa: Faixa; unidades: number }
+
+/**
+ * A unidade do estoque, ainda não vencida, que vence primeiro (T42). Mesma
+ * forma do alerta (T19): a unidade e, ao lado, o que o servidor decidiu sobre
+ * ela — dias e faixa —, para que a tela não compare data nenhuma (RNF04).
+ */
+export type ProximoVencimento = {
+  unidade: UnidadeNaResposta
+  /** `0` quando vence hoje; nunca negativo, porque vencida não entra. */
+  diasParaVencer: number
+  faixa: Faixa
+}
 
 export type Dashboard = {
   /**
@@ -76,9 +102,17 @@ export type Dashboard = {
    * `overrides`; `estoque` é fotografia do agora e o ignora.
    */
   periodo: Periodo
+  /**
+   * A data de hoje no servidor, `AAAA-MM-DD` (T42). A tela Início a escreve
+   * por extenso no cabeçalho: com o relógio do aparelho, a data do topo
+   * poderia discordar dos dias e faixas logo abaixo, que contam deste hoje.
+   */
+  hoje: string
   estoque: {
     unidadesEmEstoque: number
     porFaixaDeVencimento: ContagemDaFaixa[]
+    /** `null` quando não há unidade em estoque a vencer (vazio ou só vencidas). */
+    proximoVencimento: ProximoVencimento | null
   }
   saidas: {
     total: number
@@ -194,6 +228,7 @@ function taxaDeAcerto(total: number, naPrimeiraLeitura: number): number | null {
 export async function montarDashboard(periodo: Periodo): Promise<Dashboard> {
   const noPeriodo = intervaloDeInstantes(periodo)
   const emEstoque = { status: StatusUnidade.EM_ESTOQUE }
+  const hoje = hojeComoData()
 
   // Todas as contagens são feitas pelo banco e disparadas juntas: o painel é
   // uma requisição só, e a RNF06 (<500ms) vale para ela. Carregar linhas para
@@ -207,6 +242,7 @@ export async function montarDashboard(periodo: Periodo): Promise<Dashboard> {
     overrides,
     descartes,
     alertasDisparados,
+    proximoVencimento,
   ] = await Promise.all([
     prisma.unidadeProduto.count({ where: emEstoque }),
     contarPorFaixa(),
@@ -224,11 +260,13 @@ export async function montarDashboard(periodo: Periodo): Promise<Dashboard> {
     prisma.eventoLog.count({
       where: { tipoEvento: 'ALERTA_FIFO_DISPARADO', ocorridoEm: noPeriodo },
     }),
+    buscarProximoVencimento(hoje),
   ])
 
   return {
     periodo,
-    estoque: { unidadesEmEstoque, porFaixaDeVencimento },
+    hoje: textoDeData(hoje),
+    estoque: { unidadesEmEstoque, porFaixaDeVencimento, proximoVencimento },
     saidas: {
       total: saidasNoPeriodo,
       naPrimeiraLeitura: saidasNaPrimeiraLeitura,
@@ -278,6 +316,40 @@ async function contarPorFaixa(): Promise<ContagemDaFaixa[]> {
       }
     }),
   )
+}
+
+/**
+ * A unidade em estoque de validade mais próxima, entre as que ainda não
+ * venceram.
+ *
+ * A borda é a do pool do FIFO (`dataValidade >= hoje`): a que vence hoje ainda
+ * é vendável e é ela o próximo vencimento; a de ontem já é assunto da fila de
+ * descarte, que tem o seu próprio cartão na tela Início.
+ *
+ * Produto inativo **entra**, como na contagem por faixa e no pool do FIFO: o
+ * frasco continua na prateleira e vence do mesmo jeito. Deixá-lo de fora faria
+ * o cartão mostrar uma unidade que não é a primeira da barra logo abaixo.
+ *
+ * O desempate por `codigoQr` é o da fila de descarte (T13): unidades de SKUs
+ * diferentes podem vencer no mesmo dia, e sem critério total o cartão trocaria
+ * de frasco entre duas visitas sem que nada mudasse no estoque.
+ */
+async function buscarProximoVencimento(hoje: Date): Promise<ProximoVencimento | null> {
+  const unidade = await prisma.unidadeProduto.findFirst({
+    where: { status: StatusUnidade.EM_ESTOQUE, dataValidade: { gte: hoje } },
+    orderBy: [{ dataValidade: 'asc' }, { codigoQr: 'asc' }],
+    include: { produto: true },
+  })
+  if (!unidade) return null
+
+  const diasParaVencer = Math.round(
+    (unidade.dataValidade.getTime() - hoje.getTime()) / MILISSEGUNDOS_POR_DIA,
+  )
+  return {
+    unidade: comProdutoJaLido(unidade, unidade.produto),
+    diasParaVencer,
+    faixa: faixaDosDias(diasParaVencer),
+  }
 }
 
 /**

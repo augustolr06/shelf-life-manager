@@ -236,6 +236,113 @@ describe('dashboard — faixas de vencimento (RF13)', () => {
   })
 })
 
+describe('dashboard — próximo vencimento e data de hoje (T42)', () => {
+  it('sem unidade nenhuma, o próximo vencimento é null', async () => {
+    expect((await consultar()).json().estoque.proximoVencimento).toBeNull()
+  })
+
+  it('só com vencidas em estoque, também é null: elas são assunto da fila de descarte', async () => {
+    for (const dias of [-1, -40]) await novaUnidade(dias)
+
+    expect((await consultar()).json().estoque.proximoVencimento).toBeNull()
+  })
+
+  it('devolve a unidade não vencida de validade mais próxima, com dias e faixa do servidor', async () => {
+    await novaUnidade(-3)
+    await novaUnidade(45)
+    const proxima = await novaUnidade(12)
+    await novaUnidade(200)
+
+    const { proximoVencimento } = (await consultar()).json().estoque
+
+    expect(proximoVencimento).toEqual({
+      unidade: {
+        id: proxima.id,
+        codigoQr: proxima.codigoQr,
+        dataValidade: dataEm(12),
+        produto: {
+          id: perfume.id,
+          codigoInterno: perfume.codigoInterno,
+          nome: perfume.nome,
+          marca: perfume.marca,
+        },
+      },
+      diasParaVencer: 12,
+      faixa: 'DE_8_A_30_DIAS',
+    })
+  })
+
+  it('a unidade que vence hoje é o próximo vencimento, com 0 dias, na faixa de até 7', async () => {
+    // Mesma borda do pool do FIFO: o que vence hoje ainda é vendável hoje.
+    await novaUnidade(-1)
+    const hoje = await novaUnidade(0)
+
+    const { proximoVencimento } = (await consultar()).json().estoque
+
+    expect(proximoVencimento.unidade.id).toBe(hoje.id)
+    expect(proximoVencimento.diasParaVencer).toBe(0)
+    expect(proximoVencimento.faixa).toBe('ATE_7_DIAS')
+  })
+
+  it('a faixa do próximo vencimento é a mesma em que a contagem o põe', async () => {
+    for (const dias of [7, 8, 30, 31, 90, 91]) {
+      await limparBanco(prisma)
+      gestor = await criarUsuario(prisma, Papel.GESTOR)
+      perfume = await criarProduto(prisma)
+      await novaUnidade(dias)
+
+      const corpo = (await consultar()).json()
+      const { faixa: nome } = corpo.estoque.proximoVencimento
+
+      expect(faixa(corpo, nome), `${dias} dias`).toBe(1)
+    }
+  })
+
+  it('no empate de validade, desempata pelo código, e a resposta é estável', async () => {
+    const outro = await criarProduto(prisma, 'Colônia de outro SKU')
+    const unidades = [await novaUnidade(20), await novaUnidade(20, { produtoId: outro.id })]
+    const menorCodigo = [...unidades].sort((a, b) => a.codigoQr.localeCompare(b.codigoQr))[0]!
+
+    const primeira = (await consultar()).json().estoque.proximoVencimento
+    const segunda = (await consultar()).json().estoque.proximoVencimento
+
+    expect(primeira.unidade.codigoQr).toBe(menorCodigo.codigoQr)
+    expect(segunda.unidade.codigoQr).toBe(primeira.unidade.codigoQr)
+  })
+
+  it('vendida e descartada não contam, ainda que vençam antes', async () => {
+    await novaUnidade(2, { status: StatusUnidade.VENDIDA })
+    await novaUnidade(3, { status: StatusUnidade.DESCARTADA })
+    const emEstoque = await novaUnidade(25)
+
+    expect((await consultar()).json().estoque.proximoVencimento.unidade.id).toBe(emEstoque.id)
+  })
+
+  it('unidade de produto inativo entra: o frasco está na prateleira e vence do mesmo jeito', async () => {
+    // Coerente com a contagem por faixa e com o pool do FIFO, que também não
+    // filtram por `ativo` (docs/decisoes.md, T42).
+    const descontinuado = await criarProduto(prisma, 'Colônia descontinuada')
+    const doInativo = await novaUnidade(5, { produtoId: descontinuado.id })
+    await novaUnidade(40)
+    await prisma.produto.update({ where: { id: descontinuado.id }, data: { ativo: false } })
+
+    expect((await consultar()).json().estoque.proximoVencimento.unidade.id).toBe(doInativo.id)
+  })
+
+  it('devolve a data de hoje do servidor, no formato de calendário', async () => {
+    expect((await consultar()).json().hoje).toBe(textoDeData(hojeComoData()))
+  })
+
+  it('o próximo vencimento e a data de hoje ignoram o período, como o resto do estoque', async () => {
+    const unidade = await novaUnidade(15)
+
+    const corpo = (await consultar(`?de=${dataEm(-200)}&ate=${dataEm(-190)}`)).json()
+
+    expect(corpo.hoje).toBe(dataEm(0))
+    expect(corpo.estoque.proximoVencimento.unidade.id).toBe(unidade.id)
+  })
+})
+
 describe('dashboard — recorte de período (RF13)', () => {
   it('usa os últimos 30 dias quando não recebe de/ate', async () => {
     await saidaGravada({ diasAtras: 0 })
