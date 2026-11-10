@@ -2020,3 +2020,31 @@ citar como limitação: a qualidade do filtro depende da disciplina de quem pree
 **Tarefa relacionada:** T45, T04, T24
 
 **Data:** 2026-10-21
+
+## O primeiro catálogo real: código de barras não é identificador universal
+
+**Contexto do problema:** a primeira planilha real da loja para os testes em produção traz 524
+produtos de coloração capilar (coloração, tonalizante e henna), de 15 marcas. Ela foi validada
+antes da importação (T24) sem nenhum erro de formato: sem código repetido, sem campo vazio, sem a
+mesma marca ou categoria escrita de dois jeitos. Mas 40 produtos (7,6%) não têm código de barras e
+entraram com um código provisório da própria loja (`SEMCOD-001` a `SEMCOD-040`), e um dos 484
+EAN-13 tem dígito verificador inválido, ou seja, foi digitado errado na planilha.
+
+**Solução adotada:** nenhuma mudança no sistema. O `codigoInterno` é texto livre desde T04, e não
+precisa ser EAN, então os produtos sem código de barras entram como os demais. O código pode ser
+corrigido depois pela edição do produto, e a identificação de cada frasco no balcão não depende
+dele: é o QR por unidade.
+
+**Por que resolve o problema / trade-offs:** o dado real confirma duas escolhas de design. A
+primeira é não exigir EAN como chave do produto: uma em cada treze tintas da loja não tem um. A
+segunda é o QR por unidade física, que não depende da qualidade do cadastro do produto. O lado
+honesto é que a planilha da loja é digitada à mão e carrega erros que a importação não detecta.
+Um EAN com dígito errado passa, porque o sistema não valida o código como EAN. Vale citar no artigo
+que a qualidade do catálogo continua dependendo de quem o preenche. Outro achado do dado real: o
+catálogo é dominado por produtos que só diferem pelo número do tom (Alta Moda 6.1, 6.35...), que
+é exatamente o cenário em que confundir dois itens parecidos no balcão é fácil, e em que ler o QR
+do frasco, em vez de procurar pelo nome, faz diferença.
+
+**Tarefa relacionada:** T24, T04
+
+**Data:** 2026-11-10
