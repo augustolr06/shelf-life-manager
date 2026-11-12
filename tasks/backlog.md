@@ -372,6 +372,15 @@ formulário de antes. No celular, "Ler com a câmera" usa o `LeitorCamera` no mo
 no SI5 e pôr o token em `SI5_TOKEN`, no `.env` e no projeto do backend na Vercel
 (`docs/deploy.md`, 3.2). Decisões em `docs/decisoes.md` (T47); capturas em `docs/redesign/T47/`.
 
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T48 | Recebimento: escolher o produto pela leitura do código de barras (câmera no celular) | pendente | T47, T28 | `tasks/T48-recebimento-leitura-codigo-de-barras.md` |
+
+**T48 (2026-11-12).** Pedido do orientando em 2026-11-11, durante T47, como tarefa separada e
+feita depois dela: no Recebimento, além de procurar o produto por nome ou código no seletor
+(T28), ler o código de barras da embalagem pela câmera do celular. O backend ganha o filtro
+exato `codigoInterno` em `GET /produtos`, e a consulta externa de T47 fica fora do Recebimento.
+
 ---
 
 ## Verificações manuais a cargo do orientando
