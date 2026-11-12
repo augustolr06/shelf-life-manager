@@ -108,11 +108,6 @@
   --cor-inativo-texto: var(--cor-texto-suave);
   --cor-inativo-forte: var(--cor-texto-suave);
 
-  /* Impressão de etiquetas: papel branco, guia de corte cinza, texto preto */
-  --cor-papel: #ffffff;
-  --cor-impressao-texto: #000000;
-  --cor-impressao-guia: #999999;
-
   /* Tipografia. Manrope para o texto e JetBrains Mono para os códigos,
      empacotadas no build (`main.tsx`) e não pelo Google Fonts: o PWA abre
      offline (RNF07). A fonte do sistema é a reserva enquanto o arquivo
@@ -573,7 +568,8 @@ input[type='radio'] {
 /* Em coluna, o `.campo` não pode crescer: o `flex: 1 1 10rem` dele viraria
    10rem de altura, e abria um vão embaixo da caixa (era o caso do produto, no
    Recebimento). */
-.formulario-coluna .campo {
+.formulario-coluna .campo,
+.escolha-etiquetas .campo {
   flex: 0 0 auto;
 }
 
@@ -1320,8 +1316,7 @@ button.item-barra.ativo {
   font-size: var(--tamanho-apoio);
 }
 
-.tela > .subtitulo,
-.controles-etiquetas > .subtitulo {
+.tela > .subtitulo {
   max-width: 42rem;
   margin-bottom: var(--espaco-4);
 }
@@ -2746,10 +2741,9 @@ button.esvaziar-carrinho {
 }
 
 /* ==========================================================================
-   Folha de etiquetas para impressão (RF04, T15). É a única parte do sistema
-   dimensionada em milímetros, e por isso fora da escala de espaçamento e de
-   tamanhos: o resto é tela, aqui é papel — e o milímetro é o que decide se a
-   câmera lê o símbolo colado no frasco (RNF08).
+   Etiquetas (RF04, T15 e T50). O papel em milímetros não mora mais aqui: desde
+   T50 a folha é um PDF montado no navegador (`services/pdfEtiquetas.ts`), e
+   esta tela só escolhe os produtos e o tamanho do símbolo.
    ========================================================================== */
 .resumo-folha {
   display: flex;
@@ -2791,112 +2785,56 @@ button.esvaziar-carrinho {
   min-height: var(--alvo-toque);
 }
 
-/* A grade se organiza pela largura da etiqueta: trocar o tamanho do símbolo
-   muda quantas cabem por linha, sem número fixo de colunas a recalcular. */
-.folha-etiquetas {
+/* A escolha dos produtos da folha (T50): "todos" ou uma lista de chips. */
+.escolha-etiquetas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-3);
+  margin-bottom: var(--espaco-4);
+}
+
+.opcao-todos {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-2);
+  min-height: var(--alvo-toque);
+}
+
+.produtos-escolhidos {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 2mm;
+  gap: var(--espaco-2);
   margin: 0;
   padding: 0;
 }
 
-.etiqueta {
-  /* Margem estreita em volta do símbolo: a zona de silêncio de 4 módulos que
-     a norma exige já vem dentro do `viewBox` (T14), e repeti-la aqui só
-     roubaria espaço da embalagem. */
-  width: calc(var(--lado-simbolo) + 4mm);
-  padding: 1mm;
-  border: 1px dashed var(--cor-borda);
-  border-radius: 1mm;
-  background: var(--cor-papel);
-  text-align: center;
-  /* Papel comum, recortado à mão — a etiqueta não pode nascer partida entre
-     duas páginas. */
-  break-inside: avoid;
+.chip-produto {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-1);
+  max-width: 100%;
+  padding-left: var(--espaco-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-controle);
+  background: var(--cor-superficie);
+  font-size: var(--tamanho-apoio);
 }
 
-.folha-etiquetas[data-tamanho-mm='15'] {
-  --lado-simbolo: 15mm;
+.chip-produto > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.folha-etiquetas[data-tamanho-mm='20'] {
-  --lado-simbolo: 20mm;
-}
-
-.folha-etiquetas[data-tamanho-mm='25'] {
-  --lado-simbolo: 25mm;
-}
-
-/* O SVG sai do servidor sem largura nem altura, de propósito (T14): quem
-   dimensiona é a folha, e é aqui que o milímetro entra. */
-.etiqueta .simbolo svg {
-  display: block;
-  width: var(--lado-simbolo);
-  height: var(--lado-simbolo);
-  margin: 0 auto;
-}
-
-.codigo-etiqueta {
-  margin: 0.5mm 0 0;
-  font-family: var(--fonte-mono);
-  font-size: 2.6mm;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-}
-
-.validade-etiqueta {
-  margin: 0;
-  font-size: 2.4mm;
-  line-height: 1.2;
-  color: var(--cor-texto);
-}
-
-.rodape-folha {
+.resultado-etiquetas table {
+  max-width: 42rem;
   margin-top: var(--espaco-3);
-  color: var(--cor-texto-suave);
-  font-size: var(--tamanho-legenda);
 }
 
-/* O que vai ao papel é a folha, e só ela. Navegação, seletores e botões são
-   da tela; impressos, gastariam tinta e espaço de etiqueta. */
-@media print {
-  @page {
-    margin: 8mm;
-  }
-
-  body {
-    background: var(--cor-papel);
-  }
-
-  .menu-lateral,
-  .barra-inferior,
-  .abas-validade,
-  .aviso,
-  .controles-etiquetas,
-  .paginacao,
-  .aviso-paginas {
-    display: none;
-  }
-
-  .aplicacao > main {
-    margin-left: 0;
-    padding: 0;
-  }
-
-  .etiqueta {
-    /* Fundo colorido não ajuda a câmera e gasta tinta; a guia de corte fica,
-       porque é ela que orienta a tesoura. */
-    background: transparent;
-    border-color: var(--cor-impressao-guia);
-  }
-
-  .rodape-folha {
-    /* Sai impresso de propósito: T16 precisa saber de qual tamanho é a folha
-       que aprovou ou reprovou (RNF08). */
-    color: var(--cor-impressao-texto);
-  }
+.resultado-etiquetas td:last-child,
+.resultado-etiquetas th:last-child {
+  text-align: right;
 }
 
 /* ==========================================================================

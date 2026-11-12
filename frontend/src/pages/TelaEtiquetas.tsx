@@ -1,66 +1,63 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Paginacao } from '../components/Paginacao'
+import { Icone } from '../components/Icone'
 import { SeletorProduto } from '../components/SeletorProduto'
 import { ErroApi } from '../services/api'
-import { formatarData } from '../services/datas'
-import { listarEtiquetas, type FolhaDeEtiquetas } from '../services/etiquetas'
+import {
+  carregarFolhaCompleta,
+  listarEtiquetas,
+  listarEtiquetasDeVariosProdutos,
+  TAMANHO_PAGINA_MAXIMO,
+  type FolhaDeEtiquetas,
+} from '../services/etiquetas'
+import {
+  agruparPorProduto,
+  gerarPdfEtiquetas,
+  TAMANHO_PADRAO,
+  TAMANHOS_EM_MM,
+  type GrupoDeEtiquetas,
+  type TamanhoEmMm,
+} from '../services/pdfEtiquetas'
 import type { Produto } from '../services/produtos'
 
 /**
- * A folha de etiquetas imprimíveis (RF04).
+ * As etiquetas imprimíveis (RF04), agora de vários produtos num PDF só (T50).
  *
- * É o elo físico do sistema: aqui o `codigoQr` que existe no banco desde T05, e
- * que virou símbolo em T14, finalmente vira papel colado no frasco. Sem esta
- * tela o fluxo inteiro de leitura de QR (T08, T10) não tem entrada — a câmera
- * não tem o que ler.
+ * É o elo físico do sistema: aqui o `codigoQr` que existe no banco vira papel
+ * colado no frasco. A tela não decide nada sobre o dado — o símbolo vem pronto
+ * do servidor, e a ordem (marca → nome → validade) também. O que se decide
+ * aqui é **impressão**: quais produtos entram, e quantos milímetros o símbolo
+ * ocupa no papel.
  *
- * A tela não decide nada sobre o dado: o símbolo vem pronto do servidor, a
- * ordem da folha é a do FIFO (validade crescente, a mesma da fila de T13) e a
- * validade chega como data de calendário. O que se decide aqui é **impressão**:
- * quantos milímetros o símbolo ocupa no papel, e o que ocupa espaço ao lado
- * dele.
+ * Dois caminhos de entrada:
+ * - **do Recebimento**, com os ids do lote que acabou de chegar (T15). A folha
+ *   é só daquele lote, e não do estoque inteiro do SKU;
+ * - **pela aba**, escolhendo um ou vários produtos, ou "todos com estoque": a
+ *   entrega mista, a etiquetagem do estoque existente e a reimpressão.
  *
- * ## Por que o tamanho é escolhido na tela
+ * Nos dois, **nada é buscado antes do clique em "Gerar PDF"** (Decisão 1 de
+ * T15): abrir sozinha a folha faria imprimir segunda etiqueta para frascos já
+ * etiquetados, e é assim que se duplicam identificadores no mundo físico.
  *
- * A RNF08 exige validar a leitura em superfície real — frasco curvo, plástico
- * brilhante, luz da loja — **antes** de congelar o formato da etiqueta, e essa
- * validação é T16. Um tamanho fixo no código obrigaria a editar e reimplantar o
- * frontend a cada tentativa; as três opções fazem a folha de teste sair pronta
- * da impressora. Depois que T16 apontar o vencedor, fixá-lo é uma linha — e aí
- * com dado físico por trás.
+ * ## Por que o tamanho ainda é escolhido na tela
+ *
+ * A RNF08 exige validar a leitura em superfície real antes de congelar o
+ * formato, e essa validação é T16. As três opções fazem a folha de teste sair
+ * pronta; depois de T16, fixar o vencedor é uma linha.
  */
-
-/**
- * Lado do símbolo em milímetros. Com os 29 módulos do `viewBox` de T14 (21 do
- * símbolo mais 4+4 da zona de silêncio), dão módulos de ~0,52 mm, ~0,69 mm e
- * ~0,86 mm. A referência prática para câmera de celular com impressora comum
- * fica em torno de 0,5 mm por módulo: 15 mm é o limite inferior plausível, e
- * 25 mm é o tamanho confortável que talvez não caiba num frasco pequeno.
- */
-const TAMANHOS_EM_MM = [15, 20, 25] as const
-type TamanhoEmMm = (typeof TAMANHOS_EM_MM)[number]
-const TAMANHO_PADRAO: TamanhoEmMm = 20
 
 /**
  * O que a tela de recebimento entrega ao navegar para cá.
  *
  * Vai por estado de rota e não pela URL: 500 UUIDs são cerca de 18 KB de query
- * string.
- *
- * O que se perde em troca é menos do que parecia na conferência: o React Router
- * guarda o estado no History API, então **recarregar a página no mesmo
- * navegador mantém o lote**. O que não sobrevive é levar o endereço para outro
- * lugar — outra aba, outro aparelho, um link colado para alguém. Aí a tela cai
- * no seletor e **não** carrega nada sozinha, que é o comportamento desejado:
- * abrir sozinha o estoque inteiro do SKU faria imprimir uma segunda etiqueta
- * para frascos já etiquetados, e é assim que se duplicam identificadores no
- * mundo físico.
+ * string. O React Router guarda o estado no History API, então recarregar a
+ * página no mesmo navegador mantém o lote; levar o endereço para outra aba ou
+ * outro aparelho cai na escolha de produtos, sem nada carregado.
  */
 export type ImpressaoPedida = {
   produtoId: string
   produtoNome: string
-  /** Ausente na reimpressão: aí a folha é o estoque em mãos daquele SKU. */
+  /** Ausente: o produto já vem escolhido, mas a folha é o estoque em mãos dele. */
   unidadeIds?: string[]
 }
 
@@ -78,179 +75,259 @@ function lerPedido(estado: unknown): ImpressaoPedida | null {
   }
 }
 
+/** O que a lista de escolhidos precisa de um produto: o id e como mostrá-lo. */
+type ProdutoEscolhido = Pick<Produto, 'id' | 'nome'> & { marca?: string }
+
+type Lote = { produtoId: string; produtoNome: string; unidadeIds: string[] }
+
+type Progresso =
+  | { fase: 'carregando'; feitas: number; total: number | null }
+  | { fase: 'desenhando'; feitas: number; total: number }
+
+type Resultado = {
+  grupos: GrupoDeEtiquetas[]
+  /** Produtos escolhidos que não tinham nenhuma unidade em estoque. */
+  semEstoque: ProdutoEscolhido[]
+}
+
+/**
+ * De quantas em quantas etiquetas o progresso do desenho é atualizado na tela.
+ * A cada uma seriam três mil re-renderizações para um número que ninguém lê.
+ */
+const PASSO_DO_PROGRESSO = 25
+
 export function TelaEtiquetas() {
   const { state } = useLocation()
 
-  // Nulo é o modo reimpressão: a tela espera a gestora escolher o produto.
-  const [pedido, setPedido] = useState<ImpressaoPedida | null>(() => lerPedido(state))
-  const [tamanho, setTamanho] = useState<TamanhoEmMm>(TAMANHO_PADRAO)
+  const [lote, setLote] = useState<Lote | null>(() => {
+    const pedido = lerPedido(state)
+    return pedido?.unidadeIds ? { ...pedido, unidadeIds: pedido.unidadeIds } : null
+  })
+  const [escolhidos, setEscolhidos] = useState<ProdutoEscolhido[]>(() => {
+    const pedido = lerPedido(state)
+    return pedido && !pedido.unidadeIds ? [{ id: pedido.produtoId, nome: pedido.produtoNome }] : []
+  })
+  const [todos, setTodos] = useState(false)
+  // O seletor volta vazio depois de cada escolha: a chave nova o remonta.
+  const [chaveDoSeletor, setChaveDoSeletor] = useState(0)
 
-  const [folha, setFolha] = useState<FolhaDeEtiquetas | null>(null)
-  const [pagina, setPagina] = useState(1)
-  const inicioDaLista = useRef<HTMLUListElement>(null)
-  const [carregando, setCarregando] = useState(false)
+  const [tamanho, setTamanho] = useState<TamanhoEmMm>(TAMANHO_PADRAO)
+  const [progresso, setProgresso] = useState<Progresso | null>(null)
+  const [resultado, setResultado] = useState<Resultado | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
-  // O produto escolhido no seletor (T28): nunca o texto digitado.
-  const [produto, setProduto] = useState<Produto | null>(null)
+  const gerando = progresso !== null
+  const podeGerar = !gerando && (lote !== null || todos || escolhidos.length > 0)
 
-  const carregarFolha = useCallback(async () => {
-    if (!pedido) return
-    setCarregando(true)
-    setErro(null)
-    try {
-      setFolha(await listarEtiquetas(pedido.produtoId, { unidadeIds: pedido.unidadeIds, pagina }))
-    } catch (falha) {
-      setFolha(null)
-      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível carregar as etiquetas.')
-    } finally {
-      setCarregando(false)
-    }
-  }, [pedido, pagina])
-
-  useEffect(() => {
-    void carregarFolha()
-  }, [carregarFolha])
-
-  function pedirReimpressao(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault()
+  function escolher(produto: Produto | null) {
     if (!produto) return
-    setPagina(1)
-    setPedido({ produtoId: produto.id, produtoNome: produto.nome })
+    // O mesmo produto duas vezes não duplica a folha: o servidor recebe ids.
+    setEscolhidos((atuais) =>
+      atuais.some((atual) => atual.id === produto.id)
+        ? atuais
+        : [...atuais, { id: produto.id, nome: produto.nome, marca: produto.marca }],
+    )
+    setChaveDoSeletor((chave) => chave + 1)
+    setResultado(null)
   }
 
-  function voltarAoSeletor() {
-    setPedido(null)
-    setFolha(null)
-    setPagina(1)
-    setProduto(null)
+  function remover(id: string) {
+    setEscolhidos((atuais) => atuais.filter((atual) => atual.id !== id))
+    setResultado(null)
   }
 
-  const totalPaginas = folha ? Math.max(1, Math.ceil(folha.total / folha.tamanhoPagina)) : 1
+  function voltarAEscolha() {
+    setLote(null)
+    setResultado(null)
+    setErro(null)
+  }
+
+  async function gerar() {
+    if (!podeGerar) return
+    setErro(null)
+    setResultado(null)
+    setProgresso({ fase: 'carregando', feitas: 0, total: null })
+
+    // Capturados agora: mudar a escolha durante a geração não muda este PDF.
+    const escolhidosAgora = escolhidos
+    const buscarPagina: (pagina: number) => Promise<FolhaDeEtiquetas> = lote
+      ? (pagina) =>
+          listarEtiquetas(lote.produtoId, {
+            unidadeIds: lote.unidadeIds,
+            pagina,
+            tamanhoPagina: TAMANHO_PAGINA_MAXIMO,
+          })
+      : (pagina) =>
+          listarEtiquetasDeVariosProdutos(
+            todos ? { todos: true } : { produtoIds: escolhidosAgora.map((produto) => produto.id) },
+            pagina,
+          )
+
+    try {
+      const etiquetas = await carregarFolhaCompleta(buscarPagina, (feitas, total) =>
+        setProgresso({ fase: 'carregando', feitas, total }),
+      )
+      const grupos = agruparPorProduto(etiquetas)
+      const semEstoque =
+        lote || todos
+          ? []
+          : escolhidosAgora.filter((produto) => !grupos.some((grupo) => grupo.produto.id === produto.id))
+
+      if (etiquetas.length > 0) {
+        setProgresso({ fase: 'desenhando', feitas: 0, total: etiquetas.length })
+        await gerarPdfEtiquetas(grupos, tamanho, (feitas, total) => {
+          if (feitas % PASSO_DO_PROGRESSO === 0 || feitas === total) {
+            setProgresso({ fase: 'desenhando', feitas, total })
+          }
+        })
+      }
+      setResultado({ grupos, semEstoque })
+    } catch (falha) {
+      setErro(falha instanceof ErroApi ? falha.message : 'Não foi possível gerar o PDF das etiquetas.')
+    } finally {
+      setProgresso(null)
+    }
+  }
+
+  const totalDeEtiquetas = resultado?.grupos.reduce((soma, grupo) => soma + grupo.etiquetas.length, 0) ?? 0
 
   return (
     <section className="tela tela-etiquetas">
-      {/* Tudo o que é controle sai da folha impressa: ver `@media print`. */}
-      <div className="controles-etiquetas">
-        <h1>Etiquetas</h1>
-        <p className="subtitulo">
-          Recorte e cole cada etiqueta na sua unidade. A folha sai na ordem de validade — a
-          mesma ordem em que os frascos serão vendidos.
+      <h1>Etiquetas</h1>
+      <p className="subtitulo">
+        Escolha os produtos e gere um PDF para imprimir, recortar e colar cada etiqueta na sua
+        unidade. Cada produto ganha um cabeçalho, e as etiquetas saem na ordem de validade — a
+        mesma ordem em que os frascos serão vendidos.
+      </p>
+
+      {lote ? (
+        <p className="resumo-folha">
+          {lote.produtoNome} — {lote.unidadeIds.length} unidade(s) do recebimento{' '}
+          <button type="button" className="secundario" onClick={voltarAEscolha} disabled={gerando}>
+            Escolher produtos
+          </button>
         </p>
+      ) : (
+        <div className="cartao escolha-etiquetas">
+          <label className="opcao-todos">
+            <input
+              type="checkbox"
+              checked={todos}
+              disabled={gerando}
+              onChange={(evento) => {
+                setTodos(evento.target.checked)
+                setResultado(null)
+              }}
+            />
+            Todos os produtos com estoque
+          </label>
 
-        {erro && (
-          <p className="erro" role="alert">
-            {erro}
-          </p>
-        )}
+          {!todos && (
+            <>
+              <SeletorProduto key={chaveDoSeletor} valor={null} aoEscolher={escolher} />
+              {escolhidos.length > 0 ? (
+                <ul className="produtos-escolhidos" aria-label="Produtos escolhidos">
+                  {escolhidos.map((produto) => (
+                    <li key={produto.id} className="chip-produto">
+                      <span>{produto.marca ? `${produto.marca} — ${produto.nome}` : produto.nome}</span>
+                      <button
+                        type="button"
+                        className="fantasma botao-icone"
+                        aria-label={`Remover ${produto.nome}`}
+                        disabled={gerando}
+                        onClick={() => remover(produto.id)}
+                      >
+                        <Icone nome="fechar" tamanho={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="subtitulo">
+                  Nenhum produto escolhido. Procure acima e escolha um ou mais.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
-        {pedido ? (
-          <p className="resumo-folha">
-            {pedido.produtoNome}
-            {pedido.unidadeIds
-              ? ` — ${pedido.unidadeIds.length} unidade(s) do recebimento`
-              : ' — todas as unidades em estoque'}{' '}
-            <button type="button" className="secundario" onClick={voltarAoSeletor}>
-              Escolher outro produto
-            </button>
-          </p>
-        ) : (
-          <form className="cartao formulario-linha" onSubmit={pedirReimpressao}>
-            <SeletorProduto valor={produto} aoEscolher={setProduto} />
-            {/* Nada é carregado sozinho na reimpressão: reimprimir etiqueta de
-                frasco que já tem uma é como se duplicam identificadores. */}
-            <button type="submit" disabled={produto === null}>
-              Carregar etiquetas
-            </button>
-          </form>
-        )}
-
-        {folha && folha.etiquetas.length > 0 && (
-          <div className="opcoes-impressao">
-            <fieldset className="tamanhos">
-              <legend>Tamanho do símbolo</legend>
-              {TAMANHOS_EM_MM.map((opcao) => (
-                <label key={opcao} htmlFor={`tamanho-${opcao}`}>
-                  <input
-                    type="radio"
-                    id={`tamanho-${opcao}`}
-                    name="tamanho"
-                    value={opcao}
-                    checked={tamanho === opcao}
-                    onChange={() => setTamanho(opcao)}
-                  />
-                  {opcao} mm
-                </label>
-              ))}
-            </fieldset>
-            {/* O diálogo do sistema é o que a loja já usa para imprimir; gerar
-                PDF aqui só acrescentaria uma decisão de margem que o driver da
-                impressora toma melhor. */}
-            <button type="button" onClick={() => window.print()}>
-              Imprimir
-            </button>
-          </div>
-        )}
+      <div className="opcoes-impressao">
+        <fieldset className="tamanhos" disabled={gerando}>
+          <legend>Tamanho do símbolo</legend>
+          {TAMANHOS_EM_MM.map((opcao) => (
+            <label key={opcao} htmlFor={`tamanho-${opcao}`}>
+              <input
+                type="radio"
+                id={`tamanho-${opcao}`}
+                name="tamanho"
+                value={opcao}
+                checked={tamanho === opcao}
+                onChange={() => setTamanho(opcao)}
+              />
+              {opcao} mm
+            </label>
+          ))}
+        </fieldset>
+        <button type="button" onClick={() => void gerar()} disabled={!podeGerar}>
+          Gerar PDF
+        </button>
       </div>
 
-      {carregando && <p role="status">Carregando etiquetas…</p>}
-
-      {!carregando && folha && folha.etiquetas.length === 0 && (
-        <p>Nenhuma unidade em estoque para etiquetar neste produto.</p>
+      {progresso && (
+        <p role="status">
+          {progresso.fase === 'carregando'
+            ? progresso.total === null
+              ? 'Carregando etiquetas…'
+              : `Carregando ${progresso.feitas} de ${progresso.total} etiquetas…`
+            : `Montando o PDF: ${progresso.feitas} de ${progresso.total} etiquetas…`}
+        </p>
       )}
 
-      {!carregando && folha && folha.etiquetas.length > 0 && (
-        <>
-          <ul
-            ref={inicioDaLista}
-            className="folha-etiquetas"
-            aria-label="Etiquetas para impressão"
-            // O milímetro chega ao CSS por atributo, e não por estilo em linha:
-            // as três medidas ficam na folha de estilo, junto do resto da
-            // impressão, em vez de espalhadas entre TSX e CSS.
-            data-tamanho-mm={tamanho}
-          >
-            {folha.etiquetas.map((etiqueta) => (
-              <li className="etiqueta" key={etiqueta.id}>
-                {/* O SVG vem de `simboloQr.ts`, que o gera a partir de um código
-                    já validado e o entrega sem script, evento, id, class ou
-                    style (T14). Precisa ser elemento de verdade — e não imagem
-                    por `data:` URI — para herdar o tamanho da folha. */}
-                <div
-                  className="simbolo"
-                  // O símbolo não diz nada a um leitor de tela que o código
-                  // logo abaixo, em texto, já não diga.
-                  aria-hidden="true"
-                  dangerouslySetInnerHTML={{ __html: etiqueta.svg }}
-                />
-                {/* O código em texto é o que a atendente digita quando a câmera
-                    falha (o fallback manual de T10), e por isso vai impresso. */}
-                <p className="codigo-etiqueta">{etiqueta.codigoQr}</p>
-                {/* A validade é o que um humano precisa ver na prateleira sem
-                    escanear nada — é o dado em torno do qual o sistema gira. */}
-                <p className="validade-etiqueta">Val {formatarData(etiqueta.dataValidade)}</p>
-              </li>
-            ))}
-          </ul>
+      {erro && (
+        <p className="erro" role="alert">
+          {erro}
+        </p>
+      )}
 
-          {/* Sai impresso: T16 precisa saber qual tamanho aprovou ou reprovou. */}
-          <p className="rodape-folha">
-            {pedido?.produtoNome} · símbolo de {tamanho} mm · {folha.etiquetas.length} de{' '}
-            {folha.total} etiqueta(s) · página {folha.pagina} de {totalPaginas}
+      {resultado && resultado.semEstoque.length > 0 && (
+        <p className="nota-atencao" role="alert">
+          Sem unidades em estoque, ficaram de fora:{' '}
+          {resultado.semEstoque.map((produto) => produto.nome).join(', ')}.
+        </p>
+      )}
+
+      {resultado && resultado.grupos.length === 0 && (
+        <p>Nenhuma unidade em estoque nos produtos escolhidos.</p>
+      )}
+
+      {resultado && resultado.grupos.length > 0 && (
+        <div className="resultado-etiquetas">
+          <p className="nota-sucesso" role="status">
+            PDF gerado com {totalDeEtiquetas} etiqueta(s) de {resultado.grupos.length} produto(s).
+            Imprima em <strong>tamanho real (100%)</strong>, sem “ajustar à página”: o tamanho do
+            símbolo só vale se a impressão não reescalar.
           </p>
-        </>
+          <table aria-label="Etiquetas por produto">
+            <thead>
+              <tr>
+                <th scope="col">Produto</th>
+                <th scope="col">Etiquetas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resultado.grupos.map((grupo) => (
+                <tr key={grupo.produto.id}>
+                  <td>
+                    {grupo.produto.marca} — {grupo.produto.nome}
+                  </td>
+                  <td>{grupo.etiquetas.length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-
-      <Paginacao
-        pagina={pagina}
-        totalPaginas={totalPaginas}
-        aoMudar={setPagina}
-        alvoRolagem={inicioDaLista}
-      />
-      {/* Imprime-se a página carregada, e a tela diz isso: juntar páginas
-          numa folha só exigiria acumular várias requisições para um botão
-          de impressão, e imprimiria o que não está na tela. */}
-      {totalPaginas > 1 && <p className="subtitulo aviso-paginas">Imprima uma página por vez.</p>}
     </section>
   )
 }

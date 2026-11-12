@@ -75,20 +75,20 @@ recebe **um PDF** com um cabeçalho por produto.
 
 ## Critério de aceite
 
-- [ ] Testes de backend da rota nova:
+- [x] Testes de backend da rota nova:
       - ordem marca → nome → validade;
       - `todos` só com `EM_ESTOQUE`;
       - inativo entra e id inexistente é ignorado;
       - paginação estável;
       - 400 (corpo vazio, os dois campos juntos, UUID inválido), 403 e 401.
-- [ ] Testes de Vitest das funções puras do PDF:
+- [x] Testes de Vitest das funções puras do PDF:
       - agrupamento;
       - colunas por tamanho;
       - quebra de página;
       - "(continuação)";
       - cabeçalho nunca sozinho no pé;
       - rodapé.
-- [ ] Testes de Vitest da tela:
+- [x] Testes de Vitest da tela:
       - nada carrega antes do pedido;
       - chips sem duplicar;
       - "todos";
@@ -97,10 +97,36 @@ recebe **um PDF** com um cabeçalho por produto.
       - produto sem estoque;
       - erro do servidor;
       - caminho do recebimento.
-- [ ] `npm test` e `npm run typecheck` verdes nos dois projetos
-- [ ] `curl` na rota nova e `playwright-cli` na tela, com o PDF baixado conferido por
+- [x] `npm test` e `npm run typecheck` verdes nos dois projetos
+- [x] `curl` na rota nova e `playwright-cli` na tela, com o PDF baixado conferido por
       `pdftotext`/`pdftoppm`
-- [ ] `docs/arquitetura.md`, `docs/decisoes.md` e `docs/notas-para-artigo.md`
+- [x] `docs/arquitetura.md`, `docs/decisoes.md` e `docs/notas-para-artigo.md`
+
+## Estado ao fim de T50
+
+`npm test` fecha com **626 verdes no backend** (17 novos) e **398 no frontend**: 15 do layout do
+PDF, e a suíte da tela foi reescrita com 12 casos. `npm run typecheck` está limpo nos dois. Os
+dois "unhandled errors" da suíte do frontend vêm de `TelaInicio.test.tsx` e aparecem igual sem
+esta tarefa.
+
+Conferido contra o banco de desenvolvimento:
+- **`curl`:** grupos contíguos em ordem de marca e nome, paginação contínua, 403 para a
+  atendente e 400 para o corpo vazio.
+- **`playwright-cli` (1280×900 e 360×740), três produtos com um sem estoque:** o PDF de uma
+  página com dois cabeçalhos e o aviso.
+- **Recebimento de 120 unidades → botão → Gerar PDF:** 3 páginas com "(continuação)", em cerca
+  de 1,5 s.
+- **"Todos" a 25 mm:** 4 páginas, 6 colunas.
+- **Console:** sem erro.
+
+O PDF renderizado a 600 dpi tem o símbolo de exatamente 20 mm, e os 21×21 módulos lidos do papel
+são idênticos à matriz da biblioteca `qrcode` para o mesmo código.
+
+Um achado de layout foi corrigido aqui. A 360 px, o `.campo` do seletor herdava
+`flex: 1 1 10rem` na coluna e abria um vão embaixo do campo. A correção é a mesma do Recebimento.
+
+Os roteiros `docs/roteiro-tutorial.md` (5, 6.6 nova e 7) e `docs/roteiro-testes-manuais.md`
+(seção 8) foram reescritos para o fluxo do PDF.
 
 ## Fora de escopo
 

@@ -3,7 +3,11 @@ import type { FastifyInstance } from 'fastify'
 import { autenticar, exigirPapel } from '../auth/auth.middleware.js'
 import { MAXIMO_CODIGO } from '../saida/saida.routes.js'
 import { consultarUnidade } from './consulta.service.js'
-import { listarEtiquetas } from './etiqueta.service.js'
+import {
+  listarEtiquetas,
+  listarEtiquetasDeVariosProdutos,
+  type EscopoDeEtiquetas,
+} from './etiqueta.service.js'
 import { cadastrarUnidades, contarUnidades, type ItemLote } from './unidade.service.js'
 
 /**
@@ -81,6 +85,49 @@ const consultaEtiquetas = {
   },
 } as const
 
+/**
+ * Teto da lista de produtos de uma folha (T50). O catálogo real tem cerca de
+ * 700 SKUs; acima disso, "todos" é o caminho, e não uma lista enorme.
+ */
+const MAXIMO_PRODUTOS_POR_FOLHA = 1000
+
+/**
+ * A folha de vários produtos (T50). Vai no corpo de um `POST`, embora seja
+ * leitura: a lista de produtos escolhidos chega a centenas de UUIDs, cerca de
+ * 25 KB numa query string.
+ *
+ * Exatamente um dos dois: `produtoIds` ou `todos`. Nenhum deles, ou os dois
+ * juntos, é pedido ambíguo e vira 400.
+ */
+const corpoEtiquetasDeVariosProdutos = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    produtoIds: {
+      type: 'array',
+      minItems: 1,
+      maxItems: MAXIMO_PRODUTOS_POR_FOLHA,
+      items: { type: 'string', format: 'uuid' },
+    },
+    todos: { const: true },
+    pagina: { type: 'integer', minimum: 1, default: 1 },
+    tamanhoPagina: {
+      type: 'integer',
+      minimum: 1,
+      maximum: MAXIMO_UNIDADES,
+      default: TAMANHO_FOLHA_PADRAO,
+    },
+  },
+  oneOf: [{ required: ['produtoIds'] }, { required: ['todos'] }],
+} as const
+
+type CorpoEtiquetasDeVariosProdutos = {
+  produtoIds?: string[]
+  todos?: true
+  pagina: number
+  tamanhoPagina: number
+}
+
 const parametrosCodigo = {
   type: 'object',
   required: ['codigoQr'],
@@ -152,6 +199,21 @@ export async function rotasUnidade(app: FastifyInstance): Promise<void> {
       // Produto sem nada a etiquetar é 200 com lista vazia, nunca 404: é o
       // estado de quem já imprimiu tudo.
       return resultado.folha
+    },
+  )
+
+  /**
+   * As etiquetas de vários produtos, ou de todos os que têm estoque (T50). Os
+   * mesmos papel e leitura da rota de um produto: `GESTOR`, e nada é gravado.
+   */
+  app.post<{ Body: CorpoEtiquetasDeVariosProdutos }>(
+    '/unidades/etiquetas',
+    { ...somenteGestor, schema: { body: corpoEtiquetasDeVariosProdutos } },
+    async (request) => {
+      const { produtoIds, pagina, tamanhoPagina } = request.body
+      // O schema garante exatamente um dos dois.
+      const escopo: EscopoDeEtiquetas = produtoIds ? { produtoIds } : { todos: true }
+      return listarEtiquetasDeVariosProdutos(escopo, { pagina, tamanhoPagina })
     },
   )
 

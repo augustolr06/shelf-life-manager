@@ -3144,3 +3144,92 @@ Capturas em `docs/redesign/T49/`. A câmera lendo a embalagem fica para o celula
 **Tarefa relacionada:** T08, T32, T39, T47, T48
 
 **Data:** 2026-11-12
+
+## 2026-11-12 — T50: etiquetas de vários produtos num só PDF
+
+Pedido do orientando: a tela de Etiquetas (T15) gerava a folha de um produto por vez. Entrega
+mista, etiquetagem do estoque que já existe e reimpressão avulsa pedem vários produtos, ou
+todos, num PDF só, com um cabeçalho por produto. O Recebimento não muda. O que foi decidido:
+
+1. **Sem fila e sem registro de impressão** (escolha do orientando). Foram consideradas uma
+   coluna de "etiqueta impressa" em `UnidadeProduto` e um evento no log, que dariam uma fila de
+   pendentes visível em qualquer aparelho. O orientando preferiu o mais simples: o Recebimento
+   continua oferecendo o atalho para o lote recém-chegado, e o que não for impresso ali se
+   imprime depois pela escolha de produtos. A Decisão 5 de T14 (imprimir não grava evento)
+   continua valendo.
+2. **PDF gerado no navegador, invertendo a Decisão 2 de T15** (escolha do orientando, entre
+   PDF no servidor, PDF no navegador e a impressão do navegador). `jspdf` desenha a folha e
+   `svg2pdf.js` põe nela o SVG que o servidor manda, que continua sendo o dono do símbolo
+   (`simboloQr.ts`). As duas bibliotecas são carregadas por `import()` dinâmico e ficam em
+   chunks próprios (386 kB e 88 kB, sem gzip), baixados no primeiro "Gerar PDF". O service
+   worker as põe no precache junto com o resto do build, então elas não pesam na abertura da
+   tela, só na instalação do PWA. A fidelidade melhora em relação à impressão do navegador: o
+   milímetro está escrito no arquivo, e não depende de layout CSS. Ainda depende de o diálogo
+   de impressão não reescalar, e por isso a tela orienta "tamanho real (100%)".
+3. **A folha HTML, a paginação, o `window.print()` e o `@media print` das etiquetas saíram.**
+   Com o PDF eles seriam um segundo jeito de imprimir a mesma coisa, que precisaria ser mantido
+   em paralelo. O caminho do Recebimento também gera o PDF.
+4. **Rota nova `POST /unidades/etiquetas`, e não um `GET`.** É leitura, mas a lista de produtos
+   escolhidos chega a centenas de UUIDs, uns 25 KB numa query string. O corpo é
+   `{ produtoIds }` **ou** `{ todos: true }` (`oneOf`), e os dois juntos, ou nenhum, é 400. A
+   resposta é a mesma `FolhaDeEtiquetas` da rota de um produto, porque cada etiqueta já traz o
+   produto, e um tipo agrupado seria uma segunda forma da mesma resposta.
+5. **A rota nova é paginada, e quem junta as páginas é a tela.** A Vercel limita o corpo da
+   resposta a cerca de 4,5 MB e o tempo da função, e "todos" pode passar de três mil etiquetas
+   (cerca de 1 kB de SVG cada). A tela busca as páginas de 500 em sequência, mostra o progresso
+   e só então monta o PDF. A objeção de T15 a juntar páginas era imprimir o que não está na
+   tela; agora o que se imprime é o PDF inteiro, e ela deixa de valer.
+6. **Ordem marca → nome → id do produto → validade → `codigoQr`.** O id desempata dois
+   produtos de marca e nome iguais, que de outro modo poderiam se intercalar entre as páginas.
+   Com a ordem total, cada produto é um bloco contíguo, e a tela só corta a lista nas trocas de
+   produto, sem reordenar nada (RNF04). Dentro do produto continua a ordem FIFO da folha de
+   T14.
+7. **Layout como função pura, separado do desenho.** `montarLayout` decide as posições em
+   milímetros: A4, margem de 10 mm, colunas pela largura útil (9, 7 e 6 para 15, 20 e 25 mm).
+   Ele tem duas regras de papel: o cabeçalho nunca fica sozinho no pé da página, e o produto que
+   atravessa a página repete o cabeçalho com "(continuação)". O rodapé de cada página leva o
+   tamanho do símbolo, que T16 precisa, e a numeração. Com a função pura, as regras são testadas
+   em jsdom, que não desenha PDF.
+8. **A escolha é por produto inteiro** (escolha do orientando). O `SeletorProduto` de T28
+   acrescenta cada escolha a uma lista de chips e volta vazio. "Todos os produtos com estoque"
+   substitui a lista. Como o seletor só lista produtos ativos, a unidade em estoque de produto
+   inativo só sai por "todos" ou pelo Recebimento. É o mesmo limite que a reimpressão de T15 já
+   tinha.
+
+**Verificação.**
+
+Backend:
+- `tests/etiquetas/etiquetasDeVariosProdutos.test.ts`, 17 casos com banco real:
+  - escolhidos, todos, inativo, vencida, id inexistente e produto sem estoque;
+  - a ordem marca → nome → validade, e dois homônimos sem intercalar;
+  - a paginação contínua;
+  - os seis corpos inválidos, 403, 401 e nenhuma linha em `EventoLog`.
+- Totais: 626/626 com banco, typecheck limpo.
+
+Frontend:
+- `services/pdfEtiquetas.test.ts`, 15 casos de layout;
+- `TelaEtiquetas.test.tsx` reescrito, 12 casos, com o desenho do PDF substituído por dublê;
+- totais: 398/398, typecheck limpo.
+- Os dois "unhandled errors" da suíte vêm de `TelaInicio.test.tsx` (`FormData` do jsdom) e
+  aparecem igual sem as mudanças desta tarefa.
+
+`curl`: dois produtos, todos (grupos contíguos em ordem), 2ª página, 403 para a atendente e 400
+para o corpo vazio.
+
+`playwright-cli` a 1280×900 e 360×740:
+- **três produtos escolhidos, um deles sem estoque:** o PDF de uma página com dois cabeçalhos
+  e o aviso do que ficou de fora;
+- **recebimento de 120 unidades → botão → Gerar PDF:** 3 páginas com "(continuação)", em
+  cerca de 1,5 s;
+- **"todos" a 25 mm:** 4 páginas e 6 colunas;
+- **console:** nenhum erro.
+
+No PDF renderizado a 600 dpi, o símbolo de 20 mm mede exatamente 20 mm. Os 21×21 módulos lidos
+do papel são idênticos à matriz que a biblioteca `qrcode` gera para o mesmo código: o
+`svg2pdf` não deforma o símbolo. A 360 px, o `.campo` do seletor herdava `flex: 1 1 10rem` na
+coluna e abria um vão de 10rem. A correção é a mesma do Recebimento (`flex: 0 0 auto`). Capturas
+em `docs/redesign/T50/`.
+
+**Tarefa relacionada:** T14, T15, T28
+
+**Data:** 2026-11-12

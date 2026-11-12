@@ -3,77 +3,85 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelaEtiquetas, type ImpressaoPedida } from './TelaEtiquetas'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
+import type { GrupoDeEtiquetas } from '../services/pdfEtiquetas'
 
 /**
- * Folha de etiquetas para impressão (RF04, T15).
+ * Etiquetas de vários produtos num PDF (RF04, T15 e T50).
  *
- * O que estes testes conseguem provar é o que é verificável em unidade: que a
- * folha reflete a resposta do servidor, que o símbolo entregue por ele chega ao
- * documento, que a chamada leva exatamente as unidades pedidas e que o tamanho
- * escolhido chega ao DOM.
- *
- * O que eles **não** provam: que a etiqueta tem 20 mm no papel, que oito cabem
- * numa linha ou que a câmera lê o símbolo colado num frasco. O jsdom não faz
- * layout, e a legibilidade física é a RNF08 — conferida no navegador e, de
- * verdade, só em T16.
+ * O desenho do PDF é substituído por um dublê: jsdom não desenha PDF, e o
+ * layout tem suíte própria (`services/pdfEtiquetas.test.ts`). O que se prova
+ * aqui é o caminho até ele — que nada é buscado antes do pedido, que o
+ * servidor recebe exatamente os produtos (ou as unidades) escolhidos, que as
+ * páginas são juntadas e que o gerador recebe os grupos e o tamanho certos.
  */
 
-const ID_PRODUTO = '33333333-3333-3333-3333-333333333333'
+const gerarPdf = vi.hoisted(() => vi.fn<(grupos: GrupoDeEtiquetas[], lado: number) => Promise<void>>())
 
-const PERFUME = {
-  id: ID_PRODUTO,
-  codigoInterno: 'PRF-001',
-  nome: 'Eau de Parfum 50ml',
-  marca: 'Marca Exemplo',
-  categoria: 'Perfumaria',
-  ativo: true,
+vi.mock('../services/pdfEtiquetas', async (original) => ({
+  ...(await original<typeof import('../services/pdfEtiquetas')>()),
+  gerarPdfEtiquetas: gerarPdf,
+}))
+
+const API = 'http://localhost:3333'
+
+function produtoDoCatalogo(id: string, nome: string, marca: string) {
+  return { id, codigoInterno: `PRF-${id.slice(0, 3)}`, nome, marca, categoria: 'Perfumaria', ativo: true }
 }
 
-/**
- * Um SVG com a mesma forma do que `simboloQr.ts` devolve: `viewBox` de 29
- * (21 módulos mais a zona de silêncio), sem largura, altura, id, class nem
- * style — e, como o de verdade, sem nenhum texto dentro.
- */
-function simbolo(codigoQr: string) {
-  return `<svg viewBox="0 0 29 29"><path d="M4 4h${codigoQr.length}v1h-1z"/></svg>`
-}
+const KAIAK = produtoDoCatalogo('11111111-1111-4111-8111-111111111111', 'Kaiak', 'Natura')
+const MALBEC = produtoDoCatalogo('22222222-2222-4222-8222-222222222222', 'Malbec', 'Boticário')
 
-function etiqueta(codigoQr: string, dataValidade: string) {
+function etiqueta(de: typeof KAIAK, codigoQr: string) {
   return {
     id: `unidade-${codigoQr}`,
     codigoQr,
-    dataValidade,
-    produto: {
-      id: ID_PRODUTO,
-      codigoInterno: PERFUME.codigoInterno,
-      nome: PERFUME.nome,
-      marca: PERFUME.marca,
-    },
-    svg: simbolo(codigoQr),
+    dataValidade: '2027-03-01',
+    produto: { id: de.id, codigoInterno: de.codigoInterno, nome: de.nome, marca: de.marca },
+    svg: '<svg viewBox="0 0 29 29"></svg>',
   }
 }
 
-const PRIMEIRA = etiqueta('PRF-8K2M4Q', '2027-03-01')
-const SEGUNDA = etiqueta('PRF-JC95FJ', '2027-11-20')
+const MALBEC_1 = etiqueta(MALBEC, 'PRF-AAAAAA')
+const KAIAK_1 = etiqueta(KAIAK, 'PRF-BBBBBB')
+const KAIAK_2 = etiqueta(KAIAK, 'PRF-CCCCCC')
 
-function folha(etiquetas: (typeof PRIMEIRA)[], total = etiquetas.length, pagina = 1) {
-  return respostaFalsa(200, { etiquetas, total, pagina, tamanhoPagina: 100 })
-}
-
-function catalogo(produtos = [PERFUME], total = produtos.length) {
-  return respostaFalsa(200, { produtos, total, pagina: 1, tamanhoPagina: 20 })
+function folha(etiquetas: unknown[], total = etiquetas.length, pagina = 1) {
+  return respostaFalsa(200, { etiquetas, total, pagina, tamanhoPagina: 500 })
 }
 
 const buscar = vi.fn<typeof fetch>()
 
-/** O que a tela de recebimento manda ao navegar para cá. */
-const VINDO_DO_RECEBIMENTO: ImpressaoPedida = {
-  produtoId: ID_PRODUTO,
-  produtoNome: PERFUME.nome,
-  unidadeIds: [PRIMEIRA.id, SEGUNDA.id],
+/**
+ * O catálogo responde sempre (o seletor o recarrega a cada escolha); as
+ * etiquetas respondem o que cada teste enfileirar.
+ */
+function servidor(...folhas: Response[]) {
+  buscar.mockImplementation(async (url) => {
+    if (String(url).includes('etiquetas')) {
+      const proxima = folhas.shift()
+      if (!proxima) throw new Error(`pedido de etiquetas não esperado: ${String(url)}`)
+      return proxima
+    }
+    return respostaFalsa(200, { produtos: [KAIAK, MALBEC], total: 2, pagina: 1, tamanhoPagina: 20 })
+  })
 }
 
-/** Renderiza na rota `/etiquetas`, com ou sem o estado vindo do recebimento. */
+function pedidosDeEtiquetas() {
+  return buscar.mock.calls
+    .filter(([url]) => String(url).includes('etiquetas'))
+    .map(([url, init]) => ({
+      url: String(url),
+      metodo: init?.method ?? 'GET',
+      corpo: init?.body ? JSON.parse(String(init.body)) : undefined,
+    }))
+}
+
+const VINDO_DO_RECEBIMENTO: ImpressaoPedida = {
+  produtoId: KAIAK.id,
+  produtoNome: KAIAK.nome,
+  unidadeIds: [KAIAK_1.id, KAIAK_2.id],
+}
+
 function renderizar(estado: ImpressaoPedida | null = null) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/etiquetas', state: estado }]}>
@@ -82,190 +90,206 @@ function renderizar(estado: ImpressaoPedida | null = null) {
   )
 }
 
-/** As URLs pedidas ao backend, na ordem. */
-function urlsChamadas(): string[] {
-  return buscar.mock.calls.map(([url]) => String(url))
+async function escolherNoSeletor(nome: string) {
+  act(() => screen.getByRole('combobox', { name: 'Produto' }).focus())
+  fireEvent.click(await screen.findByRole('option', { name: new RegExp(nome) }))
+  // A escolha remonta o seletor vazio, que recarrega o catálogo: espera-se
+  // essa resposta aqui, e não depois do fim do teste.
+  await act(async () => {})
 }
 
-describe('TelaEtiquetas (RF04)', () => {
+function gerar() {
+  fireEvent.click(screen.getByRole('button', { name: 'Gerar PDF' }))
+}
+
+describe('TelaEtiquetas (RF04, T50)', () => {
   beforeEach(() => {
     buscar.mockReset()
+    gerarPdf.mockReset()
+    gerarPdf.mockResolvedValue(undefined)
     vi.stubGlobal('fetch', buscar)
-    // jsdom não implementa impressão; o que se verifica é que a tela pede.
-    vi.stubGlobal('print', vi.fn())
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('monta uma etiqueta por unidade, com código e validade formatada', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA, SEGUNDA]))
+  describe('escolha de produtos', () => {
+    it('não busca etiqueta nenhuma antes de a gestora pedir', async () => {
+      servidor()
 
-    renderizar(VINDO_DO_RECEBIMENTO)
+      renderizar()
 
-    const lista = await screen.findByRole('list', { name: 'Etiquetas para impressão' })
-    expect(within(lista).getAllByRole('listitem')).toHaveLength(2)
-    expect(screen.getByText('PRF-8K2M4Q')).toBeInTheDocument()
-    // A data vai formatada por fatia de texto, sem passar por fuso (RNF01).
-    expect(screen.getByText('Val 01/03/2027')).toBeInTheDocument()
-    expect(screen.getByText('Val 20/11/2027')).toBeInTheDocument()
+      await screen.findByRole('combobox', { name: 'Produto' })
+      await act(async () => {})
+      // Reimprimir etiqueta de frasco que já tem uma é como se duplicam
+      // identificadores no mundo físico (Decisão 1 de T15).
+      expect(pedidosDeEtiquetas()).toEqual([])
+      expect(screen.getByRole('button', { name: 'Gerar PDF' })).toBeDisabled()
+    })
+
+    it('cada produto escolhido vira um item removível, sem repetir', async () => {
+      servidor()
+      renderizar()
+
+      await escolherNoSeletor('Kaiak')
+      await escolherNoSeletor('Malbec')
+      await escolherNoSeletor('Kaiak')
+
+      const lista = screen.getByRole('list', { name: 'Produtos escolhidos' })
+      expect(within(lista).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        'Natura — Kaiak',
+        'Boticário — Malbec',
+      ])
+      // O seletor volta vazio, pronto para o próximo.
+      expect(screen.getByRole('combobox', { name: 'Produto' })).toHaveValue('')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remover Kaiak' }))
+      expect(within(lista).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        'Boticário — Malbec',
+      ])
+    })
+
+    it('gera com os produtos escolhidos, e o PDF recebe um grupo por produto', async () => {
+      servidor(folha([MALBEC_1, KAIAK_1, KAIAK_2]))
+      renderizar()
+      await escolherNoSeletor('Kaiak')
+      await escolherNoSeletor('Malbec')
+
+      gerar()
+
+      await screen.findByRole('table', { name: 'Etiquetas por produto' })
+      expect(pedidosDeEtiquetas()).toEqual([
+        {
+          url: `${API}/unidades/etiquetas`,
+          metodo: 'POST',
+          corpo: { produtoIds: [KAIAK.id, MALBEC.id], pagina: 1, tamanhoPagina: 500 },
+        },
+      ])
+      expect(gerarPdf).toHaveBeenCalledTimes(1)
+      const [grupos, lado] = gerarPdf.mock.calls[0] ?? []
+      // A ordem é a do servidor (Boticário antes de Natura), não a da escolha.
+      expect(grupos?.map((g) => [g.produto.nome, g.etiquetas.map((e) => e.codigoQr)])).toEqual([
+        ['Malbec', ['PRF-AAAAAA']],
+        ['Kaiak', ['PRF-BBBBBB', 'PRF-CCCCCC']],
+      ])
+      expect(lado).toBe(20)
+      expect(screen.getByText(/PDF gerado com 3 etiqueta\(s\) de 2 produto\(s\)/)).toBeInTheDocument()
+    })
+
+    it('"Todos os produtos com estoque" pede tudo, sem lista', async () => {
+      servidor(folha([KAIAK_1]))
+      renderizar()
+
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Todos os produtos com estoque' }))
+      expect(screen.queryByRole('combobox', { name: 'Produto' })).toBeNull()
+      gerar()
+
+      await waitFor(() => expect(gerarPdf).toHaveBeenCalledTimes(1))
+      expect(pedidosDeEtiquetas()[0]?.corpo).toEqual({ todos: true, pagina: 1, tamanhoPagina: 500 })
+    })
+
+    it('busca as páginas em sequência até o total, e o PDF sai com todas', async () => {
+      servidor(folha([MALBEC_1, KAIAK_1], 3, 1), folha([KAIAK_2], 3, 2))
+      renderizar()
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Todos os produtos com estoque' }))
+
+      gerar()
+
+      await waitFor(() => expect(gerarPdf).toHaveBeenCalledTimes(1))
+      expect(pedidosDeEtiquetas().map((p) => p.corpo.pagina)).toEqual([1, 2])
+      const [grupos] = gerarPdf.mock.calls[0] ?? []
+      // A página 2 continua o grupo de Kaiak, em vez de abrir outro.
+      expect(grupos?.map((g) => g.etiquetas.length)).toEqual([1, 2])
+    })
+
+    it('leva ao PDF o tamanho de símbolo escolhido', async () => {
+      servidor(folha([KAIAK_1]))
+      renderizar()
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Todos os produtos com estoque' }))
+
+      fireEvent.click(screen.getByRole('radio', { name: '15 mm' }))
+      gerar()
+
+      await waitFor(() => expect(gerarPdf).toHaveBeenCalledTimes(1))
+      expect(gerarPdf.mock.calls[0]?.[1]).toBe(15)
+    })
+
+    it('avisa quais produtos escolhidos não tinham estoque', async () => {
+      servidor(folha([KAIAK_1]))
+      renderizar()
+      await escolherNoSeletor('Kaiak')
+      await escolherNoSeletor('Malbec')
+
+      gerar()
+
+      expect(await screen.findByText(/Sem unidades em estoque, ficaram de fora: Malbec\./)).toBeInTheDocument()
+      expect(gerarPdf).toHaveBeenCalledTimes(1)
+    })
+
+    it('sem nenhuma unidade, diz isso e não gera PDF', async () => {
+      servidor(folha([]))
+      renderizar()
+      await escolherNoSeletor('Malbec')
+
+      gerar()
+
+      expect(await screen.findByText('Nenhuma unidade em estoque nos produtos escolhidos.')).toBeInTheDocument()
+      expect(gerarPdf).not.toHaveBeenCalled()
+    })
+
+    it('exibe a mensagem que o servidor escreveu quando a busca falha', async () => {
+      servidor(respostaFalsa(403, { erro: 'SEM_PERMISSAO', mensagem: 'Acesso restrito à gestão.' }))
+      renderizar()
+      await escolherNoSeletor('Kaiak')
+
+      gerar()
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Acesso restrito à gestão.')
+      expect(gerarPdf).not.toHaveBeenCalled()
+      // O botão volta a funcionar para tentar de novo.
+      expect(screen.getByRole('button', { name: 'Gerar PDF' })).toBeEnabled()
+    })
   })
 
-  it('insere no documento o símbolo que o servidor mandou', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA]))
+  describe('vindo do recebimento', () => {
+    it('mostra o lote e não busca nada antes do pedido', async () => {
+      servidor()
 
-    const { container } = renderizar(VINDO_DO_RECEBIMENTO)
+      renderizar(VINDO_DO_RECEBIMENTO)
 
-    const etiquetaNaTela = (await screen.findByText('PRF-8K2M4Q')).closest('li') as HTMLElement
-    const svg = etiquetaNaTela.querySelector('.simbolo svg')
-    // A tela não gera QR: o que está no DOM é o SVG que veio pronto do
-    // `simboloQr.ts`, dono único do símbolo (RNF03 aplicado à etiqueta).
-    expect(svg).not.toBeNull()
-    expect(svg?.getAttribute('viewBox')).toBe('0 0 29 29')
-    expect(container.querySelectorAll('.simbolo svg')).toHaveLength(1)
-  })
+      expect(screen.getByText(/Kaiak — 2 unidade\(s\) do recebimento/)).toBeInTheDocument()
+      await act(async () => {})
+      expect(buscar).not.toHaveBeenCalled()
+    })
 
-  it('vindo do recebimento, pede só as unidades daquele lote', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA, SEGUNDA]))
+    it('gera só as unidades daquele lote, pela folha do produto', async () => {
+      servidor(folha([KAIAK_1, KAIAK_2]))
+      renderizar(VINDO_DO_RECEBIMENTO)
 
-    renderizar(VINDO_DO_RECEBIMENTO)
+      gerar()
 
-    await screen.findByText('PRF-8K2M4Q')
-    // Uma chamada só: o catálogo não é carregado, porque o produto já veio.
-    expect(buscar).toHaveBeenCalledTimes(1)
-    expect(urlsChamadas()[0]).toBe(
-      `http://localhost:3333/produtos/${ID_PRODUTO}/unidades/etiquetas` +
-        `?unidadeIds=${PRIMEIRA.id}&unidadeIds=${SEGUNDA.id}`,
-    )
-    expect(buscar).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ credentials: 'include' }),
-    )
-  })
+      await waitFor(() => expect(gerarPdf).toHaveBeenCalledTimes(1))
+      expect(pedidosDeEtiquetas()).toEqual([
+        {
+          url:
+            `${API}/produtos/${KAIAK.id}/unidades/etiquetas` +
+            `?tamanhoPagina=500&unidadeIds=${KAIAK_1.id}&unidadeIds=${KAIAK_2.id}`,
+          metodo: 'GET',
+          corpo: undefined,
+        },
+      ])
+      expect(gerarPdf.mock.calls[0]?.[0]).toHaveLength(1)
+    })
 
-  it('na reimpressão, não busca etiqueta nenhuma antes de a gestora pedir', async () => {
-    buscar.mockResolvedValueOnce(catalogo())
+    it('"Escolher produtos" troca o lote pela escolha livre', async () => {
+      servidor()
+      renderizar(VINDO_DO_RECEBIMENTO)
 
-    renderizar()
+      fireEvent.click(screen.getByRole('button', { name: 'Escolher produtos' }))
 
-    // Só o catálogo: reimprimir etiqueta de frasco que já tem uma é como se
-    // duplicam identificadores no mundo físico.
-    await waitFor(() => expect(buscar).toHaveBeenCalledTimes(1))
-    expect(urlsChamadas()[0]).toContain('/produtos')
-    expect(urlsChamadas()[0]).not.toContain('/etiquetas')
-    expect(screen.queryByRole('list', { name: 'Etiquetas para impressão' })).toBeNull()
-
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA]))
-    act(() => screen.getByRole('combobox', { name: 'Produto' }).focus())
-    fireEvent.click(await screen.findByRole('option', { name: /Eau de Parfum 50ml/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Carregar etiquetas' }))
-
-    expect(await screen.findByText('PRF-8K2M4Q')).toBeInTheDocument()
-    // Sem `unidadeIds`: a folha é o estoque em mãos daquele SKU.
-    expect(urlsChamadas()[1]).toBe(
-      `http://localhost:3333/produtos/${ID_PRODUTO}/unidades/etiquetas`,
-    )
-  })
-
-  it('na reimpressão, texto digitado sem escolher um produto não carrega folha', async () => {
-    buscar.mockResolvedValue(catalogo())
-
-    renderizar()
-    await waitFor(() => expect(buscar).toHaveBeenCalledTimes(1))
-
-    const campo = screen.getByRole('combobox', { name: 'Produto' })
-    fireEvent.change(campo, { target: { value: 'Eau de Parfum 50ml' } })
-
-    // O nome certo digitado por inteiro continua não sendo uma escolha (T28).
-    const carregar = screen.getByRole('button', { name: 'Carregar etiquetas' })
-    expect(carregar).toBeDisabled()
-    fireEvent.submit(campo.closest('form') as HTMLFormElement)
-    await act(async () => {})
-    expect(urlsChamadas().some((url) => url.includes('/etiquetas'))).toBe(false)
-  })
-
-  it('"Escolher outro produto" volta ao seletor vazio', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA])).mockResolvedValueOnce(catalogo())
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-    await screen.findByText('PRF-8K2M4Q')
-    fireEvent.click(screen.getByRole('button', { name: 'Escolher outro produto' }))
-
-    expect(screen.getByRole('combobox', { name: 'Produto' })).toHaveValue('')
-    expect(screen.getByRole('button', { name: 'Carregar etiquetas' })).toBeDisabled()
-    await waitFor(() => expect(urlsChamadas()[1]).toBe('http://localhost:3333/produtos'))
-  })
-
-  it('aplica à folha o tamanho de símbolo escolhido', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA]))
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-
-    const lista = await screen.findByRole('list', { name: 'Etiquetas para impressão' })
-    // O padrão é 20 mm; as três medidas em si moram no CSS, que o jsdom não
-    // resolve — o que se prova aqui é que a escolha chega ao DOM.
-    expect(lista).toHaveAttribute('data-tamanho-mm', '20')
-    expect(screen.getByText(/símbolo de 20 mm/)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('15 mm'))
-
-    expect(lista).toHaveAttribute('data-tamanho-mm', '15')
-    // O tamanho vai impresso no rodapé: T16 precisa saber qual folha aprovou.
-    expect(screen.getByText(/símbolo de 15 mm/)).toBeInTheDocument()
-  })
-
-  it('imprime pelo diálogo do navegador', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA]))
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-
-    await screen.findByText('PRF-8K2M4Q')
-    fireEvent.click(screen.getByRole('button', { name: 'Imprimir' }))
-
-    expect(window.print).toHaveBeenCalledTimes(1)
-  })
-
-  it('produto sem unidades em estoque é estado vazio, não falha', async () => {
-    buscar.mockResolvedValueOnce(folha([]))
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-
-    expect(
-      await screen.findByText('Nenhuma unidade em estoque para etiquetar neste produto.'),
-    ).toBeInTheDocument()
-    // Sem etiqueta não há o que imprimir nem que dimensionar.
-    expect(screen.queryByRole('button', { name: 'Imprimir' })).toBeNull()
-  })
-
-  it('exibe a mensagem que o servidor escreveu quando a busca falha', async () => {
-    buscar.mockResolvedValueOnce(
-      respostaFalsa(403, {
-        erro: 'PAPEL_INSUFICIENTE',
-        mensagem: 'Apenas o gestor pode gerar etiquetas.',
-      }),
-    )
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-
-    // A tela não redige recusa própria (RNF04).
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Apenas o gestor pode gerar etiquetas.',
-    )
-  })
-
-  it('a segunda página é uma nova busca, e imprime-se uma página por vez', async () => {
-    buscar.mockResolvedValueOnce(folha([PRIMEIRA], 150))
-
-    renderizar(VINDO_DO_RECEBIMENTO)
-
-    await screen.findByText('PRF-8K2M4Q')
-    expect(screen.getByText('Imprima uma página por vez.')).toBeInTheDocument()
-
-    buscar.mockResolvedValueOnce(folha([SEGUNDA], 150, 2))
-    fireEvent.click(screen.getByRole('button', { name: 'Próxima' }))
-
-    expect(await screen.findByText('PRF-JC95FJ')).toBeInTheDocument()
-    expect(urlsChamadas()[1]).toContain('pagina=2')
+      expect(await screen.findByRole('combobox', { name: 'Produto' })).toHaveValue('')
+      expect(screen.getByRole('button', { name: 'Gerar PDF' })).toBeDisabled()
+    })
   })
 })

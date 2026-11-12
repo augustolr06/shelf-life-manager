@@ -2196,3 +2196,35 @@ se todo frasco recebido foi etiquetado e toda saída passou pela leitura.
 **Tarefa relacionada:** T49, T32
 
 **Data:** 2026-11-12
+
+## Etiquetar o estoque inteiro de uma vez: o custo de implantação que o processo manual não tem
+
+**Contexto do problema:** o controle por unidade física só vale se todo frasco tiver etiqueta.
+No primeiro dia do sistema, a loja já tem centenas de frascos na prateleira, de dezenas de
+produtos, e as entregas seguintes também chegam misturadas. Até T50, a folha de etiquetas era
+de um produto por vez: implantar o sistema numa loja de cerca de 700 SKUs seria gerar e
+imprimir centenas de folhas, quase todas com poucas etiquetas e muito papel em branco.
+
+**Solução adotada:** a gestora escolhe vários produtos, ou "todos os produtos com estoque", e o
+sistema gera um PDF único (T50). Cada produto tem um cabeçalho com marca, nome e código, e as
+etiquetas de cada um saem em ordem de validade. O cabeçalho fica fora da etiqueta: ele orienta
+quem recorta, e a etiqueta continua pequena o bastante para a embalagem.
+
+**Por que resolve o problema / trade-offs:** este é um custo que só a solução tem. O controle
+manual não etiqueta nada, e por isso não paga essa entrada. Para o artigo, vale apresentar o
+custo de implantação de forma explícita: o FIFO por validade depende de identificar cada frasco,
+e identificar é trabalho físico (imprimir, recortar e colar) proporcional ao estoque. A folha
+única reduz o trabalho de sistema a um clique, mas o trabalho físico continua.
+
+Ficam duas limitações honestas:
+- **O sistema não sabe o que já foi etiquetado.** Gerar a folha não grava nada, então
+  imprimir "todos" duas vezes produz duas etiquetas para cada frasco, e evitar isso fica a
+  cargo da gestora. Uma marcação de "etiqueta impressa" por unidade foi considerada e
+  deixada de fora por simplicidade.
+- **O milímetro só vale se a impressão não reescalar.** O PDF fixa o tamanho no arquivo, mas
+  o diálogo de impressão pode "ajustar à página", e a legibilidade física continua
+  dependendo da validação de T16.
+
+**Tarefa relacionada:** T50, T15, T14
+
+**Data:** 2026-11-12

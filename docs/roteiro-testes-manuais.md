@@ -145,10 +145,10 @@ de novo.
 Se a planilha tiver erro, o script lista cada um com o número da linha e **não grava nada**.
 
 **3. Conferir pela interface.** Entre como gestor, abra **Etiquetas**, escolha `ZZ-DELTA` e clique
-em **Carregar etiquetas**.
+em **Gerar PDF**.
 
-Esperado: 3 etiquetas, com os códigos de D1, D2 e D3 nessa ordem, e as validades `HOJE+10`,
-`HOJE+25` e `HOJE+45`. As unidades criadas pelo script são iguais às cadastradas pela tela: têm
+Esperado: o PDF tem 3 etiquetas, com os códigos de D1, D2 e D3 nessa ordem, e as validades
+`HOJE+10`, `HOJE+25` e `HOJE+45`. As unidades criadas pelo script são iguais às cadastradas pela tela: têm
 código, etiqueta e evento de cadastro.
 
 **Voltar o banco ao estado anterior** é possível, restaurando esse backup. Mas isso **apaga também
@@ -507,59 +507,74 @@ encontrado. Cadastre-o antes em Catálogo de produtos.".
 
 ## 8. Etiquetas (gestor)
 
-**T-ET-01: imprimir etiquetas logo após o recebimento**
+**T-ET-01: etiquetas logo após o recebimento**
 1. Registre um recebimento de `ZZ-ALFA` com 1 unidade em `HOJE+300` (é a **A5**).
 2. Clique em **Imprimir etiquetas destas unidades**.
+3. Clique em **Gerar PDF**.
 
-Esperado: a tela Etiquetas abre com "TESTE Perfume Alfa — 1 unidade(s) do recebimento" e mostra 1
-etiqueta com o QR, o código em texto e "Val dd/mm/aaaa".
+Esperado: (2) a tela Etiquetas abre com "TESTE Perfume Alfa — 1 unidade(s) do recebimento" e
+não baixa nada sozinha. (3) O navegador baixa `etiquetas-aaaa-mm-dd.pdf`, com o cabeçalho do
+TESTE Perfume Alfa e **só** a etiqueta da A5: o QR, o código em texto e "Val dd/mm/aaaa", dentro
+de uma guia de corte tracejada.
 
 **T-ET-02: tamanho do símbolo**
-1. Alterne entre 15 mm, 20 mm e 25 mm.
+1. Gere o mesmo PDF com 15 mm, 20 mm e 25 mm.
 
-Esperado: o símbolo muda de tamanho. O rodapé mostra "símbolo de N mm". O padrão é 20 mm.
+Esperado: o símbolo muda de tamanho, e o rodapé de cada página diz "Símbolo de N mm · página X
+de Y". O padrão é 20 mm. Medido com régua no papel impresso em tamanho real, o quadrado do QR
+com a margem branca tem N mm.
 
 **T-ET-03: imprimir**
-1. Clique em **Imprimir** e imprima de verdade — a folha é usada no T-LQ-21 e na validação física
-   da RNF08 (tarefa T16).
+1. Abra o PDF e imprima de verdade, em **tamanho real (100%)**, sem "ajustar à página". A folha
+   é usada no T-LQ-21 e na validação física da RNF08 (tarefa T16).
 
-Esperado: abre o diálogo de impressão. Na pré-visualização aparecem só as etiquetas e o rodapé,
-sem menu, botões ou abas.
+Esperado: a tela lembra de imprimir em tamanho real. No papel saem só os cabeçalhos, as
+etiquetas e o rodapé.
 
 **T-ET-04: recarregar mantém o lote**
-1. Com a folha do T-ET-01 aberta, aperte F5.
+1. Com o lote do T-ET-01 na tela, aperte F5.
 
-Esperado: a mesma folha continua na tela.
+Esperado: o mesmo lote continua na tela ("1 unidade(s) do recebimento").
 
 **T-ET-05: abrir em outra aba não carrega nada sozinho**
 1. Copie a URL `/etiquetas` e abra em uma aba nova.
 
-Esperado: aparece o seletor de produto. Nenhuma etiqueta é carregada automaticamente.
+Esperado: aparecem o campo de produto e "Todos os produtos com estoque". Nenhuma etiqueta é
+buscada, e **Gerar PDF** fica desabilitado enquanto nenhum produto está escolhido.
 
-**T-ET-06: reimpressão do estoque de um produto**
-1. No seletor, escolha `ZZ-ALFA` e clique em **Carregar etiquetas**.
+**T-ET-06: vários produtos num PDF só**
+1. Escolha `ZZ-BETA`, depois `ZZ-ALFA` e de novo `ZZ-BETA`.
+2. Clique em **Gerar PDF**.
 
-Esperado: aparece "TESTE Perfume Alfa — todas as unidades em estoque", com as etiquetas em **ordem
-de validade crescente** (A1, A2, A3, A4, A5).
+Esperado: (1) a lista mostra os dois produtos uma vez só, cada um com um **×**, e o campo volta
+vazio a cada escolha. (2) O PDF tem um cabeçalho por produto, na ordem de marca e depois nome
+(não na ordem da escolha). Dentro de cada produto, as etiquetas estão em **ordem de validade
+crescente** (A1, A2, A3, A4, A5). A tabela na tela mostra quantas etiquetas cada produto teve.
 
-**T-ET-07: botão só habilita com produto escolhido**
+**T-ET-07: todos os produtos com estoque**
+1. Marque **Todos os produtos com estoque** e clique em **Gerar PDF**.
 
-Esperado: **Carregar etiquetas** fica desabilitado enquanto nenhum produto está selecionado.
+Esperado: o campo de produto some enquanto a caixa está marcada. O PDF traz todos os produtos
+que têm unidade em estoque, inclusive os de fora dos testes, se houver (não imprima esta folha
+se o piloto já começou). Produto sem estoque não aparece.
 
 **T-ET-08: produto sem unidades**
-1. Clique em **Escolher outro produto**, reative `ZZ-EPS`, escolha-o e carregue.
+1. Reative `ZZ-EPS`, escolha `ZZ-ALFA` e `ZZ-EPS` e gere o PDF.
+2. Remova `ZZ-ALFA` no **×** e gere de novo.
 
-Esperado: "Nenhuma unidade em estoque para etiquetar neste produto.". Inative `ZZ-EPS` de novo.
+Esperado: (1) o PDF sai só com `ZZ-ALFA`, e a tela avisa "Sem unidades em estoque, ficaram de
+fora: TESTE Óleo Épsilon.". (2) "Nenhuma unidade em estoque nos produtos escolhidos.", e nenhum
+PDF é baixado. Inative `ZZ-EPS` de novo.
 
-**T-ET-09: paginação da folha** 💾
-1. Receba 150 unidades de `ZZ-EPS` (reativado) com validade `HOJE+365` e clique em **Imprimir
-   etiquetas destas unidades**.
+**T-ET-09: produto que atravessa a página** 💾
+1. Receba 150 unidades de `ZZ-EPS` (reativado) com validade `HOJE+365`, clique em **Imprimir
+   etiquetas destas unidades** e em **Gerar PDF**.
 
-Esperado: aparecem 100 etiquetas na página 1, os botões Anterior/Próxima e o texto "Imprima uma
-página por vez.". O rodapé mostra "100 de 150 etiqueta(s) · página 1 de 2".
+Esperado: enquanto busca, a tela mostra o progresso. O PDF tem 3 páginas de 20 mm (56 etiquetas
+por página). A partir da segunda página, o cabeçalho se repete com "(continuação)".
 
 > Este teste cria 150 unidades, que ficam em estoque até a limpeza da seção 19 e até lá inflam o
-> "Estoque agora" do dashboard. Se o piloto já começou, faça com 101 unidades, o mínimo para haver
+> "Estoque agora" do dashboard. Se o piloto já começou, faça com 57 unidades, o mínimo para haver
 > duas páginas. Não imprima esta folha.
 
 ---

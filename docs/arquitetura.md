@@ -293,6 +293,7 @@ traduz um no outro na mesma consulta que ordena a fila por validade.
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
+| POST | `/unidades/etiquetas` | GESTOR | Etiquetas de vários produtos, ou de todos com estoque, para o PDF (RF04, T50) |
 | GET | `/unidades/consulta/:codigoQr` | ATENDENTE, GESTOR | Consulta a unidade pelo QR, **sem registrar saída** (T32) — ver abaixo |
 | GET | `/consulta/busca?termo=` | ATENDENTE, GESTOR | Busca da tela Consultar produto: código de etiqueta, código de barras, nome ou marca (T49) — ver abaixo |
 | GET | `/consulta/produtos/:id` | ATENDENTE, GESTOR | O produto e as unidades em estoque, em ordem de validade, com dias, situação e faixa (T49) |
@@ -443,6 +444,15 @@ devolve etiquetas (o frasco continua na prateleira, como na fila de T13); produt
 é 404, e produto sem nada a etiquetar é 200 com lista vazia. A rota não grava evento: gerar
 etiqueta é consulta, e a consequência — o sistema não sabe quantas reimpressões houve — está
 declarada como limitação em `docs/notas-para-artigo.md`.
+
+**`POST /unidades/etiquetas`** (T50) devolve a mesma `FolhaDeEtiquetas` para vários produtos de
+uma vez. O corpo traz `{ "produtoIds": [...] }` (de 1 a 1000 UUIDs) **ou** `{ "todos": true }`,
+com `pagina` e `tamanhoPagina` como na rota GET. Os dois juntos, ou nenhum, é 400. É `POST`
+embora seja leitura: centenas de UUIDs não cabem bem numa query string. As regras são as da
+rota de um produto: só `EM_ESTOQUE`, inativo entra, id inexistente é ignorado, nada é gravado.
+A ordem é marca → nome → id do produto → validade → `codigoQr`, e assim cada produto vem num
+bloco contíguo, também entre páginas. É dessa ordem que a tela tira um cabeçalho por produto.
+A paginação existe pelo limite de resposta da hospedagem (seção 5.2).
 
 **`GET /unidades/consulta/:codigoQr`** (T32) responde "o que é este frasco?" sem vender. O
 código passa por `normalizarCodigoQr`, como na leitura de saída, e a resposta é a unidade com o
@@ -705,29 +715,38 @@ Fastify gera passa pelo `setErrorHandler`/`setNotFoundHandler` registrados em
 `removeAdditional` padrão, **filtra** a propriedade desconhecida em vez de recusá-la — por
 isso `campos` nunca cita campo fora do schema.
 
-### 5.2 A etiqueta física (T15)
+### 5.2 A etiqueta física (T15, T50)
 
-O único lugar do sistema dimensionado em **milímetros**: o resto é tela, aqui é papel. A
-folha vive em `frontend/src/pages/TelaEtiquetas.tsx` (rota `/etiquetas`, `GESTOR`) e consome
-`GET /produtos/:id/unidades/etiquetas` sem acrescentar nada ao dado — o símbolo, a ordem
-(validade crescente, a mesma do FIFO) e a validade chegam prontos do servidor.
+O único lugar do sistema dimensionado em **milímetros**: o resto é tela, aqui é papel. A tela
+vive em `frontend/src/pages/TelaEtiquetas.tsx` (rota `/etiquetas`, `GESTOR`). Desde T50 ela gera
+um **PDF no navegador**, montado em `frontend/src/services/pdfEtiquetas.ts`. Ela consome as duas
+rotas de etiquetas sem acrescentar nada ao dado: o símbolo, a ordem e a validade chegam prontos
+do servidor.
 
-- **Impressão pelo navegador**, `window.print()` mais um bloco `@media print` em
-  `estilos.css` que remove barra de topo, abas, seletores e botões. Sem geração de PDF e sem
-  dependência nova; a contrapartida é que a fidelidade depende do navegador e das margens do
-  diálogo, e por isso a medida final é física (RNF08 / T16).
-- **Três tamanhos de símbolo** — 15, 20 e 25 mm de lado, aplicados por
-  `[data-tamanho-mm]` na folha, com 20 mm de padrão. Com os 29 módulos do `viewBox` de T14,
+- **PDF no navegador** (T50, que substituiu o `window.print()` de T15). `montarLayout` é
+  função pura e decide as posições em milímetros:
+  - A4 retrato, margem de 10 mm;
+  - um cabeçalho por produto, nunca sozinho no pé da página e repetido com "(continuação)";
+  - rodapé por página.
+  `gerarPdfEtiquetas` só desenha: carrega `jspdf` e `svg2pdf.js` por `import()` dinâmico,
+  põe o SVG do servidor no tamanho escolhido e baixa `etiquetas-AAAA-MM-DD.pdf`. A medida está
+  no arquivo; o que resta de variação é o diálogo de impressão reescalar, e por isso a tela
+  orienta "tamanho real (100%)" e a medida final continua física (RNF08 / T16).
+- **Todas as páginas da rota são buscadas antes do desenho**, de 500 em 500 e em sequência
+  (`carregarFolhaCompleta`). A rota pagina porque a Vercel limita a resposta a ~4,5 MB, e
+  "todos" passa disso; o PDF é um arquivo só.
+- **Três tamanhos de símbolo** — 15, 20 e 25 mm de lado, com 20 mm de padrão (9, 7 e 6
+  etiquetas por linha). Com os 29 módulos do `viewBox` de T14,
   dão módulos de ~0,52, ~0,69 e ~0,86 mm. O tamanho escolhido **sai impresso no rodapé**,
   para que a validação física de T16 saiba de qual folha está falando.
 - **Cada etiqueta traz símbolo, `codigoQr` em texto e validade** — e nada mais. O texto
   sustenta o fallback manual de T10; a validade é o que se lê na prateleira sem escanear; o
   nome do produto ficaria disputando espaço com o símbolo numa embalagem pequena (RF04).
 - **O lote recém-recebido chega por estado de rota**, não pela URL (500 UUIDs seriam ~18 KB
-  de query string). Entrar na tela sem esse estado **não carrega nada**: a gestora escolhe o
-  produto e pede, porque abrir sozinha o estoque inteiro do SKU faria reimprimir etiqueta de
-  frasco já etiquetado.
-- **Imprime-se a página carregada**, no mesmo esquema de paginação da rota.
+  de query string), e é buscado pela rota GET com `unidadeIds`. Sem esse estado, a gestora
+  escolhe um ou vários produtos, ou "todos com estoque", e a rota é a `POST`. Nos dois
+  caminhos **nada é buscado antes do clique em "Gerar PDF"**, porque abrir sozinha a folha
+  faria reimprimir etiqueta de frasco já etiquetado.
 
 ### 5.3 A varredura periódica de alertas (T18)
 

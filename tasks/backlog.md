@@ -418,7 +418,16 @@ sem PDF). Detalhes no arquivo da tarefa.
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T50 | Etiquetas de vários produtos (ou todos) num só PDF, com cabeçalho por produto | pendente | T15 | `tasks/T50-etiquetas-varios-produtos.md` |
+| T50 | Etiquetas de vários produtos (ou todos) num só PDF, com cabeçalho por produto | concluída | T15 | `tasks/T50-etiquetas-varios-produtos.md` |
+
+**Estado de T50 (2026-11-12).** Concluída. Na aba Etiquetas, a gestora escolhe vários produtos
+(cada um vira um item removível) ou marca "Todos os produtos com estoque", e **Gerar PDF** baixa
+um arquivo A4. Nele há um cabeçalho por produto, em ordem de marca e nome, as etiquetas em ordem
+de validade e um rodapé com o tamanho do símbolo. O caminho do Recebimento continua, e também
+gera o PDF. O backend ganhou `POST /unidades/etiquetas`, paginada por causa do limite de
+resposta da Vercel; a tela junta as páginas. O PDF é montado no navegador com `jspdf` e
+`svg2pdf.js`, carregados só no clique. A folha HTML e o `@media print` de T15 saíram. Decisões
+em `docs/decisoes.md` (T50); capturas em `docs/redesign/T50/`.
 
 ---
 
@@ -428,7 +437,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 
 | Quando | O quê | Impacto se falhar |
 |---|---|---|
-| **Agora, e sem depender de mais código** — T15 imprime a folha (tela `/etiquetas`) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16). Imprima a mesma folha nos três tamanhos (15, 20 e 25 mm — o rodapé de cada folha diz qual é), recorte, cole em frascos reais e leia com o celular. O resultado esperado é um veredito por tamanho | Pode reabrir o formato do `codigoQr`, que é provisório e está travado em 10 caracteres pelo nível H (`docs/decisoes.md`, T14), **e** decide qual tamanho fica fixo no código. Quanto antes for feito, menos código depende do formato atual |
+| **Agora, e sem depender de mais código** — a tela `/etiquetas` gera o PDF (T15, T50) | Leitura física do QR em frasco curvo, plástico brilhante e embalagem pequena, sob a luz da loja (RNF08 / T16). Gere o mesmo PDF nos três tamanhos (15, 20 e 25 mm — o rodapé de cada página diz qual é) e imprima em tamanho real (100%), sem "ajustar à página"; recorte, cole em frascos reais e leia com o celular. O resultado esperado é um veredito por tamanho | Pode reabrir o formato do `codigoQr`, que é provisório e está travado em 10 caracteres pelo nível H (`docs/decisoes.md`, T14), **e** decide qual tamanho fica fixo no código. Quanto antes for feito, menos código depende do formato atual |
 | **Agora** — T10 concluída | Teste da câmera em celular real (RF05): a câmera abre, decodifica a etiqueta impressa, e o veredito aparece. Desde T31, conferir também que a câmera desliga logo depois da leitura (o vídeo some e o resultado fica) e que **Ler próximo** a religa. `getUserMedia` exige HTTPS ou `localhost`, e o `playwright-cli` não lê QR de câmera física — é a única parte de T10 sem cobertura automatizada, isolada em `components/LeitorCamera.tsx`. No mesmo aparelho, conferir que a URL usada é segura: sem HTTPS não há câmera **nem** `crypto.randomUUID`, e o agrupamento de atendimento cai fora | Fluxo de leitura de QR não verificado no dispositivo-alvo |
 | **Agora** — T19b concluída | Push em aparelho real (RF08): gerar as chaves com `npm run push:chaves`, preenchê-las no `.env`, instalar o PWA no celular por HTTPS, ativar em **Configurar alertas → Notificações neste aparelho** e rodar `npm run alertas:varrer` com uma janela de canal push e uma unidade nova na janela. A notificação deve chegar com o app fechado, e o toque deve abrir `/alertas`. Web Push exige contexto seguro e um serviço externo (FCM), e nem a suíte nem o `playwright-cli` alcançam isso — no navegador automatizado a permissão é sempre negada, que foi o estado conferido | Metade da RF08 não verificada de ponta a ponta: o alerta continua chegando pela lista in-app, que é a fonte de verdade |
 | Junto com o teste da câmera — T43 concluída | Venda no novo layout no celular real: com a câmera ligada, o vídeo ocupa a área escura do leitor e "Desligar câmera" fica embaixo dele; "Confirmar venda · N frascos" fica preso logo acima da barra inferior ao rolar, sem ficar atrás dela (inclusive no iPhone, com a área segura de baixo); o campo do código não aproxima a página ao tocar | Layout conferido só no navegador do computador em 360×740, sem câmera e sem a barra do navegador do celular |

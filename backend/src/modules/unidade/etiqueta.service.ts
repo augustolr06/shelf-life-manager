@@ -93,3 +93,69 @@ export async function listarEtiquetas(
 
   return { ok: true, folha: { etiquetas, total, pagina, tamanhoPagina } }
 }
+
+/**
+ * Quais produtos entram numa folha de vários produtos (T50): uma lista
+ * escolhida pela gestora, ou todos os que têm unidade em estoque.
+ */
+export type EscopoDeEtiquetas = { produtoIds: string[] } | { todos: true }
+
+/**
+ * As etiquetas de vários produtos de uma vez (T50): a entrega mista, a
+ * etiquetagem do estoque que já existe e a reimpressão avulsa.
+ *
+ * Devolve a mesma `FolhaDeEtiquetas` da folha de um produto só: cada etiqueta
+ * já traz o produto, e é dele que a tela tira o cabeçalho de cada grupo. Um
+ * tipo agrupado aqui seria uma segunda forma da mesma resposta.
+ *
+ * **A ordem é o que mantém os grupos inteiros.** Marca, nome e id do produto
+ * (o id desempata dois produtos de nome e marca iguais, que de outro modo
+ * poderiam se intercalar), e dentro dele a ordem FIFO da folha de T14. Com a
+ * ordem total, a paginação não parte nem embaralha um grupo: a página seguinte
+ * continua exatamente de onde a anterior parou.
+ *
+ * **Paginada, embora a saída seja um PDF só.** "Todos" pode passar de três mil
+ * etiquetas, e a Vercel limita o corpo da resposta (cerca de 4,5 MB) e o tempo
+ * de execução. Quem junta as páginas é a tela, antes de montar o PDF.
+ *
+ * Mesmas regras da folha de um produto: só `EM_ESTOQUE`, produto inativo
+ * entra, e id que não existe é ignorado — a lista vem de uma tela que pode
+ * estar desatualizada.
+ */
+export async function listarEtiquetasDeVariosProdutos(
+  escopo: EscopoDeEtiquetas,
+  paginacao: { pagina: number; tamanhoPagina: number },
+): Promise<FolhaDeEtiquetas> {
+  const { pagina, tamanhoPagina } = paginacao
+
+  const where = {
+    status: StatusUnidade.EM_ESTOQUE,
+    ...('produtoIds' in escopo ? { produtoId: { in: escopo.produtoIds } } : {}),
+  }
+
+  const [unidades, total] = await Promise.all([
+    prisma.unidadeProduto.findMany({
+      where,
+      include: { produto: true },
+      orderBy: [
+        { produto: { marca: 'asc' } },
+        { produto: { nome: 'asc' } },
+        { produtoId: 'asc' },
+        { dataValidade: 'asc' },
+        { codigoQr: 'asc' },
+      ],
+      skip: (pagina - 1) * tamanhoPagina,
+      take: tamanhoPagina,
+    }),
+    prisma.unidadeProduto.count({ where }),
+  ])
+
+  const etiquetas = await Promise.all(
+    unidades.map(async ({ produto, ...unidade }) => ({
+      ...comProdutoJaLido(unidade, produto),
+      svg: await gerarSimboloSvg(unidade.codigoQr),
+    })),
+  )
+
+  return { etiquetas, total, pagina, tamanhoPagina }
+}

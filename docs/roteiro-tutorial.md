@@ -395,21 +395,25 @@ Deixe o app aberto em **Leitura de QR**. Ele volta à cena no capítulo 4.
 
 8. Clique em **Imprimir etiquetas destas unidades**.
    - [ ] Abre a tela **Etiquetas** com "TESTE Perfume Flor de Laranjeira 100 ml — 5 unidade(s)
-     do recebimento" e 5 etiquetas. Cada uma tem o QR, o código em texto e "Val dd/mm/aaaa".
-   - [ ] A folha está em ordem de validade: primeiro as duas de `HOJE+60`.
-9. Em "Tamanho do símbolo", alterne entre 15 mm, 20 mm e 25 mm.
-   - [ ] O QR muda de tamanho, e o rodapé diz "símbolo de N mm". Deixe em 20 mm.
-10. Aperte **F5**.
-    - [ ] A mesma folha continua na tela.
-11. Clique em **Imprimir**. Imprima, ou salve como PDF para imprimir depois.
-    - [ ] Na pré-visualização aparecem só as etiquetas e o rodapé, sem menu, abas nem botões.
+     do recebimento". Nada é baixado ainda.
+9. Aperte **F5**.
+   - [ ] O mesmo lote continua na tela.
+10. Em "Tamanho do símbolo", deixe 20 mm e clique em **Gerar PDF**.
+    - [ ] O navegador baixa `etiquetas-aaaa-mm-dd.pdf`. A tela diz "PDF gerado com 5
+      etiqueta(s) de 1 produto(s)" e lembra de imprimir em tamanho real (100%).
+    - [ ] No PDF há um cabeçalho "Aurora Fragrâncias — TESTE Perfume Flor de Laranjeira 100 ml ·
+      ZZ-FLORAL · 5 etiquetas" e, abaixo dele, 5 etiquetas. Cada uma tem o QR, o código em texto
+      e "Val dd/mm/aaaa", dentro de uma guia de corte tracejada.
+    - [ ] As etiquetas estão em ordem de validade: primeiro as duas de `HOJE+60`.
+    - [ ] O rodapé da página diz "Símbolo de 20 mm · página 1 de 1".
+11. Abra o PDF e imprima em **tamanho real (100%)**, sem "ajustar à página".
 12. Recorte as etiquetas e cole cada uma num objeto pequeno. Escreva o apelido (F1, F2…) no
     objeto, com caneta. Agrupe os frascos de cada produto, como numa prateleira.
 
 > **Atenção com a câmera:** ela lê qualquer QR que entrar no quadro. Recorte as etiquetas
 > separadas, ou cubra as vizinhas, para não ler o frasco errado sem querer.
 >
-> **Sem impressora?** Deixe a folha aberta no computador. Na hora de ler, digite o código ou
+> **Sem impressora?** Deixe o PDF aberto no computador. Na hora de ler, digite o código ou
 > aponte a câmera do celular para a tela.
 
 ---
@@ -425,7 +429,8 @@ Deixe o app aberto em **Leitura de QR**. Ele volta à cena no capítulo 4.
 
 Para cada produto abaixo: abra **Registrar recebimento**, busque o código, escolha o produto,
 preencha as linhas e clique em **Registrar recebimento**. Copie os códigos para a tabela de
-frascos. Depois clique em **Imprimir etiquetas destas unidades**, imprima, recorte e cole.
+frascos. **Não imprima ainda**: as etiquetas dos quatro produtos saem juntas, num PDF só, na
+seção 6.6.
 
 ### 6.1 Sérum
 
@@ -466,6 +471,20 @@ Quatro linhas de 1 unidade: `HOJE+1`, `HOJE+5`, `HOJE+25` e `HOJE+50`.
      produto inativo não recebe mercadoria.
    - [ ] Sem produto escolhido, o botão **Registrar recebimento** fica desabilitado.
 
+### 6.6 As etiquetas do estoque antigo, num PDF só
+
+1. Abra a aba **Etiquetas**. Em **Produto**, escolha o Sérum, o Batom, o Hidratante e o
+   Protetor, um de cada vez.
+   - [ ] Cada escolha vira um item na lista abaixo do campo, com um **×** para remover, e o
+     campo volta vazio. Escolher de novo um produto que já está na lista não o repete.
+2. Clique em **Gerar PDF**.
+   - [ ] A tela diz "PDF gerado com 13 etiqueta(s) de 4 produto(s)", e a tabela mostra 4, 2, 4 e
+     3 etiquetas.
+   - [ ] No PDF, cada produto tem o seu cabeçalho, na ordem da marca: Batom (Ateliê das Cores),
+     Hidratante (Lume Banho), Protetor e Sérum (os dois da Vale Verde Dermo, pelo nome). Dentro
+     de cada produto, as etiquetas seguem a validade.
+3. Imprima em tamanho real, recorte e cole cada etiqueta no frasco do produto do cabeçalho.
+
 ---
 
 ## Capítulo 7 — Uma etiqueta rasgou
@@ -475,14 +494,15 @@ Quatro linhas de 1 unidade: `HOJE+1`, `HOJE+5`, `HOJE+25` e `HOJE+50`.
 **Computador — gestora**
 
 1. Abra a aba **Etiquetas**.
-   - [ ] Aparece o seletor de produto, sem nenhuma etiqueta carregada sozinha.
-   - [ ] Sem produto escolhido, **Carregar etiquetas** fica desabilitado.
-2. Busque `ZZ-SERUM`, escolha o Sérum e clique em **Carregar etiquetas**.
-   - [ ] Aparece "TESTE Sérum Facial Vitamina C 30 ml — todas as unidades em estoque", com 3
-     etiquetas em ordem de validade: S1, S2, S3. Não precisa imprimir de novo.
-3. Clique em **Escolher outro produto**, busque `ZZ-COLONIA`, escolha a colônia e carregue.
-   - [ ] Aparece "Nenhuma unidade em estoque para etiquetar neste produto." O lançamento ainda não
-     chegou.
+   - [ ] Aparece o campo de produto, sem nenhuma etiqueta carregada sozinha.
+   - [ ] Sem produto escolhido, **Gerar PDF** fica desabilitado.
+2. Busque `ZZ-SERUM`, escolha o Sérum e clique em **Gerar PDF**.
+   - [ ] O PDF tem o cabeçalho do Sérum e 3 etiquetas em ordem de validade: S1, S2, S3. Não
+     precisa imprimir de novo.
+3. Remova o Sérum no **×**, busque `ZZ-COLONIA`, escolha a colônia e clique em **Gerar PDF**.
+   - [ ] Aparece "Sem unidades em estoque, ficaram de fora: TESTE Colônia Lavanda Fresca." e
+     "Nenhuma unidade em estoque nos produtos escolhidos." Nenhum PDF é baixado. O lançamento
+     ainda não chegou.
 
 ---
 
