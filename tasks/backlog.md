@@ -375,6 +375,7 @@ no SI5 e pôr o token em `SI5_TOKEN`, no `.env` e no projeto do backend na Verce
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T48 | Recebimento: escolher o produto pela leitura do código de barras (câmera no celular) | concluída | T47, T28 | `tasks/T48-recebimento-leitura-codigo-de-barras.md` |
+| T49 | Consulta por produto: nome, marca e código de barras, com as unidades em estoque | pendente | T32, T47 | `tasks/T49-consulta-por-produto.md` |
 
 **T48 (2026-11-12).** Pedido do orientando em 2026-11-11, durante T47, como tarefa separada e
 feita depois dela: no Recebimento, além de procurar o produto por nome ou código no seletor
@@ -389,6 +390,10 @@ do Recebimento abre a câmera em leitura única, só para EAN/UPC. O código lid
 
 O seletor continua igual e serve de alternativa. Decisões em `docs/decisoes.md` (T48); capturas
 em `docs/redesign/T48/`.
+
+**T49 (2026-11-12).** Pedido do orientando: a Consulta (T32), que só aceita o código da etiqueta
+da unidade, passa a buscar também por nome, marca e código de barras e a mostrar o produto com as
+unidades em estoque. A câmera lê o QR e o código de barras.
 
 ---
 
