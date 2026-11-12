@@ -343,6 +343,23 @@ login (com a linha de apoio "Controle de estoque por validade"), no título da a
 manifest; `short_name` e `apple-mobile-web-app-title` "ShelfLife". Títulos de `README.md` e
 `CLAUDE.md` atualizados. Capturas em `docs/redesign/T46/`.
 
+## Incremento 13 — Cadastro assistido por código de barras
+
+Levantado em 2026-11-11, depois da primeira carga do catálogo real: o `codigoInterno` da loja
+já é, na prática, o EAN do produto (484 de 524). O cadastro manual de um produto novo é raro,
+mas pede os quatro campos digitados à mão. A tarefa faz o painel começar pelo código de barras,
+digitado ou lido pela câmera do celular, e preencher o resto a partir de um catálogo externo
+gratuito (SI5 Global), consultado pelo backend. Sem a consulta, por falta de token, fora do ar
+ou cota esgotada, o cadastro continua manual como hoje.
+
+**Decisões anteriores afetadas** (alerta, não bloqueio): o painel de quatro campos de T45 e da
+especificação do redesign, e o catálogo sem dependência externa de T04. Detalhes no arquivo
+da tarefa.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T47 | Cadastro de produto assistido por código de barras (consulta externa + câmera no celular) | pendente | T45, T31 | `tasks/T47-cadastro-por-codigo-de-barras.md` |
+
 ---
 
 ## Verificações manuais a cargo do orientando
