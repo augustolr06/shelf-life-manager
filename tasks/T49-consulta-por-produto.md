@@ -63,21 +63,21 @@ código de barras da embalagem.
 
 ## Critério de aceite
 
-- [ ] Testes com banco real das duas rotas:
+- [x] Testes com banco real das duas rotas:
       - código de etiqueta, inclusive digitado com `I`/`O`;
       - código de barras exato que não traz os produtos que só o contêm;
       - nome, marca e inativo;
       - `emEstoque` só com as unidades `EM_ESTOQUE`;
       - unidades em ordem com dias, situação e faixa;
       - 404, 401, e nenhuma linha em `EventoLog`.
-- [ ] Testes de Vitest da tela:
+- [x] Testes de Vitest da tela:
       - os quatro resultados;
       - "Ver estoque do produto" e "Voltar à lista";
       - câmera contínua no modo novo;
       - offline, e `?codigo=`.
-- [ ] `npm run typecheck` limpo nos dois lados
-- [ ] `playwright-cli` a 1280×900 e 360×740 pela digitação, com capturas em `docs/redesign/T49/`
-- [ ] `docs/arquitetura.md` (rotas novas), `docs/decisoes.md`, verificação manual da câmera no
+- [x] `npm run typecheck` limpo nos dois lados
+- [x] `playwright-cli` a 1280×900 e 360×740 pela digitação, com capturas em `docs/redesign/T49/`
+- [x] `docs/arquitetura.md` (rotas novas), `docs/decisoes.md`, verificação manual da câmera no
       backlog
 
 ## Fora de escopo

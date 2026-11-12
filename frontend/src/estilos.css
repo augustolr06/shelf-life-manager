@@ -739,6 +739,116 @@ td button + button {
   margin: 0;
 }
 
+/* --- Consulta por produto (T49) ------------------------------------------
+   A lista de produtos de uma busca e o estoque de um produto, na área de
+   resultado da Consulta. */
+.nota-consulta {
+  margin: 0;
+}
+
+.produtos-consulta,
+.unidades-consulta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.produtos-consulta li + li {
+  border-top: 1px solid var(--cor-borda);
+}
+
+/* A linha inteira é o alvo do toque, com cara de linha de lista, e não de
+   botão: o produto se escolhe como se escolhe no seletor (T28). */
+button.item-produto-consulta {
+  justify-content: space-between;
+  gap: var(--espaco-3);
+  width: 100%;
+  padding: var(--espaco-3) var(--espaco-2);
+  border: 0;
+  border-radius: var(--raio-pequeno);
+  background: transparent;
+  color: var(--cor-texto);
+  font-weight: var(--peso-medio);
+  text-align: left;
+}
+
+button.item-produto-consulta:hover:not(:disabled) {
+  background: var(--cor-fundo);
+}
+
+.dados-item-consulta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.estoque-item-consulta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--espaco-2);
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+  font-weight: var(--peso-forte);
+}
+
+.estoque-item-consulta .distintivo {
+  margin-left: 0;
+}
+
+.resultado-produto {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--espaco-3);
+}
+
+.resultado-produto h3 {
+  margin: 0;
+}
+
+/* Fora de uma frase, o link de voltar é um alvo de toque sozinho (T47). */
+.resultado-produto button.voltar-consulta {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--alvo-toque);
+}
+
+.titulo-unidades-consulta {
+  margin: 0;
+  font-size: var(--tamanho-titulo-secao);
+  font-weight: var(--peso-titulo);
+}
+
+.unidades-consulta li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espaco-1) var(--espaco-3);
+  padding: var(--espaco-2) 0;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.unidades-consulta .codigo {
+  text-align: left;
+}
+
+.validade-unidade-consulta {
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.unidades-consulta .distintivo {
+  margin-left: auto;
+}
+
+.legenda-consulta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-legenda);
+}
+
 /* ==========================================================================
    Estrutura da aplicação
    ========================================================================== */

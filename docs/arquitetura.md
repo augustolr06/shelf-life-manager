@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-11-12 (seção 5 revisada em T48, que acrescentou o filtro exato `codigoInterno` a `GET /produtos`, usado pelo Recebimento para achar o produto do código de barras lido na câmera; seções 1, 5 e 6 revisadas em T47, que acrescentou a consulta de produto pelo código de barras a um catálogo externo opcional, o SI5 Global, e a leitura de código de barras pela câmera no cadastro; seção 5 revisada em T42, que acrescentou `hoje` e `estoque.proximoVencimento` a `GET /dashboard` e a tela `/inicio` como segunda consumidora; seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-11-12 (seções 2 e 5 revisadas em T49, que acrescentou o módulo `consulta` com a busca da tela Consultar produto por código de etiqueta, código de barras, nome e marca, e o estoque do produto; seção 5 revisada em T48, que acrescentou o filtro exato `codigoInterno` a `GET /produtos`, usado pelo Recebimento para achar o produto do código de barras lido na câmera; seções 1, 5 e 6 revisadas em T47, que acrescentou a consulta de produto pelo código de barras a um catálogo externo opcional, o SI5 Global, e a leitura de código de barras pela câmera no cadastro; seção 5 revisada em T42, que acrescentou `hoje` e `estoque.proximoVencimento` a `GET /dashboard` e a tela `/inicio` como segunda consumidora; seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -36,6 +36,7 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
       /alerta         <- a janela de antecedência (RF08), a varredura periódica, seu agendador e a entrega
       /evento-log
       /dashboard      <- só conta o que os outros gravaram (RF13)
+      /consulta       <- a busca da tela Consultar produto e o estoque do produto, só leitura (T49)
     /db
       schema.prisma
     /shared
@@ -293,6 +294,8 @@ traduz um no outro na mesma consulta que ordena a fila por validade.
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
 | GET | `/unidades/consulta/:codigoQr` | ATENDENTE, GESTOR | Consulta a unidade pelo QR, **sem registrar saída** (T32) — ver abaixo |
+| GET | `/consulta/busca?termo=` | ATENDENTE, GESTOR | Busca da tela Consultar produto: código de etiqueta, código de barras, nome ou marca (T49) — ver abaixo |
+| GET | `/consulta/produtos/:id` | ATENDENTE, GESTOR | O produto e as unidades em estoque, em ordem de validade, com dias, situação e faixa (T49) |
 | POST | `/saidas/ler` | ATENDENTE, GESTOR | Executa `validarSaidaFifo` em modo `AVALIAR` e retorna o veredito (RF05, RF06). **Não baixa**: `CONFIRMAR` quer dizer que a unidade pode ir para o carrinho (T33b) |
 | POST | `/saidas/finalizar` | ATENDENTE, GESTOR | Confirma o carrinho: revalida e vende cada unidade (RF07, T33b) — ver abaixo |
 | POST | `/excecao-vencido/corrigir` | GESTOR | Caminho 1 da seção 6.1 do PRD |
@@ -377,6 +380,24 @@ espaços do meio. A ordem dos passos é o que poupa a cota diária da fonte exte
 Só o 400 é recusa: não achar o produto é resposta normal, e a tela cai no formulário manual.
 O token da fonte nunca sai do servidor, nem em resposta nem em log, e por isso a consulta
 não é feita pelo navegador, como a própria fonte recomenda.
+
+**`GET /consulta/busca?termo=`** (T49, `modules/consulta/`) é o campo único da tela
+Consultar produto. O servidor decide o que o termo é, porque só ele conhece o formato da
+etiqueta (`codigoQr.ts`):
+
+1. depois de `normalizarCodigoQr`, casa com `PADRAO_CODIGO_QR` e a unidade existe:
+   `{ tipo: 'UNIDADE', consulta }`, a mesma resposta de `GET /unidades/consulta/:codigoQr`;
+2. código interno exato (código de barras ou `SEMCOD-…`, normalizado como no cadastro):
+   `{ tipo: 'PRODUTOS', produtos: [esse], total: 1 }`;
+3. nome, marca ou código interno contendo o termo, sem diferença de caixa, inativos inclusive,
+   em ordem de nome, até 20: `{ tipo: 'PRODUTOS', produtos, total }`.
+
+Cada produto vem com `emEstoque` (unidades `EM_ESTOQUE`). Lista vazia é 200; termo vazio ou
+acima de 120 é 400. **`GET /consulta/produtos/:id`** devolve `{ produto, unidades }`, com só as
+unidades em estoque, em ordem de validade e de código, cada uma com `diasParaVencer`,
+`situacao` (a borda de T32) e `faixa` (as faixas do dashboard, `faixaDosDias`). A lista **não**
+marca a próxima a sair: isso é veredito de `validarSaidaFifo` (RNF03). Nenhuma das duas grava
+`EventoLog`, pelo motivo da consulta de T32.
 
 **Os três endpoints de `/excecao-vencido`** (T11) recebem a unidade pelo `unidadeId` que o
 veredito `EXCECAO_VENCIDO` devolveu, mais o `sessaoVendaId` opcional. Conferem as mesmas

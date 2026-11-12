@@ -509,7 +509,8 @@ describe('TelaProdutos (RF02)', () => {
       expect(await screen.findByText('PRF-001')).toBeInTheDocument()
       expect(buscarCategorias).toHaveBeenCalledTimes(2)
       expect(screen.getByRole('complementary', { name: 'Novo produto' })).toBeInTheDocument()
-      expect(screen.getByLabelText('Código de barras')).toHaveFocus()
+      // O foco muda num efeito depois da resposta do cadastro.
+      await waitFor(() => expect(screen.getByLabelText('Código de barras')).toHaveFocus())
     })
   })
 

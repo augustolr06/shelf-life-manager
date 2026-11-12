@@ -219,7 +219,10 @@ describe('CadastroProduto — cadastro pelo código de barras (T47)', () => {
 
       digitarEBuscar()
 
-      expect(await screen.findByRole('heading', { name: 'Encontramos este produto' })).toHaveFocus()
+      // O foco muda num efeito, que depois de uma resposta da API pode rodar um
+      // instante depois de o card aparecer.
+      const titulo = await screen.findByRole('heading', { name: 'Encontramos este produto' })
+      await waitFor(() => expect(titulo).toHaveFocus())
       expect(screen.getByText(SUGESTAO.nome)).toBeInTheDocument()
       expect(screen.getByText('Marca X')).toBeInTheDocument()
       expect(screen.getByText(EAN)).toBeInTheDocument()
@@ -268,7 +271,7 @@ describe('CadastroProduto — cadastro pelo código de barras (T47)', () => {
       )
       expect(aoCadastrar).toHaveBeenCalledTimes(1)
       expect(screen.getByLabelText('Código de barras')).toHaveValue('')
-      expect(screen.getByLabelText('Código de barras')).toHaveFocus()
+      await waitFor(() => expect(screen.getByLabelText('Código de barras')).toHaveFocus())
     })
 
     it('categoria que a fonte não trouxe fica vazia e é obrigatória', async () => {
@@ -402,7 +405,7 @@ describe('CadastroProduto — cadastro pelo código de barras (T47)', () => {
       expect(await screen.findByRole('status')).toHaveTextContent(aviso)
       expect(screen.getByRole('status')).toHaveTextContent('Preencha os dados do produto.')
       expect(screen.getByLabelText('Código interno')).toHaveValue(EAN)
-      expect(screen.getByLabelText('Nome')).toHaveFocus()
+      await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveFocus())
     })
 
     it('cadastra pelo formulário e volta à primeira etapa', async () => {

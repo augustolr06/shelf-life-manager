@@ -3063,3 +3063,84 @@ fica para o celular real (verificação manual no backlog). Capturas em `docs/re
 **Tarefa relacionada:** T28, T45, T47
 
 **Data:** 2026-11-12
+
+## 2026-11-12 — T49: Consulta por nome, marca e código de barras
+
+Pedido do orientando: a tela Consultar produto (`/consulta`, T32), que só aceitava o código da
+etiqueta de uma unidade, passa a buscar também por nome, marca e código de barras e a mostrar o
+produto com as unidades em estoque. A câmera lê a etiqueta e a embalagem. O que foi decidido:
+
+1. **Um campo só, e o servidor decide o que o termo é** (`GET /consulta/busca`). O formato da
+   etiqueta é provisório (T16) e tem um dono, `codigoQr.ts`. A tela não repete o padrão, como já
+   não repetia a normalização (T08). A ordem vai do mais específico ao mais vago: código de
+   etiqueta com unidade → código interno exato → nome, marca ou código contendo o termo. O
+   código interno exato vem antes do "contém" pelo mesmo motivo do filtro de T48: o código de
+   barras lido traria também os produtos cujo código só começa igual. Código no formato da
+   etiqueta e sem unidade cai na busca de produto, e a tela diz "nada encontrado".
+2. **Módulo próprio, `modules/consulta`, com rotas em `/consulta/...`.** A pergunta é de balcão
+   (ATENDENTE e GESTOR) e mistura unidade e produto; `GET /produtos` continua sendo o catálogo, e
+   `GET /unidades/consulta/:codigoQr` continua existindo (o Início usa a tela, não a rota). A
+   conta de dias da consulta de T32 virou `diasAteAValidade`, exportada, e a faixa é a
+   `faixaDosDias` do dashboard: a lista de unidades diz o mesmo número e a mesma cor que o cartão
+   da unidade e o painel.
+3. **Inativos entram na busca, com `emEstoque`.** A unidade em estoque de produto inativo ainda é
+   vendida (T39), e a consulta responde o que existe na loja. A tela marca "Inativo" na lista e
+   explica no produto que ele não recebe unidades novas, mas as em estoque ainda saem.
+4. **A lista de unidades vem em ordem de validade, sem marcar a próxima a sair.** É a ordem
+   natural de ler datas, e não um veredito. "Qual frasco sai primeiro" continua sendo de
+   `validarSaidaFifo` (RNF03, T32 decisão 2). Uma legenda diz isso em uma linha: a ordem é de
+   validade, e quem confere a saída é a leitura na Venda. Só as unidades `EM_ESTOQUE`: vendida
+   e descartada continuam visíveis na consulta pela etiqueta, que mostra o status real.
+5. **Um produto só abre direto; vários, a lista; nenhum, uma nota.** O código de barras quase
+   sempre dá um produto só. A lista tem até 20 itens, em ordem de nome, com o aviso "Mostrando
+   20 de N"; paginação ficou fora, porque a consulta é para achar um produto, e não para
+   percorrer o catálogo. O produto lembra de onde veio ("Voltar à lista" ou "Voltar à
+   unidade").
+6. **A busca sai pelo botão ou pelo Enter, e não a cada tecla**, ao contrário do Catálogo (T26):
+   um código de etiqueta pela metade buscaria produtos, e a câmera contínua já consulta sozinha.
+   O campo só é limpo quando o resultado é uma unidade, como antes; uma busca por nome fica no
+   campo para ser refinada.
+7. **Câmera com o QR e os quatro formatos de varejo**, numa mira de 280×200, que cabe a etiqueta
+   e um código de barras de embalagem pequena. É o terceiro tipo do `LeitorCamera`,
+   `qr-e-codigo-de-barras`; a Venda continua só com QR, que é o que ela vende.
+8. **"Nada encontrado" é nota, e não erro.** A rota antiga respondia 404 `QR_NAO_ENCONTRADO`, e a
+   tela mostrava a mensagem como erro. Agora não achar é uma lista vazia (200), e a nota sugere
+   conferir o código ou buscar pelo nome. Falha de verdade (rede, 404 do produto) continua como
+   erro no lugar do resultado.
+9. **Instabilidade em testes de foco de T47, corrigida aqui.** Quatro testes conferiam o foco
+   logo depois de uma resposta assíncrona, mas o foco muda num efeito, que pode rodar um
+   instante depois. Na suíte inteira, um deles falhou uma vez. Os quatro passaram a esperar o
+   foco (`waitFor`), e a suíte ficou verde em quatro rodadas seguidas.
+
+**Verificação.** Backend: `tests/consulta/buscaConsulta.test.ts`, 16 casos com banco real:
+- código de etiqueta, inclusive com minúsculas, espaço e `O` no lugar de `0`;
+- código de barras exato que não traz o produto que só o contém;
+- `SEMCOD-` sem diferença de caixa;
+- nome, marca e inativo;
+- teto de 20 com o total;
+- nada encontrado, e o formato de etiqueta sem unidade;
+- 400, 401 e gestor;
+- estoque em ordem, com dias, situação e faixa (o que vence hoje fica no prazo);
+- produto sem estoque e 404;
+- nenhuma linha em `EventoLog`.
+
+Frontend:
+- `TelaConsulta.test.tsx` adaptado à rota nova, com os casos de T32 mantidos;
+- 8 casos novos: produto direto, distintivos, lista e volta, "Mostrando 20 de 25", produto
+  inativo sem estoque, câmera lendo código de barras, falha do estoque e "Ver estoque do
+  produto";
+- 1 caso no `LeitorCamera.test.tsx`.
+
+Totais: backend 609/609 com banco, frontend 382/382 (quatro rodadas), typecheck limpo. `curl`
+como atendente: marca com três produtos e a contagem de estoque, código interno com um.
+`playwright-cli` como atendente:
+- a 1280×900: busca pela marca com a lista, o produto com as seis unidades e os distintivos, o
+  código de etiqueta digitado em minúsculas, "Ver estoque do produto" e "Voltar à unidade";
+- a 360×740: o código interno abrindo o produto e "nada encontrado";
+- sem rolagem horizontal e sem erro no console.
+
+Capturas em `docs/redesign/T49/`. A câmera lendo a embalagem fica para o celular real (backlog).
+
+**Tarefa relacionada:** T08, T32, T39, T47, T48
+
+**Data:** 2026-11-12

@@ -8,6 +8,7 @@ import { NOME_COOKIE_SESSAO } from './modules/auth/cookie.js'
 import { rotasAlerta } from './modules/alerta/alerta.routes.js'
 import { rotasVarreduraAlertas } from './modules/alerta/varredura.routes.js'
 import { rotasConfiguracaoAlerta } from './modules/alerta/configuracaoAlerta.routes.js'
+import { rotasConsulta } from './modules/consulta/consulta.routes.js'
 import { rotasAuth } from './modules/auth/auth.routes.js'
 import { rotasDashboard } from './modules/dashboard/dashboard.routes.js'
 import { rotasDescarte } from './modules/descarte/descarte.routes.js'
@@ -87,6 +88,7 @@ export function buildApp(): FastifyInstance {
   app.register(rotasProduto)
   app.register(rotasUsuario)
   app.register(rotasUnidade)
+  app.register(rotasConsulta)
   app.register(rotasSaida)
   app.register(rotasExcecaoVencido)
   app.register(rotasDescarte)

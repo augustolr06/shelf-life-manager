@@ -2170,3 +2170,29 @@ que escolher pelo nome é fácil de errar. Os limites:
 **Tarefa relacionada:** T48, T47, T14
 
 **Data:** 2026-11-12
+
+## "Quantos frascos deste produto tenho, e de que validade?" sem abrir a caixa
+
+**Contexto do problema:** no controle manual, saber o que existe de um produto e de quando vence
+cada frasco é ir à prateleira, ou ao estoque, e olhar frasco por frasco. Até T49, o sistema
+também respondia só frasco a frasco: a Consulta (T32) pedia a etiqueta de uma unidade. Para a
+pergunta comum do balcão — "tem essa tinta?", "tem alguma que não vença este mês?" — a atendente
+precisava ter um frasco na mão.
+
+**Solução adotada:** a Consulta passou a aceitar o nome, a marca e o código de barras do
+produto, e a mostrar o produto com todas as unidades em estoque, cada uma com a validade e a
+faixa de vencimento calculadas pelo servidor (T49). A câmera lê tanto a etiqueta quanto a
+embalagem.
+
+**Por que resolve o problema / trade-offs:** o registro por unidade física, que existe para o
+FIFO, rende uma segunda resposta que o controle manual não tem: o retrato do estoque de um
+produto por validade, sem tocar nos frascos. Para o artigo, é um exemplo de como o dado coletado
+para um fim (barrar a saída errada) serve a outro (responder ao cliente). Um cuidado de projeto
+deve ser citado: a lista vem em ordem de validade, mas **não** diz qual frasco sai primeiro. Essa
+decisão continua só na validação de saída, para que haja um único lugar no sistema que decide a
+ordem. A limitação é que a lista mostra o que o sistema sabe, e ela só confere com a prateleira
+se todo frasco recebido foi etiquetado e toda saída passou pela leitura.
+
+**Tarefa relacionada:** T49, T32
+
+**Data:** 2026-11-12

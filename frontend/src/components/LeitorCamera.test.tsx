@@ -88,6 +88,17 @@ describe('LeitorCamera', () => {
       quadros('7891000325858')
       expect(aoLer).toHaveBeenCalledWith('7891000325858')
     })
+
+    it("'qr-e-codigo-de-barras' lê a etiqueta e a embalagem, numa mira que cabe as duas (T49)", async () => {
+      await montar({ leitura: 'qr-e-codigo-de-barras' })
+
+      expect(qr.construidoCom).toEqual({
+        formatsToSupport: [0, 9, 10, 14, 15],
+        useBarCodeDetectorIfSupported: true,
+        verbose: false,
+      })
+      expect(qr.iniciadoCom).toMatchObject({ qrbox: { width: 280, height: 200 } })
+    })
   })
 
   describe("modo 'unica' (T31)", () => {

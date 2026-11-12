@@ -15,6 +15,12 @@ import { useEffect, useRef } from 'react'
 
 const ID_CAIXA = 'leitor-camera'
 
+const MIRAS = {
+  qr: { width: 250, height: 250 },
+  'codigo-de-barras': { width: 280, height: 120 },
+  'qr-e-codigo-de-barras': { width: 280, height: 200 },
+} as const
+
 /**
  * `'unica'`: emite o primeiro código decodificado e para a câmera (T31). Para
  * ler outro, quem usa o componente o monta de novo.
@@ -23,13 +29,15 @@ const ID_CAIXA = 'leitor-camera'
 export type ModoLeitura = 'unica' | 'continua'
 
 /**
- * `'qr'`: a etiqueta da unidade (RF04), na Venda e na Consulta.
+ * `'qr'`: a etiqueta da unidade (RF04), na Venda.
  * `'codigo-de-barras'`: o código de barras do fabricante na embalagem (T47),
- * no cadastro de produto. Só os formatos de varejo (EAN-13, EAN-8, UPC-A e
- * UPC-E), o que também impede ler ali, por engano, a etiqueta QR de uma
- * unidade que esteja na mesma bancada.
+ * no cadastro de produto e no Recebimento. Só os formatos de varejo (EAN-13,
+ * EAN-8, UPC-A e UPC-E), o que também impede ler ali, por engano, a etiqueta
+ * QR de uma unidade que esteja na mesma bancada.
+ * `'qr-e-codigo-de-barras'`: os dois, na Consulta (T49), onde tanto a etiqueta
+ * do frasco quanto a embalagem respondem "o que é isto?".
  */
-export type TipoLeitura = 'qr' | 'codigo-de-barras'
+export type TipoLeitura = 'qr' | 'codigo-de-barras' | 'qr-e-codigo-de-barras'
 
 type Props = {
   /**
@@ -72,29 +80,35 @@ export function LeitorCamera({ aoLer, aoFalhar, modo = 'continua', leitura = 'qr
         const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
         if (!vivo) return
 
-        const codigoDeBarras = leituraRef.current === 'codigo-de-barras'
-        const instancia = codigoDeBarras
-          ? new Html5Qrcode(ID_CAIXA, {
-              formatsToSupport: [
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.EAN_8,
-                Html5QrcodeSupportedFormats.UPC_A,
-                Html5QrcodeSupportedFormats.UPC_E,
-              ],
-              // O leitor nativo do Android (BarcodeDetector) lê código de
-              // barras em embalagem curva bem melhor que a decodificação em
-              // JavaScript; onde ele não existe, a biblioteca usa a dela.
-              useBarCodeDetectorIfSupported: true,
-              verbose: false,
-            })
-          : new Html5Qrcode(ID_CAIXA)
+        const tipo = leituraRef.current
+        const varejo = [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+        ]
+        const instancia =
+          tipo === 'qr'
+            ? new Html5Qrcode(ID_CAIXA)
+            : new Html5Qrcode(ID_CAIXA, {
+                formatsToSupport:
+                  tipo === 'codigo-de-barras'
+                    ? varejo
+                    : [Html5QrcodeSupportedFormats.QR_CODE, ...varejo],
+                // O leitor nativo do Android (BarcodeDetector) lê código de
+                // barras em embalagem curva bem melhor que a decodificação em
+                // JavaScript; onde ele não existe, a biblioteca usa a dela.
+                useBarCodeDetectorIfSupported: true,
+                verbose: false,
+              })
         leitor = instancia
 
         await instancia.start(
           { facingMode: 'environment' },
           // O código de barras é largo e baixo; a mira quadrada do QR cortaria
-          // as pontas dele.
-          { fps: 10, qrbox: codigoDeBarras ? { width: 280, height: 120 } : { width: 250, height: 250 } },
+          // as pontas dele. Para os dois, uma mira que cabe a etiqueta inteira
+          // e um código de barras de embalagem pequena.
+          { fps: 10, qrbox: MIRAS[tipo] },
           (texto) => {
             if (jaLeu) return
             if (modoRef.current === 'unica') {

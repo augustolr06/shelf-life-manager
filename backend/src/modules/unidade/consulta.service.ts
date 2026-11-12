@@ -54,6 +54,15 @@ export type ResultadoDaConsulta =
 
 const MILISSEGUNDOS_POR_DIA = 24 * 60 * 60 * 1000
 
+/**
+ * Dias de hoje até a validade, contra `hojeComoData()`; negativo depois de
+ * vencida. Exportada para a lista de unidades do produto na Consulta (T49),
+ * que precisa dizer o mesmo número que o cartão da unidade.
+ */
+export function diasAteAValidade(dataValidade: Date): number {
+  return Math.round((dataValidade.getTime() - hojeComoData().getTime()) / MILISSEGUNDOS_POR_DIA)
+}
+
 export async function consultarUnidade(codigoDigitado: string): Promise<ResultadoDaConsulta> {
   // O mesmo tratamento da leitura de saída: o código pode ter vindo digitado
   // à mão, e `codigoQr.ts` é o dono único do formato (T08).
@@ -66,9 +75,7 @@ export async function consultarUnidade(codigoDigitado: string): Promise<Resultad
 
   if (!unidade) return { ok: false, motivo: 'QR_NAO_ENCONTRADO' }
 
-  const diasParaVencer = Math.round(
-    (unidade.dataValidade.getTime() - hojeComoData().getTime()) / MILISSEGUNDOS_POR_DIA,
-  )
+  const diasParaVencer = diasAteAValidade(unidade.dataValidade)
   const base = comProdutoJaLido(unidade, unidade.produto)
 
   return {

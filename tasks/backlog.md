@@ -375,7 +375,7 @@ no SI5 e pôr o token em `SI5_TOKEN`, no `.env` e no projeto do backend na Verce
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
 | T48 | Recebimento: escolher o produto pela leitura do código de barras (câmera no celular) | concluída | T47, T28 | `tasks/T48-recebimento-leitura-codigo-de-barras.md` |
-| T49 | Consulta por produto: nome, marca e código de barras, com as unidades em estoque | pendente | T32, T47 | `tasks/T49-consulta-por-produto.md` |
+| T49 | Consulta por produto: nome, marca e código de barras, com as unidades em estoque | concluída | T32, T47 | `tasks/T49-consulta-por-produto.md` |
 
 **T48 (2026-11-12).** Pedido do orientando em 2026-11-11, durante T47, como tarefa separada e
 feita depois dela: no Recebimento, além de procurar o produto por nome ou código no seletor
@@ -395,6 +395,18 @@ em `docs/redesign/T48/`.
 da unidade, passa a buscar também por nome, marca e código de barras e a mostrar o produto com as
 unidades em estoque. A câmera lê o QR e o código de barras.
 
+**Estado de T49 (2026-11-12).** Concluída. Um campo só na Consulta, e o servidor decide o que o
+termo é (`GET /consulta/busca`):
+- código de etiqueta → o cartão da unidade de T32, agora com "Ver estoque do produto";
+- código interno exato → abre o produto;
+- nome, marca ou parte do código → a lista (até 20, inativos inclusive, com as unidades em
+  estoque de cada um), e escolher abre o produto.
+
+O produto (`GET /consulta/produtos/:id`) mostra os detalhes e as unidades em estoque, em ordem
+de validade, com o distintivo da faixa e sem marcar a próxima a sair (RNF03). A câmera contínua
+lê QR e código de barras (`leitura="qr-e-codigo-de-barras"`). Decisões em `docs/decisoes.md`
+(T49); capturas em `docs/redesign/T49/`.
+
 ---
 
 ## Verificações manuais a cargo do orientando
@@ -412,6 +424,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |
 | Com o token do SI5 criado — T47 concluída | Consulta pelo código de barras de verdade: com `SI5_TOKEN` no `.env` (e depois na Vercel), buscar em **Catálogo → Novo produto** uns 15 EANs da planilha real que ainda não estejam cadastrados (consulta que dá 404 não gasta cota) e anotar quantos a base achou, e se nome, marca e categoria vieram aproveitáveis. A taxa de acerto vai para `docs/notas-para-artigo.md` (T47) | A cobertura da base para os produtos da loja não está medida: o fluxo foi conferido só com resposta simulada e com a consulta desligada |
 | Junto com o teste da câmera — T47 concluída | No celular real, em **Catálogo → Novo produto → Ler com a câmera**, ler o código de barras de uma embalagem (EAN-13): a câmera desliga sozinha, o código aparece no campo e a consulta sai. Conferir também que ela **não** lê a etiqueta QR de uma unidade | A leitura de código de barras pela câmera só foi testada com dublê; o navegador automatizado não tem câmera |
+| Junto com o teste da câmera — T49 concluída | No celular real, em **Consultar produto → Ligar câmera**, ler a etiqueta QR de um frasco (abre a unidade) e depois o código de barras da embalagem de um produto do catálogo (abre o produto com as unidades em estoque), sem desligar a câmera entre as duas leituras | A câmera da Consulta só foi testada com dublê, e a mira nova serve aos dois códigos: é o ponto a conferir na embalagem pequena |
 | Junto com o teste da câmera — T48 concluída | No celular real, em **Recebimento → Ler código de barras**, ler a embalagem de um produto ativo do catálogo: ele deve aparecer escolhido no campo Produto, e o recebimento deve sair para ele. Ler também um código que o catálogo não tem e conferir o aviso | Mesma razão: a leitura no Recebimento só foi testada com dublê |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
 | Quando houver oportunidade | Reexercitar no navegador as telas de T03b (login) e T04 (catálogo), que ficaram sem conferência por falta de navegador compatível na época. O `playwright-cli` passou a encontrar um Chrome utilizável em T05 | Telas anteriores nunca vistas em navegador — foi assim que o defeito de CORS de T04 escapou |
