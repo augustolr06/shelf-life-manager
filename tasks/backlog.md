@@ -407,6 +407,19 @@ de validade, com o distintivo da faixa e sem marcar a próxima a sair (RNF03). A
 lê QR e código de barras (`leitura="qr-e-codigo-de-barras"`). Decisões em `docs/decisoes.md`
 (T49); capturas em `docs/redesign/T49/`.
 
+## Incremento 14 — Etiquetas de vários produtos
+
+Pedido do orientando em 2026-11-12: a tela de Etiquetas (T15) gera a folha de um produto por vez.
+Entrega mista, etiquetagem do estoque existente e reimpressão avulsa pedem vários produtos, ou
+todos, num PDF só, com um cabeçalho por produto. O Recebimento não muda.
+
+**Decisão anterior afetada** (alerta, não bloqueio): a Decisão 2 de T15 (impressão pelo navegador,
+sem PDF). Detalhes no arquivo da tarefa.
+
+| ID | Tarefa | Status | Depende de | Arquivo de detalhe |
+|---|---|---|---|---|
+| T50 | Etiquetas de vários produtos (ou todos) num só PDF, com cabeçalho por produto | pendente | T15 | `tasks/T50-etiquetas-varios-produtos.md` |
+
 ---
 
 ## Verificações manuais a cargo do orientando
