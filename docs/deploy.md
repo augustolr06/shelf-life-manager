@@ -130,6 +130,7 @@ instaladas no build por padrão.
 | `CRON_SECRET` | outro valor aleatório. Sem ele a rota do cron responde 503 |
 | `LOG_LEVEL` | `info` no piloto — uma linha por requisição |
 | `VAPID_PUBLIC_KEY` · `VAPID_PRIVATE_KEY` · `VAPID_SUBJECT` | `npm run push:chaves`. Sem elas o push fica desligado e o resto sobe normal |
+| `SI5_TOKEN` | token do plano gratuito do SI5 Global (conta em `global.si5.com.br`), para o cadastro pelo código de barras (T47). Sem ele a consulta fica desligada e o cadastro segue manual |
 
 `NODE_ENV=production` a Vercel define sozinha — é o que liga `SameSite=None` + `Secure` no
 cookie.
@@ -216,7 +217,12 @@ Nesta ordem — cada passo depende do anterior:
 9. Deixe o sistema parado por 20 minutos e faça uma leitura de QR, cronometrando. É o pior
    caso do balcão — função fria **e** Neon suspenso — e é o número que você quer conhecer
    antes que a atendente o descubra com um cliente na frente.
-10. No dia seguinte, confira em **Alertas** que a varredura das 9h UTC rodou sozinha. É a
+10. Com `SI5_TOKEN` configurado, em **Catálogo → Novo produto**, busque o código de barras de
+    um produto que ainda não esteja no catálogo: tem de aparecer o card "Encontramos este
+    produto" (ou, para um código que a base não conhece, o aviso e o formulário). Se aparecer
+    "A consulta automática não está ligada", o token não chegou ao backend; se aparecer "não
+    respondeu agora", veja na aba **Logs** o `warn` da consulta (401 é token errado).
+11. No dia seguinte, confira em **Alertas** que a varredura das 9h UTC rodou sozinha. É a
     única parte do sistema cuja falha não aparece como erro: se o cron não disparou, a tela
     apenas não tem nada de novo.
 
@@ -252,6 +258,7 @@ Teste a restauração **uma vez**, num banco descartável, antes de precisar del
 | Ver o que aconteceu no balcão | aba **Logs** do projeto do backend, com `LOG_LEVEL=info` |
 | Conferir se o cron rodou | aba **Cron Jobs** do projeto do backend |
 | Criar ou remover a massa de teste | `npm run ficticios:cadastrar` / `ficticios:remover` — seção 7.1 |
+| Saber se a cota diária de consultas por código de barras acabou | o cadastro avisa "As consultas automáticas de hoje acabaram"; a cota (30 no plano gratuito) volta à meia-noite de Brasília |
 | Aplicar uma migração nova | `DIRECT_URL="<url-direta>" DATABASE_URL="<url-direta>" npx prisma migrate deploy` |
 
 A regra das duas strings: a **direta** quando se escreve schema, a **com pooler** quando só se

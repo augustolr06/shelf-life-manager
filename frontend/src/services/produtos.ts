@@ -56,6 +56,45 @@ export async function listarCategorias(): Promise<string[]> {
   return categorias
 }
 
+/**
+ * Espelho do `maxLength` do parâmetro de `GET /produtos/codigo-de-barras/:codigo`
+ * (T47): cobre o GTIN-14 e os códigos próprios da loja (`SEMCOD-001`).
+ */
+export const TAMANHO_MAXIMO_CODIGO_DE_BARRAS = 20
+
+/** O que o catálogo externo sabe do produto, na forma dos campos do cadastro (T47). */
+export type SugestaoProduto = {
+  codigoInterno: string
+  nome: string
+  marca: string | null
+  categoria: string | null
+  imagemUrl: string | null
+}
+
+export type MotivoConsultaIndisponivel = 'NAO_CONFIGURADA' | 'LIMITE_DIARIO' | 'FALHA'
+
+/**
+ * Os quatro desfechos da consulta pelo código de barras (T47). Nenhum é erro:
+ * o código que não pode ser código de barras é que volta como recusa (400
+ * `CODIGO_DE_BARRAS_INVALIDO`, com a mensagem do servidor).
+ */
+export type ConsultaCodigoDeBarras =
+  | { situacao: 'JA_CADASTRADO'; produto: Produto }
+  | { situacao: 'ENCONTRADO'; fonte: string; sugestao: SugestaoProduto }
+  | { situacao: 'NAO_ENCONTRADO' }
+  | { situacao: 'INDISPONIVEL'; motivo: MotivoConsultaIndisponivel }
+
+/**
+ * Procura o código no catálogo da loja e, se ele não estiver lá, no catálogo
+ * externo — quem decide a ordem, valida o código e fala com a fonte é o
+ * servidor, que guarda o token dela.
+ */
+export async function consultarCodigoDeBarras(codigo: string): Promise<ConsultaCodigoDeBarras> {
+  return requisitarApi<ConsultaCodigoDeBarras>(
+    `/produtos/codigo-de-barras/${encodeURIComponent(codigo)}`,
+  )
+}
+
 export async function criarProduto(dados: DadosProduto): Promise<Produto> {
   const { produto } = await requisitarApi<{ produto: Produto }>('/produtos', {
     method: 'POST',

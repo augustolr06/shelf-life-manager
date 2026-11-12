@@ -2897,3 +2897,114 @@ de `/auth/me` antes do login. Capturas em `docs/redesign/T46/`.
 **Tarefa relacionada:** T35, T41
 
 **Data:** 2026-10-21
+
+## 2026-11-12 — T47: cadastro de produto assistido por código de barras
+
+O painel "Novo produto" do Catálogo passa a começar pelo código de barras: digitado, lido por
+leitor USB ou, no celular, pela câmera. O backend procura o código no catálogo da loja e, se não
+achar, num catálogo externo; o que a fonte sabe do produto aparece num card para a gestora
+confirmar e cadastrar dali mesmo. Sem resposta útil da fonte, um aviso de uma linha e o
+formulário de quatro campos de sempre. Revisa o painel de T45 (e da especificação do redesign,
+seção "Catálogo"), que abria com os quatro campos, e o catálogo sem dependência externa de T04.
+As quatro decisões de produto foram do orientando (2026-11-11, registradas em
+`tasks/T47-cadastro-por-codigo-de-barras.md`): fonte SI5 Global, cadastro direto do card,
+categoria preenchida com a da fonte e câmera no celular. O que mais foi decidido:
+
+1. **SI5 Global, plano gratuito (30 consultas por dia, 404 não gasta cota).** O Cosmos/Bluesoft,
+   a base brasileira mais completa, deixou de oferecer o plano gratuito a contas novas, e o
+   pago começa em R$ 499,99/mês. O Open Beauty Facts é aberto e sem chave, mas tinha ~519
+   produtos do Brasil no total. UPCitemdb (foco nos EUA), Mercado Livre (OAuth com refresh
+   token rotativo) e GS1 Brasil (contrato de associado) ficaram fora. O uso é baixo: o cadastro
+   manual é raro, e a carga grande é a planilha (T24).
+2. **Consulta só pelo backend**, numa rota própria (`GET /produtos/codigo-de-barras/:codigo`,
+   GESTOR). A fonte manda não usar o token no navegador; além disso, o servidor confere o
+   catálogo local antes de gastar cota, e trocar de fonte não muda o frontend. GESTOR porque é
+   quem cadastra e quem gasta a cota.
+3. **Ordem: catálogo da loja → validação do GTIN → fonte.** O catálogo vem primeiro para
+   qualquer formato de código, inclusive `SEMCOD-…` e o EAN com dígito errado que tenha entrado
+   pela planilha: o que já está cadastrado responde sem consulta externa. A validação (8, 12, 13
+   ou 14 dígitos e o dígito verificador mod-10 da GS1, em `gtin.ts`) vem antes da fonte para o
+   código digitado errado não gastar cota e voltar como "não encontrado", o que levaria a
+   gestora a cadastrar à mão um código que não existe. A validação **não** passou para o
+   `POST /produtos`: o `codigoInterno` continua texto livre (T04), porque nem todo produto tem
+   código de barras.
+4. **Desfecho previsto é 200 com `situacao`**, como o veredito de `/saidas/ler`:
+   `JA_CADASTRADO`, `ENCONTRADO`, `NAO_ENCONTRADO` e `INDISPONIVEL` (com o `motivo`
+   `NAO_CONFIGURADA`, `LIMITE_DIARIO` ou `FALHA`). Só o código que não pode ser código de barras
+   é recusa (400 `CODIGO_DE_BARRAS_INVALIDO`). Formato e dígito verificador são conferidos no
+   serviço, e não no schema da rota (que só limita o tamanho a 20), para a mensagem dizer o que
+   corrigir em vez da genérica de schema.
+5. **`SI5_TOKEN` opcional e lido a cada consulta**, pela mesma exceção das chaves VAPID
+   (`shared/env.ts`): sem ele o servidor sobe inteiro e a consulta responde
+   `NAO_CONFIGURADA` sem chamar a fonte. O token não aparece em resposta nem em log; os `warn`
+   de falha levam só o status ou o nome do erro.
+6. **Toda falha da fonte vira `INDISPONIVEL`**, com tempo limite de 5 s: 401, 5xx, rede, tempo
+   esgotado, resposta que não é JSON. O cadastro nunca espera pela fonte nem depende dela.
+   Resposta 200 sem nome conta como `NAO_ENCONTRADO`: para a gestora, não há o que confirmar.
+7. **A fonte é um arquivo só (`fonteSi5.ts`)**, atrás do tipo `FonteDeProduto`. O plano previa
+   `fetch` injetado por parâmetro; ficou o `fetch` global, e os testes de rota o substituem com
+   `vi.stubGlobal`. Os casos passam pela rota inteira, como os de `produto.test.ts`, e não
+   precisariam do parâmetro.
+8. **O texto da fonte não é cortado no servidor.** Ele vem aparado e sem espaço repetido, mas
+   com o tamanho original: cortar em silêncio é o que T25 proibiu. Quem corta é a tela, com o
+   aviso de corte de T25. A caixa também não muda: "COLORACAO CREME 6.1" entra como veio, e quem
+   quiser corrigir usa "Editar antes de cadastrar".
+9. **Categoria da fonte com a grafia da loja quando é a mesma categoria.** A decisão do
+   orientando é preencher com a categoria da fonte; a exceção é a fonte trazer, com outra caixa
+   ou sem acento, uma categoria que a loja já tem ("TONALIZANTE", "coloracao"). Ela volta como
+   a loja escreve (`Intl.Collator('pt-BR', { sensitivity: 'base' })`), senão o filtro ganharia
+   duas pílulas para a mesma coisa, que é o que as sugestões do campo (T45) existem para evitar.
+10. **Imagem só `https:`, sem referrer.** A tela põe o endereço num `<img>`: `http:` seria
+    bloqueado como conteúdo misto no app publicado, e qualquer outro esquema não tem por que
+    chegar ao navegador. `referrerPolicy="no-referrer"` evita mandar à fonte o endereço do app
+    a cada card. Imagem que falha some, sem deixar o espaço.
+11. **Cadastro direto do card só com o que o `POST` aceita como veio**: marca presente e nada
+    acima de 120 caracteres. Senão o botão vira "Completar e cadastrar", que abre o formulário
+    preenchido, cortado e com o aviso do corte. Recusa de schema num campo que o card não
+    mostra (todos menos a Categoria) leva ao formulário, onde o campo aparece com a mensagem.
+12. **Rascunho na `TelaProdutos`.** O formulário saiu para `components/CadastroProduto.tsx`, e a
+    etapa, o código digitado e os campos ficam na tela, que já guardava o formulário para ele
+    sobreviver a fechar e reabrir o painel (T45, decisão 6). Mensagens de erro e avisos de corte
+    ficam no componente e somem com ele.
+13. **Foco a cada etapa**: o título do card ("Encontramos este produto", que o leitor de tela
+    anuncia), o primeiro campo vazio do formulário (o Nome, quando o código veio da consulta) ou
+    o código de barras, ao recomeçar e depois de um cadastro. Durante a consulta o campo fica só
+    de leitura, e não desabilitado, para não perder o foco.
+14. **"Mostrar na lista"**, para o código já cadastrado, põe o código na busca, tira o filtro de
+    categoria (que poderia esconder o produto), liga "Mostrar inativos" se ele for inativo e, no
+    celular, fecha o painel, que ocupa o lugar da lista.
+15. **Câmera só no celular, restrita a EAN-13, EAN-8, UPC-A e UPC-E**, com a mira larga e baixa
+    (280×120) e o `BarcodeDetector` nativo onde houver. É um modo novo do `LeitorCamera`
+    (`leitura="codigo-de-barras"`); Venda e Consulta continuam no padrão, QR. Restringir os
+    formatos também impede ler por engano, no Catálogo, a etiqueta QR de uma unidade. A leitura
+    é única (T31): a câmera desliga ao identificar o código, e a consulta sai sem o toque em
+    "Buscar produto".
+16. **Mensagens de falha da câmera sem "abaixo".** "Digite o código abaixo" valia para Venda e
+    Consulta, onde o campo fica embaixo da câmera; no painel do Catálogo ele fica em cima. O texto
+    passou a "digite o código" nas quatro mensagens de `LeitorCamera.tsx`, e os roteiros
+    (`docs/roteiro-tutorial.md`, `docs/roteiro-testes-manuais.md`) acompanharam.
+
+**Verificação.** Backend: `tests/gtin.test.ts` (17 casos: os quatro tamanhos, dígito errado,
+dígitos vizinhos trocados, formatos inválidos) e `tests/codigoDeBarras.test.ts` (24 casos:
+papel, catálogo antes da fonte inclusive para `SEMCOD-001`, normalização, os dois 400, os quatro
+desfechos e os três motivos, mapeamento da fonte, imagem `http:`, grafia da categoria, token no
+cabeçalho e fora da resposta), sem rede e sem banco. Frontend: `CadastroProduto.test.tsx` (25
+casos: as três etapas, cada aviso, cadastro pelo card e pelo formulário, "Completar", corte,
+recusa no card, câmera no celular com dublê e ausente no computador), 2 casos novos em
+`TelaProdutos.test.tsx` ("Mostrar na lista" e o código preservado ao reabrir) e 2 em
+`LeitorCamera.test.tsx` (formatos e mira do modo novo); os testes de T25 e T45 passaram a chegar
+ao formulário por "Preencha manualmente". Backend 589/589 com banco, frontend 365/365,
+typecheck limpo nos dois. `curl` na rota com o backend local, sem token: código já cadastrado,
+dígito errado (400), formato errado (400) e EAN válido (`NAO_CONFIGURADA`). `playwright-cli`
+a 1280×900 e 360×740, como gestor: etapa do código com o foco nele, código já cadastrado e
+"Mostrar na lista", card (resposta simulada com `route`) e cadastro direto por ele, formulário
+pela resposta real sem token com Enter no campo, "Preencha manualmente", "Ler com a câmera" no
+celular falhando com a mensagem nova (o navegador automatizado não tem câmera), página sem
+rolagem horizontal a 360 px, console sem erro. O produto fictício `ZZ-T47-1794446317` ficou no
+banco local (`npm run ficticios:remover` o tira). Capturas em `docs/redesign/T47/`. **Sem
+verificação:** a consulta com token real (depende da conta no SI5) e a câmera lendo um EAN-13 de
+verdade, que só um celular faz; as duas estão nas verificações manuais do backlog.
+
+**Tarefa relacionada:** T04, T24, T25, T31, T45
+
+**Data:** 2026-11-12

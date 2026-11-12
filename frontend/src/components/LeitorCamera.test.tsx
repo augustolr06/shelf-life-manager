@@ -11,21 +11,31 @@ import { LeitorCamera } from './LeitorCamera'
 const qr = vi.hoisted(() => ({
   aoDecodificar: null as ((texto: string) => void) | null,
   falhaAoIniciar: null as unknown,
+  /** O que o leitor passou ao construtor (formatos) e ao `start` (mira), T47. */
+  construidoCom: null as unknown,
+  iniciadoCom: null as unknown,
   stop: vi.fn<() => Promise<void>>(),
   clear: vi.fn<() => void>(),
 }))
 
 vi.mock('html5-qrcode', () => ({
+  // Os valores do enum da biblioteca: o leitor só os repassa.
+  Html5QrcodeSupportedFormats: { QR_CODE: 0, EAN_13: 9, EAN_8: 10, UPC_A: 14, UPC_E: 15 },
   Html5Qrcode: class {
     stop = qr.stop
     clear = qr.clear
 
+    constructor(_id: string, configuracao?: unknown) {
+      qr.construidoCom = configuracao ?? null
+    }
+
     async start(
       _camera: unknown,
-      _configuracao: unknown,
+      configuracao: unknown,
       aoDecodificar: (texto: string) => void,
     ): Promise<void> {
       if (qr.falhaAoIniciar) throw qr.falhaAoIniciar
+      qr.iniciadoCom = configuracao
       qr.aoDecodificar = aoDecodificar
     }
   },
@@ -50,8 +60,34 @@ describe('LeitorCamera', () => {
   beforeEach(() => {
     qr.aoDecodificar = null
     qr.falhaAoIniciar = null
+    qr.construidoCom = null
+    qr.iniciadoCom = null
     qr.stop.mockReset().mockResolvedValue(undefined)
     qr.clear.mockReset()
+  })
+
+  describe('tipo de leitura (T47)', () => {
+    it('por padrão lê a etiqueta QR, como na Venda e na Consulta', async () => {
+      await montar()
+
+      expect(qr.construidoCom).toBeNull()
+      expect(qr.iniciadoCom).toMatchObject({ qrbox: { width: 250, height: 250 } })
+    })
+
+    it("'codigo-de-barras' lê só os formatos de varejo, numa mira larga", async () => {
+      const { aoLer } = await montar({ modo: 'unica', leitura: 'codigo-de-barras' })
+
+      // EAN-13, EAN-8, UPC-A e UPC-E — e não o QR da etiqueta da unidade.
+      expect(qr.construidoCom).toEqual({
+        formatsToSupport: [9, 10, 14, 15],
+        useBarCodeDetectorIfSupported: true,
+        verbose: false,
+      })
+      expect(qr.iniciadoCom).toMatchObject({ qrbox: { width: 280, height: 120 } })
+
+      quadros('7891000325858')
+      expect(aoLer).toHaveBeenCalledWith('7891000325858')
+    })
   })
 
   describe("modo 'unica' (T31)", () => {

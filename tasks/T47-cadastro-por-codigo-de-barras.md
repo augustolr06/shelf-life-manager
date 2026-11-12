@@ -81,18 +81,18 @@ isso a consulta passa pelo backend, que também confere o catálogo da loja ante
 
 ## Critério de aceite
 
-- [ ] Testes de backend sem banco: validação de GTIN, cada `situacao` e cada motivo de
+- [x] Testes de backend sem banco: validação de GTIN, cada `situacao` e cada motivo de
       `INDISPONIVEL`, papel (401/403), nenhuma consulta externa para código já cadastrado,
       inválido ou sem token, e token fora da resposta
-- [ ] Testes de Vitest do cadastro: as três etapas, cada aviso, card com cadastro direto e com
+- [x] Testes de Vitest do cadastro: as três etapas, cada aviso, card com cadastro direto e com
       "Completar e cadastrar", câmera no celular (com dublê) e ausente no computador, rascunho
       preservado; testes de T25 e T45 adaptados e verdes
-- [ ] `npm run typecheck` limpo no backend e no frontend
-- [ ] `playwright-cli` a 1280×900 e 360×740: código já cadastrado, card (resposta simulada com
+- [x] `npm run typecheck` limpo no backend e no frontend
+- [x] `playwright-cli` a 1280×900 e 360×740: código já cadastrado, card (resposta simulada com
       `route`), não encontrado, sem código de barras; capturas em `docs/redesign/T47/`
-- [ ] `docs/arquitetura.md` (stack, contrato, offline), `docs/deploy.md` e `backend/.env.example`
+- [x] `docs/arquitetura.md` (stack, contrato, offline), `docs/deploy.md` e `backend/.env.example`
       com `SI5_TOKEN`
-- [ ] Verificações manuais anotadas no backlog: câmera lendo EAN-13 num celular real, e a
+- [x] Verificações manuais anotadas no backlog: câmera lendo EAN-13 num celular real, e a
       consulta com o token real
 
 ## Fora de escopo

@@ -589,7 +589,7 @@ números do balanço do dia (capítulo 12) dependem disso.
 5. Clique em **Encerrar atendimento**.
 
 > Se a câmera não abrir, anote a mensagem que apareceu (por exemplo, "Permissão de câmera negada.
-> Libere a câmera nas configurações do navegador ou digite o código abaixo.") e leia F5
+> Libere a câmera nas configurações do navegador ou digite o código.") e leia F5
 > digitando o código.
 
 ### Cena 6 — A internet caiu

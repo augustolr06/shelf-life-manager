@@ -22,6 +22,15 @@ const ID_CAIXA = 'leitor-camera'
  */
 export type ModoLeitura = 'unica' | 'continua'
 
+/**
+ * `'qr'`: a etiqueta da unidade (RF04), na Venda e na Consulta.
+ * `'codigo-de-barras'`: o código de barras do fabricante na embalagem (T47),
+ * no cadastro de produto. Só os formatos de varejo (EAN-13, EAN-8, UPC-A e
+ * UPC-E), o que também impede ler ali, por engano, a etiqueta QR de uma
+ * unidade que esteja na mesma bancada.
+ */
+export type TipoLeitura = 'qr' | 'codigo-de-barras'
+
 type Props = {
   /**
    * Chamado a cada decodificação bem-sucedida. No modo `'continua'` pode
@@ -31,15 +40,18 @@ type Props = {
   /** Câmera indisponível: sem permissão, sem dispositivo, ou contexto inseguro. */
   aoFalhar: (mensagem: string) => void
   modo?: ModoLeitura
+  /** Lido só ao ligar a câmera: trocar com ela ligada não tem efeito. */
+  leitura?: TipoLeitura
 }
 
-export function LeitorCamera({ aoLer, aoFalhar, modo = 'continua' }: Props) {
+export function LeitorCamera({ aoLer, aoFalhar, modo = 'continua', leitura = 'qr' }: Props) {
   // Os callbacks ficam em ref para que trocar de handler não reinicie a
   // câmera: religar o vídeo no meio do atendimento pisca a tela e perde
   // quadros.
   const aoLerRef = useRef(aoLer)
   const aoFalharRef = useRef(aoFalhar)
   const modoRef = useRef(modo)
+  const leituraRef = useRef(leitura)
   aoLerRef.current = aoLer
   aoFalharRef.current = aoFalhar
   modoRef.current = modo
@@ -57,15 +69,32 @@ export function LeitorCamera({ aoLer, aoFalhar, modo = 'continua' }: Props) {
         // Import dinâmico: a biblioteca só é baixada quando a atendente liga a
         // câmera, e não no carregamento do app — que no balcão acontece em
         // rede de celular.
-        const { Html5Qrcode } = await import('html5-qrcode')
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
         if (!vivo) return
 
-        const instancia = new Html5Qrcode(ID_CAIXA)
+        const codigoDeBarras = leituraRef.current === 'codigo-de-barras'
+        const instancia = codigoDeBarras
+          ? new Html5Qrcode(ID_CAIXA, {
+              formatsToSupport: [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8,
+                Html5QrcodeSupportedFormats.UPC_A,
+                Html5QrcodeSupportedFormats.UPC_E,
+              ],
+              // O leitor nativo do Android (BarcodeDetector) lê código de
+              // barras em embalagem curva bem melhor que a decodificação em
+              // JavaScript; onde ele não existe, a biblioteca usa a dela.
+              useBarCodeDetectorIfSupported: true,
+              verbose: false,
+            })
+          : new Html5Qrcode(ID_CAIXA)
         leitor = instancia
 
         await instancia.start(
           { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          // O código de barras é largo e baixo; a mira quadrada do QR cortaria
+          // as pontas dele.
+          { fps: 10, qrbox: codigoDeBarras ? { width: 280, height: 120 } : { width: 250, height: 250 } },
           (texto) => {
             if (jaLeu) return
             if (modoRef.current === 'unica') {
@@ -116,15 +145,15 @@ function mensagemDeFalha(falha: unknown): string {
   const texto = falha instanceof Error ? `${falha.name} ${falha.message}` : String(falha)
 
   if (/NotAllowedError|Permission/i.test(texto)) {
-    return 'Permissão de câmera negada. Libere a câmera nas configurações do navegador ou digite o código abaixo.'
+    return 'Permissão de câmera negada. Libere a câmera nas configurações do navegador ou digite o código.'
   }
   if (/NotFoundError|no camera|Requested device not found/i.test(texto)) {
-    return 'Nenhuma câmera encontrada neste aparelho. Digite o código abaixo.'
+    return 'Nenhuma câmera encontrada neste aparelho. Digite o código.'
   }
   if (/NotReadableError|TrackStartError/i.test(texto)) {
-    return 'A câmera está em uso por outro aplicativo. Feche-o ou digite o código abaixo.'
+    return 'A câmera está em uso por outro aplicativo. Feche-o ou digite o código.'
   }
   // Inclui o caso de contexto não-seguro (HTTP em IP de rede local), em que o
   // navegador nem oferece `getUserMedia`.
-  return 'Não foi possível abrir a câmera neste navegador. Digite o código abaixo.'
+  return 'Não foi possível abrir a câmera neste navegador. Digite o código.'
 }

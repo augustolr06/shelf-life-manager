@@ -1814,6 +1814,91 @@ button.botao-link:hover:not(:disabled) {
   color: var(--cor-primaria-escura);
 }
 
+/* --- Cadastro pelo código de barras (T47) ---------------------------------
+   As três etapas do painel "Novo produto": código de barras, card do produto
+   encontrado e formulário. Só arranjo sobre os componentes base: cor, borda e
+   raio são os tokens de sempre. */
+.cadastro-produto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco-4);
+}
+
+.cadastro-produto h3 {
+  margin: 0;
+  font-size: var(--tamanho-titulo-secao);
+  font-weight: var(--peso-titulo);
+}
+
+/* A nota que diz por que o formulário abriu: o espaço já vem do `gap`. */
+.cadastro-produto > .nota-informativa {
+  margin: 0;
+}
+
+/* Os botões da etapa um embaixo do outro, na largura do painel, como o
+   "Cadastrar produto" (T45). */
+.acoes-cadastro {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--espaco-2);
+}
+
+/* O card do produto encontrado: imagem à esquerda e, ao lado, o que a
+   gestora confere com o frasco na mão. Sem a faixa lateral de tom: não é um
+   veredito, é uma sugestão a confirmar. */
+.produto-encontrado {
+  display: flex;
+  align-items: center;
+  gap: var(--espaco-3);
+  padding: var(--espaco-3);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-controle);
+}
+
+.produto-encontrado img {
+  flex: none;
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+  border-radius: var(--raio-pequeno);
+  background: var(--cor-fundo);
+}
+
+/* Nome de catálogo externo pode vir longo e sem espaço (códigos de cor
+   colados): quebra em qualquer ponto em vez de alargar o painel. */
+.dados-produto-encontrado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dados-produto-encontrado .codigo {
+  text-align: left;
+}
+
+.fonte-consulta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: var(--tamanho-apoio);
+}
+
+.links-cadastro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Fora de uma frase o link é um alvo de toque sozinho, e volta aos 44 px que
+   todo botão tem; `botao-link` só abre mão deles no meio do texto. */
+.links-cadastro button.botao-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--alvo-toque);
+}
+
 /* Importação do catálogo por planilha (T24). O resultado pode ser uma lista
    longa — códigos pulados ou linhas a corrigir —, então ocupa a largura toda e
    rola dentro de si em vez de empurrar o catálogo para baixo da tela. */

@@ -1,6 +1,6 @@
 # Arquitetura — Controle de Estoque FIFO por Validade
 
-Última atualização: 2026-10-21 (seção 5 revisada em T42, que acrescentou `hoje` e `estoque.proximoVencimento` a `GET /dashboard` e a tela `/inicio` como segunda consumidora; seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
+Última atualização: 2026-11-12 (seções 1, 5 e 6 revisadas em T47, que acrescentou a consulta de produto pelo código de barras a um catálogo externo opcional, o SI5 Global, e a leitura de código de barras pela câmera no cadastro; seção 5 revisada em T42, que acrescentou `hoje` e `estoque.proximoVencimento` a `GET /dashboard` e a tela `/inicio` como segunda consumidora; seções 5 e 5.1 revisadas em T24, que acrescentou a importação do catálogo por planilha CSV e a lista `erros` da recusa `PLANILHA_INVALIDA`; seção 5 revisada em T21, que acrescentou a tela `/dashboard` como consumidora das duas rotas agregadas; seções 2 e 5 revisadas em T20, que acrescentou o módulo `dashboard` e as duas rotas agregadas da RF13; seções 1, 3, 5, 5.3 e 6 revisadas em T19b, que acrescentou a notificação push: dependência `web-push`, tabela `InscricaoPush`, as três rotas de `/push` e os handlers importados pelo service worker; seção 5 revisada em T19, que acrescentou as duas rotas de entrega do alerta e o décimo tipo de evento `ALERTA_LIDO`; seções 2, 3 e 5.3 revisadas em T18, que acrescentou a varredura periódica de alertas e o índice único de `Alerta`)
 
 Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões técnicas concretas. Referências entre parênteses (RF/RNF) apontam para o requisito original — consulte o PRD apenas se precisar do texto exato.
 
@@ -15,7 +15,8 @@ Este documento traduz os requisitos do PRD (`docs/PRD-original.md`) em decisões
 | Roteamento | `react-router-dom` | Uma URL por tela, decidido em T10 depois de duas tarefas adiando (T03b, T05). Exige app shell em caminho fundo — resolvido pelo `navigateFallback` do service worker. |
 | PWA | `vite-plugin-pwa` | Manifest + service worker prontos para instalabilidade (RNF07). |
 | Notificação push | `web-push` (backend) | Implementa a criptografia de payload (RFC 8291) e a assinatura VAPID (RFC 8292) do Web Push. Escrever isso à mão não é o assunto do trabalho (RF08, T19b). Chaves **opcionais**: sem elas o servidor sobe inteiro e só a notificação some. |
-| Leitura de QR | `html5-qrcode` (câmera do navegador) | Compatível com PWA, sem exigir app nativo (RF05). |
+| Leitura de QR | `html5-qrcode` (câmera do navegador) | Compatível com PWA, sem exigir app nativo (RF05). Desde T47 lê também o código de barras do fabricante (EAN-13, EAN-8, UPC-A e UPC-E) no cadastro de produto, restrito a esses formatos. |
+| Catálogo externo de produtos | SI5 Global (`global.si5.com.br`), API HTTP no plano gratuito, consultada **só pelo backend** | Preenche nome, marca e categoria no cadastro a partir do código de barras (T47). Plano gratuito de 30 consultas por dia, suficiente para o cadastro manual, que é raro. **Opcional**: sem o token `SI5_TOKEN`, ou com a fonte fora do ar, o cadastro continua manual. Isolado em `modules/produto/fonteSi5.ts`, para trocar de fonte num arquivo só — o gratuito do Cosmos/Bluesoft deixou de existir durante o projeto. |
 | Geração de QR | `qrcode` (node-qrcode), no servidor | Gera SVG sem dependência nativa e expõe os metadados do símbolo (versão, nível, matriz), que é o que permite testar o símbolo e não uma string opaca (RF04, T14). |
 | Autenticação | JWT em cookie `httpOnly` + `bcrypt` | Simples, sem estado de sessão a gerenciar no servidor. Atende RF01 e RNF09. |
 | Testes | Vitest | Mesma toolchain do Vite, TypeScript nativo, rápido. |
@@ -287,6 +288,7 @@ traduz um no outro na mesma consulta que ordena a fila por validade.
 | GET | `/produtos` | qualquer autenticado | Lista/busca produtos; filtros `busca`, `categoria` (igualdade exata, T45), `incluirInativos`, `pagina` |
 | GET | `/produtos/categorias` | qualquer autenticado | Categorias existentes, sem repetição, em ordem alfabética do português, inclusive as de produto inativo (T45) |
 | POST | `/produtos/importar` | GESTOR | Importa o catálogo de uma planilha CSV (T24) — ver abaixo |
+| GET | `/produtos/codigo-de-barras/:codigo` | GESTOR | Procura o código no catálogo da loja e, se não estiver lá, no catálogo externo (T47) — ver abaixo |
 | DELETE | `/produtos/:id` | GESTOR | **Inativa** (`ativo = false`). Nunca exclui fisicamente — ver seção 3 |
 | POST | `/produtos/:id/unidades` | GESTOR | Cadastro em lote de unidades, validades por item (RF03) |
 | GET | `/produtos/:id/unidades/etiquetas` | GESTOR | Gera etiquetas QR para impressão (RF04) |
@@ -350,6 +352,31 @@ código já cadastrado é pulado e devolvido, nunca atualizado. A escrita é um 
 só, e portanto atômica. A rota tem `bodyLimit` próprio de 4 MiB (o padrão do Fastify é
 1 MiB), abaixo do limite de corpo da Vercel. Só importa produtos. As unidades entram pelo
 `POST /produtos/:id/unidades`, uma etiqueta por frasco.
+
+**`GET /produtos/codigo-de-barras/:codigo`** (T47) é a consulta do cadastro de produto. O
+código é normalizado como no `POST /produtos` (pontas aparadas, maiúsculas) e perde também os
+espaços do meio. A ordem dos passos é o que poupa a cota diária da fonte externa:
+
+1. **Catálogo da loja**, para qualquer formato de código (inclusive `SEMCOD-…`). Achou:
+   200 `{ situacao: 'JA_CADASTRADO', produto }`, sem consulta externa.
+2. **Validação de GTIN** (`modules/produto/gtin.ts`): 8, 12, 13 ou 14 dígitos e o dígito
+   verificador mod-10 da GS1. Falhou: 400 `CODIGO_DE_BARRAS_INVALIDO`, com uma mensagem para
+   o formato e outra para o dígito verificador (código digitado errado).
+3. **Fonte externa** (`modules/produto/fonteSi5.ts`), com tempo limite de 5 s:
+   - 200 `{ situacao: 'ENCONTRADO', fonte, sugestao: { codigoInterno, nome, marca, categoria, imagemUrl } }`,
+     com `marca`, `categoria` e `imagemUrl` podendo ser `null`. O texto vem aparado e sem
+     espaço repetido, mas **não cortado** no limite de 120: quem avisa do corte é a tela
+     (T25). A imagem só vem se for `https:`. A categoria da fonte que equivale a uma da loja,
+     sem diferença de acento ou caixa, volta com a grafia da loja.
+   - 200 `{ situacao: 'NAO_ENCONTRADO' }` quando a fonte não conhece o código (404, que não
+     gasta cota) ou o devolve sem nome.
+   - 200 `{ situacao: 'INDISPONIVEL', motivo }`: `NAO_CONFIGURADA` (servidor sem
+     `SI5_TOKEN`, e nada é consultado), `LIMITE_DIARIO` (429) ou `FALHA` (401, 5xx, rede,
+     tempo limite, resposta ilegível, com um `warn` no log sem o token).
+
+Só o 400 é recusa: não achar o produto é resposta normal, e a tela cai no formulário manual.
+O token da fonte nunca sai do servidor, nem em resposta nem em log, e por isso a consulta
+não é feita pelo navegador, como a própria fonte recomenda.
 
 **Os três endpoints de `/excecao-vencido`** (T11) recebem a unidade pelo `unidadeId` que o
 veredito `EXCECAO_VENCIDO` devolveu, mais o `sessaoVendaId` opcional. Conferem as mesmas
@@ -743,6 +770,11 @@ nenhum, e o `ResumoDaVarredura` ganhou `notificacoesEnviadas`.
 ## 6. Comportamento offline (RNF07)
 
 O frontend verifica `navigator.onLine` e faz um *health check* ao backend antes de habilitar a tela de venda (`/venda`, antes `/leitura`). Se offline: bloqueia o fluxo de saída com mensagem explícita — nunca tenta validar FIFO com dado local. O veredito em tela é apagado na queda; o carrinho (T34), não: ele não afirma nada sobre o estoque de agora, porque a confirmação revalida cada item sob lock. Ler e confirmar ficam bloqueados até a conexão voltar.
+
+O cadastro de produto pelo código de barras (T47) não tem portão próprio: como todo
+cadastro, ele já depende do servidor, e a consulta ao catálogo externo passa por ele. Sem rede,
+a consulta falha como qualquer ação (toast), e nada é guardado para depois. A fonte externa fora
+do ar, com o servidor no ar, é outro caso: vira `INDISPONIVEL`, e o cadastro segue manual.
 
 A consulta de unidade (`/consulta`, T32) usa o mesmo portão, extraído para `hooks/useConexao.ts` e `components/PortaoOffline.tsx`: sem servidor não há consulta, e o cartão em tela é apagado na queda pelo mesmo motivo do veredito.
 

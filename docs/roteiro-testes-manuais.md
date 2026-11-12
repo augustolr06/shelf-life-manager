@@ -742,18 +742,18 @@ Esperado: **Desligar câmera** para o vídeo e volta o botão **Ligar câmera**.
 2. Clique em **Ligar câmera**.
 
 Esperado: "Permissão de câmera negada. Libere a câmera nas configurações do navegador ou digite o
-código abaixo.". A digitação manual continua funcionando. Libere a câmera de novo ao terminar.
+código.". A digitação manual continua funcionando. Libere a câmera de novo ao terminar.
 
 **T-LQ-25 (erro): aparelho sem câmera**
 1. Em um computador sem webcam, clique em **Ligar câmera**.
 
-Esperado: "Nenhuma câmera encontrada neste aparelho. Digite o código abaixo.".
+Esperado: "Nenhuma câmera encontrada neste aparelho. Digite o código.".
 
 **T-LQ-26 (erro): câmera em uso**
 1. Abra a webcam em outro aplicativo (ex.: uma videochamada) e clique em **Ligar câmera**.
 
 Esperado (depende do sistema operacional): "A câmera está em uso por outro aplicativo. Feche-o ou
-digite o código abaixo.".
+digite o código.".
 
 **T-LQ-27: etiqueta física de verdade (fecha a RNF08 / T16)**
 1. Cole etiquetas de 15 mm, 20 mm e 25 mm em frascos reais, incluindo um pequeno e um de

@@ -358,7 +358,19 @@ da tarefa.
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T47 | Cadastro de produto assistido por código de barras (consulta externa + câmera no celular) | pendente | T45, T31 | `tasks/T47-cadastro-por-codigo-de-barras.md` |
+| T47 | Cadastro de produto assistido por código de barras (consulta externa + câmera no celular) | concluída | T45, T31 | `tasks/T47-cadastro-por-codigo-de-barras.md` |
+
+**Estado de T47 (2026-11-12).** Concluída. `GET /produtos/codigo-de-barras/:codigo` (GESTOR)
+procura no catálogo da loja, valida o GTIN (formato e dígito verificador) e só então consulta o
+SI5 Global. Responde 200 com `situacao`, e só o código inválido é 400. O token `SI5_TOKEN` é
+opcional: sem ele a consulta responde `NAO_CONFIGURADA` e o cadastro segue manual. O painel
+"Novo produto" virou `components/CadastroProduto.tsx`, em três etapas: código de barras, card do
+produto encontrado (cadastro direto, "Editar antes de cadastrar", "Não é este produto") e o
+formulário de antes. No celular, "Ler com a câmera" usa o `LeitorCamera` no modo novo
+`leitura="codigo-de-barras"`, que só lê EAN/UPC. As mensagens de falha da câmera perderam o
+"abaixo", e os roteiros manuais acompanharam. **Para ligar a consulta:** criar a conta gratuita
+no SI5 e pôr o token em `SI5_TOKEN`, no `.env` e no projeto do backend na Vercel
+(`docs/deploy.md`, 3.2). Decisões em `docs/decisoes.md` (T47); capturas em `docs/redesign/T47/`.
 
 ---
 
@@ -375,6 +387,8 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | Junto com o teste da câmera — T46 concluída | Nome do app no celular: com o PWA **já instalado**, o nome embaixo do ícone continua "Estoque FIFO" até o navegador buscar o manifest novo (Android: em geral em até um dia com o app aberto; iOS: só reinstalando). Numa instalação nova, deve aparecer "ShelfLife", e o título da tela de abertura, "ShelfLife Manager" | Nome conferido só no manifest gerado no build e na aba do navegador do computador |
 | Junto com o teste da câmera | Instalar o PWA no celular e abrir com o modo avião ligado: deve abrir e mostrar o bloqueio explícito da RNF07, não o erro de rede do navegador | O comportamento offline foi conferido em navegador de desktop (`network-state-set offline`), não no app instalado |
 | ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |
+| Com o token do SI5 criado — T47 concluída | Consulta pelo código de barras de verdade: com `SI5_TOKEN` no `.env` (e depois na Vercel), buscar em **Catálogo → Novo produto** uns 15 EANs da planilha real que ainda não estejam cadastrados (consulta que dá 404 não gasta cota) e anotar quantos a base achou, e se nome, marca e categoria vieram aproveitáveis. A taxa de acerto vai para `docs/notas-para-artigo.md` (T47) | A cobertura da base para os produtos da loja não está medida: o fluxo foi conferido só com resposta simulada e com a consulta desligada |
+| Junto com o teste da câmera — T47 concluída | No celular real, em **Catálogo → Novo produto → Ler com a câmera**, ler o código de barras de uma embalagem (EAN-13): a câmera desliga sozinha, o código aparece no campo e a consulta sai. Conferir também que ela **não** lê a etiqueta QR de uma unidade | A leitura de código de barras pela câmera só foi testada com dublê; o navegador automatizado não tem câmera |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
 | Quando houver oportunidade | Reexercitar no navegador as telas de T03b (login) e T04 (catálogo), que ficaram sem conferência por falta de navegador compatível na época. O `playwright-cli` passou a encontrar um Chrome utilizável em T05 | Telas anteriores nunca vistas em navegador — foi assim que o defeito de CORS de T04 escapou |
 

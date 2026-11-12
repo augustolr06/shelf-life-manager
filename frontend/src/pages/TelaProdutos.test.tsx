@@ -68,9 +68,20 @@ function abrirNovoProduto() {
   fireEvent.click(screen.getByRole('button', { name: 'Novo produto' }))
 }
 
+/**
+ * Desde T47 o painel começa pelo código de barras; o formulário de quatro
+ * campos é a etapa do produto sem código (ou que a consulta não achou).
+ */
+function abrirFormularioManual() {
+  if (!screen.queryByRole('complementary', { name: 'Novo produto' })) abrirNovoProduto()
+  if (!screen.queryByLabelText('Código interno')) {
+    fireEvent.click(screen.getByRole('button', { name: 'Preencha manualmente' }))
+  }
+}
+
 /** Preenche o formulário de cadastro e submete, abrindo o painel se preciso. */
 function cadastrar(codigo: string) {
-  if (!screen.queryByRole('complementary', { name: 'Novo produto' })) abrirNovoProduto()
+  abrirFormularioManual()
   fireEvent.change(screen.getByLabelText('Código interno'), { target: { value: codigo } })
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Eau de Parfum 50ml' } })
   fireEvent.change(screen.getByLabelText('Marca'), { target: { value: 'Marca Exemplo' } })
@@ -153,8 +164,9 @@ describe('TelaProdutos (RF02)', () => {
         }),
       }),
     )
-    // Formulário limpo para o próximo cadastro.
-    expect(screen.getByLabelText('Código interno')).toHaveValue('')
+    // Painel de volta à primeira etapa, vazio, para o próximo cadastro (T47).
+    expect(screen.getByLabelText('Código de barras')).toHaveValue('')
+    expect(screen.queryByLabelText('Código interno')).not.toBeInTheDocument()
   })
 
   it('exibe a mensagem do backend quando o código interno já existe', async () => {
@@ -379,7 +391,7 @@ describe('TelaProdutos (RF02)', () => {
   })
 
   describe('painel de cadastro e importação (T45)', () => {
-    it('começa fechado; "Novo produto" abre o formulário com o foco no código', async () => {
+    it('começa fechado; "Novo produto" abre o painel com o foco no código de barras', async () => {
       buscar.mockResolvedValue(pagina([PERFUME]))
       montar()
       await screen.findByText('PRF-001')
@@ -390,7 +402,8 @@ describe('TelaProdutos (RF02)', () => {
       abrirNovoProduto()
 
       const painel = screen.getByRole('complementary', { name: 'Novo produto' })
-      expect(within(painel).getByLabelText('Código interno')).toHaveFocus()
+      // T47: o painel começa pelo código de barras, e não pelos quatro campos.
+      expect(within(painel).getByLabelText('Código de barras')).toHaveFocus()
       expect(screen.getByRole('button', { name: 'Novo produto' })).toHaveAttribute(
         'aria-expanded',
         'true',
@@ -422,12 +435,28 @@ describe('TelaProdutos (RF02)', () => {
       montar()
       await screen.findByText('PRF-001')
 
-      abrirNovoProduto()
+      abrirFormularioManual()
       fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Colônia' } })
       fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
       abrirNovoProduto()
 
+      // Volta na mesma etapa, com o que foi digitado (T47 manteve o T45).
       expect(screen.getByLabelText('Nome')).toHaveValue('Colônia')
+    })
+
+    it('o código de barras digitado também continua lá quando o painel reabre', async () => {
+      buscar.mockResolvedValue(pagina([PERFUME]))
+      montar()
+      await screen.findByText('PRF-001')
+
+      abrirNovoProduto()
+      fireEvent.change(screen.getByLabelText('Código de barras'), {
+        target: { value: '7891000325858' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+      abrirNovoProduto()
+
+      expect(screen.getByLabelText('Código de barras')).toHaveValue('7891000325858')
     })
 
     it('"Importar planilha" abre a importação no mesmo painel, e dá para trocar entre os dois', async () => {
@@ -442,7 +471,7 @@ describe('TelaProdutos (RF02)', () => {
 
       fireEvent.click(within(importacao).getByRole('button', { name: 'Cadastre pelo formulário' }))
       const cadastro = screen.getByRole('complementary', { name: 'Novo produto' })
-      expect(within(cadastro).getByLabelText('Código interno')).toHaveFocus()
+      expect(within(cadastro).getByLabelText('Código de barras')).toHaveFocus()
 
       fireEvent.click(within(cadastro).getByRole('button', { name: 'Importe uma planilha CSV' }))
       expect(screen.getByRole('complementary', { name: 'Importar planilha' })).toBeInTheDocument()
@@ -453,7 +482,7 @@ describe('TelaProdutos (RF02)', () => {
       montar()
       await screen.findByRole('button', { name: 'Perfumaria' })
 
-      abrirNovoProduto()
+      abrirFormularioManual()
 
       const campo = screen.getByLabelText('Categoria')
       const sugestoes = document.getElementById(campo.getAttribute('list') ?? '')
@@ -480,7 +509,48 @@ describe('TelaProdutos (RF02)', () => {
       expect(await screen.findByText('PRF-001')).toBeInTheDocument()
       expect(buscarCategorias).toHaveBeenCalledTimes(2)
       expect(screen.getByRole('complementary', { name: 'Novo produto' })).toBeInTheDocument()
-      expect(screen.getByLabelText('Código interno')).toHaveFocus()
+      expect(screen.getByLabelText('Código de barras')).toHaveFocus()
+    })
+  })
+
+  describe('código de barras já cadastrado (T47)', () => {
+    const INATIVO = { ...COLONIA, ativo: false }
+
+    it('"Mostrar na lista" busca o código, tira o filtro de categoria e liga os inativos', async () => {
+      buscar.mockResolvedValueOnce(pagina([PERFUME]))
+      montar()
+      await screen.findByRole('button', { name: 'Perfumaria' })
+
+      buscar.mockResolvedValueOnce(pagina([PERFUME]))
+      fireEvent.click(screen.getByRole('button', { name: 'Perfumaria' }))
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          'http://localhost:3333/produtos?categoria=Perfumaria',
+          expect.anything(),
+        ),
+      )
+
+      abrirNovoProduto()
+      buscar.mockResolvedValueOnce(respostaFalsa(200, { situacao: 'JA_CADASTRADO', produto: INATIVO }))
+      fireEvent.change(screen.getByLabelText('Código de barras'), { target: { value: 'col-002' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar produto' }))
+
+      expect(await screen.findByText(/já está no catálogo/)).toHaveTextContent(
+        'O código COL-002 já está no catálogo: “Colônia 100ml” (Marca Exemplo), inativo.',
+      )
+
+      buscar.mockResolvedValue(pagina([INATIVO]))
+      fireEvent.click(screen.getByRole('button', { name: 'Mostrar na lista' }))
+
+      expect(screen.getByLabelText(/buscar por nome ou código/i)).toHaveValue('COL-002')
+      expect(screen.getByRole('checkbox', { name: 'Mostrar inativos' })).toBeChecked()
+      expect(screen.getByRole('button', { name: 'Todas' })).toHaveAttribute('aria-pressed', 'true')
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          'http://localhost:3333/produtos?busca=COL-002&incluirInativos=true',
+          expect.anything(),
+        ),
+      )
     })
   })
 
@@ -778,7 +848,7 @@ describe('TelaProdutos (RF02)', () => {
       buscar.mockResolvedValueOnce(pagina([]))
       montar()
       await screen.findByText(/nenhum produto encontrado/i)
-      abrirNovoProduto()
+      abrirFormularioManual()
     }
 
     it('limita os quatro campos e mostra o contador de caracteres', async () => {

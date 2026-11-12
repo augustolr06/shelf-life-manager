@@ -2048,3 +2048,96 @@ do frasco, em vez de procurar pelo nome, faz diferença.
 **Tarefa relacionada:** T24, T04
 
 **Data:** 2026-11-10
+
+## Cadastro pelo código de barras: um catálogo de terceiros como conveniência, nunca como dependência
+
+**Contexto do problema:** no processo manual, cadastrar um produto novo é copiar à mão o que está
+na embalagem: nome, marca, tipo. No sistema, isso era o formulário de quatro campos de T04. A
+carga grande do catálogo é pela planilha (T24), e o cadastro avulso é raro, mas é justamente o
+caso em que a gestora tem o frasco na mão e o código de barras do fabricante impresso nele. Na
+loja, esse código já é o código interno de 484 dos 524 produtos (nota "O primeiro catálogo
+real", 2026-11-10).
+
+**Alternativas consideradas:** catálogos de produtos por GTIN com acesso por API. O
+Cosmos/Bluesoft, a base brasileira mais completa, encerrou o plano gratuito para contas novas
+**durante o projeto**, e o pago começa em R$ 499,99 por mês, fora do alcance de uma loja
+pequena. O Open Beauty Facts é aberto e sem custo, mas tinha cerca de 519 produtos do Brasil.
+GS1 Brasil exige contrato de associado, e o Mercado Livre exige uma integração OAuth
+desproporcional ao uso.
+
+**Solução adotada:** a gestora informa o código de barras, digitado, lido por um leitor USB ou
+pela câmera do celular. O sistema procura primeiro no próprio catálogo e só então consulta o
+SI5 Global (plano gratuito, 30 consultas por dia). O que a base sabe aparece num card para
+confirmar e cadastrar com um toque. A consulta é feita pelo servidor, isolada num único módulo.
+Se a base não conhece o código, não responde ou a cota do dia acabou, o sistema avisa em uma
+linha e abre o formulário manual com o código já preenchido (T47).
+
+**Por que resolve o problema / trade-offs:** o cadastro avulso, que é o caso de quem está com o
+produto na mão, cai de quatro campos digitados para um código e uma confirmação, quando a base
+conhece o produto. O ponto que vale para o artigo é a escolha de **não depender** da fonte
+externa: ela é uma conveniência, e o fluxo manual continua completo por baixo dela. A troca de
+condições do Cosmos no meio do trabalho mostra por quê. Fontes gratuitas de dados de produto
+mudam de regra sem aviso, e um sistema para loja pequena não pode ter o cadastro refém de uma.
+Isolar a fonte num módulo reduz uma troca futura a um arquivo. As limitações são honestas e
+devem ser ditas:
+- a cobertura da base para o catálogo real da loja (coloração capilar, marcas pequenas) **ainda
+  não foi medida**; o próximo passo é consultar uma amostra dos EANs da planilha e anotar a taxa
+  de acerto;
+- a qualidade do dado é a da base, com nomes em caixa alta e abreviados, por isso a confirmação
+  humana no card é obrigatória e há o caminho "Editar antes de cadastrar";
+- a cota gratuita serve ao cadastro avulso, e não a enriquecer uma planilha inteira.
+
+**Tarefa relacionada:** T47, T04, T24
+
+**Data:** 2026-11-12
+
+## A categoria da base externa não é a categoria da loja
+
+**Contexto do problema:** as bases de produtos por código de barras classificam pelo que
+interessa ao varejo e ao fisco: "Higiene e Beleza", categorias GS1, NCM. A loja classifica pelo
+que interessa a quem procura na prateleira: "Coloração", "Tonalizante", "Henna". As duas
+taxonomias não coincidem, e o filtro por categoria do catálogo (T45) é por igualdade de texto.
+
+**Solução adotada:** por decisão do orientando, a categoria vem preenchida com a da base e
+continua editável no próprio card antes do cadastro, com as categorias da loja como sugestão.
+Quando a base traz uma categoria que a loja já usa, só que com outra caixa ou sem acento
+("TONALIZANTE"), ela é trocada pela grafia da loja (T47).
+
+**Por que resolve o problema / trade-offs:** preencher acelera o caso em que as duas
+classificações coincidem, e a troca pela grafia da loja evita a duplicata mais boba. O preço é
+que uma categoria da base que a loja não usa ("Higiene E Beleza") entra no catálogo se a gestora
+não a trocar, e vira mais uma pílula no filtro. É o mesmo limite já registrado para a categoria
+em texto livre (nota de T45): a qualidade da classificação depende de quem confirma o cadastro.
+Para o artigo, o achado é que um dado "pronto" de terceiros não traz a taxonomia de quem usa o
+sistema, e a loja continua precisando decidir como agrupa os próprios produtos.
+
+**Tarefa relacionada:** T47, T45
+
+**Data:** 2026-11-12
+
+## O dígito verificador pega o código digitado errado antes que ele vire cadastro
+
+**Contexto do problema:** a primeira planilha real da loja tinha um EAN-13 com dígito
+verificador inválido, ou seja, digitado errado, que passou pela importação porque o sistema não
+trata o código como EAN (nota "O primeiro catálogo real", 2026-11-10). No cadastro pelo código de
+barras o mesmo erro teria um efeito pior: o código errado não existe em base nenhuma, a consulta
+responderia "não encontrado", e a gestora cadastraria à mão um produto com um código que nenhuma
+embalagem tem.
+
+**Solução adotada:** antes de consultar a base externa, o servidor confere o formato (8, 12, 13
+ou 14 dígitos) e o dígito verificador do GTIN. Código que não confere é recusado com uma
+mensagem que diz que ele foi digitado errado. A conferência vale só para a consulta. O código
+interno continua texto livre, porque 7,6% dos produtos da loja não têm código de barras, e o
+catálogo da loja é consultado antes, para qualquer formato (T47).
+
+**Por que resolve o problema / trade-offs:** o dígito verificador existe exatamente para isso:
+um dígito trocado, ou dois vizinhos invertidos, quase sempre o quebram. Barrar ali também poupa a
+cota diária da base. O limite é que a validação não alcança o código que já entrou pela planilha,
+nem o cadastro manual de produto sem código de barras, e não pega todo erro possível (duas trocas
+que se compensam passam). Para o artigo, é um exemplo de uma regra do próprio padrão do código de
+barras que o processo manual não aplica, e que a digitação em planilha, sozinha, não tem como
+aplicar.
+
+**Tarefa relacionada:** T47, T24
+
+**Data:** 2026-11-12

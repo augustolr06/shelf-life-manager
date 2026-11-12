@@ -11,6 +11,7 @@ import {
   type DadosProduto,
 } from './produto.service.js'
 import { importarProdutos } from './importacao.service.js'
+import { consultarCodigoDeBarras } from './codigoDeBarras.service.js'
 
 const TAMANHO_PAGINA_PADRAO = 20
 const TAMANHO_PAGINA_MAXIMO = 100
@@ -86,6 +87,25 @@ const corpoImportacao = {
   },
 } as const
 
+/**
+ * O tamanho do código consultado (T47). Formato e dígito verificador ficam no
+ * serviço, e não aqui, para a recusa sair com a mensagem do caso em vez da
+ * genérica de schema; o teto só impede um parâmetro absurdo. 20 cobre o
+ * GTIN-14 e os códigos próprios da loja (`SEMCOD-001`), que também são
+ * procurados no catálogo.
+ */
+const parametrosCodigoDeBarras = {
+  type: 'object',
+  required: ['codigo'],
+  properties: { codigo: { type: 'string', minLength: 1, maxLength: 20 } },
+} as const
+
+const MENSAGENS_CODIGO_INVALIDO = {
+  FORMATO: 'O código de barras tem só números, com 8, 12, 13 ou 14 dígitos.',
+  DIGITO_VERIFICADOR:
+    'O último dígito não confere com os anteriores: o código de barras foi digitado errado. Confira e digite de novo.',
+} as const
+
 type ConsultaListagem = {
   busca?: string
   categoria?: string
@@ -158,6 +178,28 @@ export async function rotasProduto(app: FastifyInstance): Promise<void> {
   app.get('/produtos/categorias', qualquerAutenticado, async () => ({
     categorias: await listarCategorias(),
   }))
+
+  // Consulta pelo código de barras para o cadastro (T47): o catálogo da loja e,
+  // se o produto ainda não estiver nele, o catálogo externo. Só para GESTOR,
+  // que é quem cadastra — e quem gasta a cota diária da fonte. O 200 cobre os
+  // quatro desfechos previstos, inclusive não achar; o 400 é só para o código
+  // que não pode ser um código de barras.
+  app.get<{ Params: { codigo: string } }>(
+    '/produtos/codigo-de-barras/:codigo',
+    { ...somenteGestor, schema: { params: parametrosCodigoDeBarras } },
+    async (request, reply) => {
+      const resultado = await consultarCodigoDeBarras(request.params.codigo, request.log)
+
+      if (resultado.situacao === 'CODIGO_INVALIDO') {
+        return reply.code(400).send({
+          erro: 'CODIGO_DE_BARRAS_INVALIDO',
+          mensagem: MENSAGENS_CODIGO_INVALIDO[resultado.motivo],
+        })
+      }
+
+      return resultado
+    },
+  )
 
   app.get<{ Params: { id: string } }>(
     '/produtos/:id',
