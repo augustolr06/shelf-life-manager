@@ -59,6 +59,7 @@ const consultaListagem = {
   properties: {
     busca: { type: 'string', maxLength: 120 },
     categoria: { type: 'string', maxLength: 120 },
+    codigoInterno: { type: 'string', maxLength: 120 },
     incluirInativos: { type: 'boolean', default: false },
     pagina: { type: 'integer', minimum: 1, default: 1 },
     tamanhoPagina: {
@@ -109,6 +110,7 @@ const MENSAGENS_CODIGO_INVALIDO = {
 type ConsultaListagem = {
   busca?: string
   categoria?: string
+  codigoInterno?: string
   incluirInativos: boolean
   pagina: number
   tamanhoPagina: number
@@ -166,8 +168,9 @@ export async function rotasProduto(app: FastifyInstance): Promise<void> {
     '/produtos',
     { ...qualquerAutenticado, schema: { querystring: consultaListagem } },
     async (request) => {
-      const { busca, categoria, incluirInativos, pagina, tamanhoPagina } = request.query
-      return listarProdutos({ busca, categoria, incluirInativos, pagina, tamanhoPagina })
+      const { busca, categoria, codigoInterno, incluirInativos, pagina, tamanhoPagina } =
+        request.query
+      return listarProdutos({ busca, categoria, codigoInterno, incluirInativos, pagina, tamanhoPagina })
     },
   )
 

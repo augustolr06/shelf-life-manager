@@ -5,6 +5,42 @@ import { TelaRecebimento } from './TelaRecebimento'
 import { encontrarAviso, renderizarComAvisos } from '../services/testes/avisos'
 import { respostaFalsa } from '../services/testes/respostaFalsa'
 
+/**
+ * A câmera real não existe no jsdom (ver `LeitorCamera.tsx`). O dublê guarda
+ * com que modo e tipo de leitura foi montado e deixa o teste "pôr um código na
+ * frente dela" (T48).
+ */
+const camera = vi.hoisted(() => ({ modo: null as string | null, leitura: null as string | null }))
+
+vi.mock('../components/LeitorCamera', () => ({
+  LeitorCamera: function LeitorCameraDublado({
+    aoLer,
+    aoFalhar,
+    modo = 'continua',
+    leitura = 'qr',
+  }: {
+    aoLer: (texto: string) => void
+    aoFalhar: (mensagem: string) => void
+    modo?: string
+    leitura?: string
+  }) {
+    camera.modo = modo
+    camera.leitura = leitura
+    return (
+      <div data-testid="camera-dublada">
+        <button type="button" onClick={() => aoLer(EAN)}>
+          simular leitura
+        </button>
+        <button type="button" onClick={() => aoFalhar('Permissão de câmera negada.')}>
+          simular falha de câmera
+        </button>
+      </div>
+    )
+  },
+}))
+
+const EAN = '7891000325858'
+
 const ID_PRODUTO = '33333333-3333-3333-3333-333333333333'
 
 const PERFUME = {
@@ -299,5 +335,165 @@ describe('TelaRecebimento (RF03)', () => {
     fireEvent.click(screen.getByRole('button', { name: /remover validade 2/i }))
 
     expect(screen.queryByLabelText('Validade', { selector: '#validade-1' })).not.toBeInTheDocument()
+  })
+
+  describe('leitura do código de barras pela câmera (T48)', () => {
+    const TINTA = {
+      ...PERFUME,
+      id: '44444444-4444-4444-4444-444444444444',
+      codigoInterno: EAN,
+      nome: 'Alta Moda 6.1',
+    }
+
+    /** A resposta de `GET /produtos?codigoInterno=…`, em fila; o resto é o catálogo do seletor. */
+    const procurarCodigo = vi.fn<() => Promise<Response>>()
+
+    function simularLargura(largura: number) {
+      vi.stubGlobal('matchMedia', (consulta: string) => ({
+        matches: largura <= Number(/max-width:\s*([\d.]+)px/.exec(consulta)?.[1]),
+        media: consulta,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    }
+
+    function lerComACamera() {
+      fireEvent.click(screen.getByRole('button', { name: 'Ler código de barras' }))
+      fireEvent.click(screen.getByRole('button', { name: 'simular leitura' }))
+    }
+
+    beforeEach(() => {
+      procurarCodigo.mockReset()
+      camera.modo = null
+      camera.leitura = null
+      buscar.mockImplementation(async (entrada, init) =>
+        String(entrada).includes('codigoInterno=')
+          ? procurarCodigo()
+          : String(entrada).endsWith('/unidades') && init?.method === 'POST'
+            ? respostaFalsa(201, { unidades: [unidade('PRF-AB12CD', '2027-03-01')], avisos: [] })
+            : catalogo(),
+      )
+      simularLargura(360)
+    })
+
+    it('no computador, não oferece a câmera', async () => {
+      simularLargura(1280)
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      expect(screen.queryByRole('button', { name: 'Ler código de barras' })).not.toBeInTheDocument()
+    })
+
+    it('abre a câmera em leitura única, só para código de barras', async () => {
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ler código de barras' }))
+
+      expect(camera.modo).toBe('unica')
+      expect(camera.leitura).toBe('codigo-de-barras')
+      fireEvent.click(screen.getByRole('button', { name: 'Desligar câmera' }))
+      expect(screen.queryByTestId('camera-dublada')).not.toBeInTheDocument()
+    })
+
+    it('código de produto ativo escolhe o produto, e o recebimento sai para ele', async () => {
+      procurarCodigo.mockResolvedValueOnce(catalogo([TINTA]))
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      lerComACamera()
+
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        `“Alta Moda 6.1” escolhido pelo código de barras ${EAN}.`,
+      )
+      expect(buscar).toHaveBeenCalledWith(
+        `http://localhost:3333/produtos?codigoInterno=${EAN}&incluirInativos=true`,
+        expect.objectContaining({ credentials: 'include' }),
+      )
+      // O downshift troca o texto da caixa num efeito, uma renderização depois
+      // de o produto ser escolhido.
+      await waitFor(() => expect(campoProduto()).toHaveValue('Alta Moda 6.1'))
+      // A câmera desligou sozinha ao ler (T31).
+      expect(screen.queryByTestId('camera-dublada')).not.toBeInTheDocument()
+
+      preencherLinha(0, '2027-03-01')
+      fireEvent.click(screen.getByRole('button', { name: /^registrar recebimento$/i }))
+
+      await waitFor(() =>
+        expect(buscar).toHaveBeenLastCalledWith(
+          `http://localhost:3333/produtos/${TINTA.id}/unidades`,
+          expect.objectContaining({ method: 'POST' }),
+        ),
+      )
+    })
+
+    it('código de produto inativo avisa e não escolhe nada', async () => {
+      procurarCodigo.mockResolvedValueOnce(catalogo([{ ...TINTA, ativo: false }]))
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      lerComACamera()
+
+      const aviso = await screen.findByRole('alert')
+      expect(aviso).toHaveTextContent(
+        `O código ${EAN} é de “Alta Moda 6.1”, que está inativo e não recebe unidades.`,
+      )
+      expect(campoProduto()).toHaveValue('')
+      preencherLinha(0, '2027-03-01')
+      expect(screen.getByRole('button', { name: /^registrar recebimento$/i })).toBeDisabled()
+    })
+
+    it('código que o catálogo não tem avisa e leva ao Catálogo', async () => {
+      procurarCodigo.mockResolvedValueOnce(catalogo([]))
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      lerComACamera()
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        `Nenhum produto do catálogo tem o código ${EAN}. Cadastre-o no Catálogo antes de receber.`,
+      )
+      expect(screen.getByRole('link', { name: 'Ir para o Catálogo' })).toHaveAttribute(
+        'href',
+        `/produtos?busca=${EAN}`,
+      )
+      expect(campoProduto()).toHaveValue('')
+    })
+
+    it('escolher outro produto no seletor tira a nota da leitura', async () => {
+      procurarCodigo.mockResolvedValueOnce(catalogo([TINTA]))
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      lerComACamera()
+      await screen.findByRole('status')
+      await selecionarProduto()
+
+      expect(campoProduto()).toHaveValue(PERFUME.nome)
+      expect(screen.queryByText(/escolhido pelo código de barras/)).not.toBeInTheDocument()
+    })
+
+    it('câmera que não abre vira aviso, e o seletor continua servindo', async () => {
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ler código de barras' }))
+      fireEvent.click(screen.getByRole('button', { name: 'simular falha de câmera' }))
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Permissão de câmera negada.')
+      expect(screen.queryByTestId('camera-dublada')).not.toBeInTheDocument()
+      expect(campoProduto()).toBeInTheDocument()
+    })
+
+    it('falha ao procurar o código vira toast', async () => {
+      procurarCodigo.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      renderizarRecebimento()
+      await esperarCatalogo()
+
+      lerComACamera()
+
+      expect((await encontrarAviso(/Não foi possível falar com o servidor/)).tipo).toBe('error')
+      expect(screen.getByRole('button', { name: 'Ler código de barras' })).toBeEnabled()
+    })
   })
 })

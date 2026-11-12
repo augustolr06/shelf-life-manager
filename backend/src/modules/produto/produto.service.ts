@@ -11,6 +11,7 @@ export type DadosProduto = {
 export type FiltrosListagem = {
   busca?: string | undefined
   categoria?: string | undefined
+  codigoInterno?: string | undefined
   incluirInativos: boolean
   pagina: number
   tamanhoPagina: number
@@ -60,7 +61,10 @@ export async function criarProduto(dados: DadosProduto): Promise<ResultadoEscrit
 }
 
 export async function listarProdutos(filtros: FiltrosListagem): Promise<PaginaDeProdutos> {
-  const { busca, categoria, incluirInativos, pagina, tamanhoPagina } = filtros
+  const { busca, categoria, codigoInterno, incluirInativos, pagina, tamanhoPagina } = filtros
+  // Normalizado como no cadastro: é por igualdade, e "prf-001" precisa achar o
+  // "PRF-001" gravado.
+  const codigoExato = codigoInterno?.trim().toUpperCase()
 
   const where: Prisma.ProdutoWhereInput = {
     // Inativos ficam fora por padrão: o uso corrente do catálogo é operacional
@@ -69,6 +73,9 @@ export async function listarProdutos(filtros: FiltrosListagem): Promise<PaginaDe
     // Igualdade exata (T45): o valor vem das pílulas, que mostram as
     // categorias como estão gravadas — ver `listarCategorias`.
     ...(categoria ? { categoria } : {}),
+    // Igualdade exata (T48): é o código lido do código de barras no
+    // Recebimento, e a `busca` de T26, por "contém", acharia mais de um.
+    ...(codigoExato ? { codigoInterno: codigoExato } : {}),
     ...(busca
       ? {
           OR: [

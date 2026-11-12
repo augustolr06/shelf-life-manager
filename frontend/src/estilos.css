@@ -1967,6 +1967,26 @@ button.botao-link:hover:not(:disabled) {
   min-width: 7rem;
 }
 
+/* A leitura do código de barras (T48), logo abaixo do seletor de produto. Só
+   aparece no celular, onde os botões ocupam a largura da tela. */
+.leitura-recebimento {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--espaco-2);
+}
+
+.leitura-recebimento .erro,
+.tela-recebimento .nota-sucesso,
+.tela-recebimento .nota-atencao {
+  margin: 0;
+}
+
+.nota-sucesso .codigo,
+.nota-atencao .codigo {
+  text-align: left;
+}
+
 .resumo-lote {
   margin: 0;
   color: var(--cor-texto-suave);

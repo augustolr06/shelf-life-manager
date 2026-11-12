@@ -3008,3 +3008,58 @@ verdade, que só um celular faz; as duas estão nas verificações manuais do ba
 **Tarefa relacionada:** T04, T24, T25, T31, T45
 
 **Data:** 2026-11-12
+
+## 2026-11-12 — T48: Recebimento com leitura do código de barras
+
+Pedido do orientando em 2026-11-11, durante T47, como tarefa separada: no Recebimento, a gestora
+pode ler o código de barras da embalagem pela câmera do celular para escolher o produto, como
+alternativa a procurá-lo no seletor de T28. O seletor não muda. O que foi decidido:
+
+1. **Filtro exato `codigoInterno` em `GET /produtos`**, e não a consulta de T47
+   (`GET /produtos/codigo-de-barras/:codigo`). Aquela rota consulta o catálogo externo quando o
+   código não está na loja, gastando a cota diária do SI5 com uma pergunta que o Recebimento não
+   faz: só se recebe produto que já está no catálogo. A `busca` de T26 é por "contém" em nome e
+   código e poderia achar mais de um. O filtro segue o modelo de `categoria` (T45): combina com
+   os outros, vazio não filtra, teto de 120. A normalização é a do cadastro (pontas aparadas e
+   maiúsculas), por igualdade. É de qualquer autenticado, como a listagem; o Recebimento é que
+   é só do GESTOR.
+2. **A tela pede com `incluirInativos=true`** e mostra o que veio. Ativo vira o produto
+   escolhido; inativo e inexistente não escolhem nada, e um aviso diz por quê, com o link "Ir
+   para o Catálogo" (com o código na busca). Mostrar o inativo é o que permite dizer "está
+   inativo" em vez de "não existe". Quem recusa receber produto inativo continua sendo o backend.
+3. **A câmera fica na `TelaRecebimento`, e não no `SeletorProduto`**, que também serve às
+   Etiquetas. O produto achado entra pelo mesmo estado que o seletor usa, e o seletor mostra o
+   nome dele por ser controlado (`selectedItem`). Escolher outro produto no seletor tira a nota
+   da leitura, que passaria a falar de outro produto.
+4. **Só no celular, leitura única, só EAN/UPC**: as mesmas regras de T47 (decisões 15 e 16), com
+   o mesmo modo do `LeitorCamera`. Ler a etiqueta QR de uma unidade aqui por engano não acontece,
+   porque o QR não está entre os formatos.
+5. **Avisos no lugar, e não em toast**: a nota da leitura (sucesso) e o aviso de inativo ou
+   inexistente (atenção) ficam embaixo do botão, porque descrevem o estado do formulário. Falha ao
+   falar com o servidor é falha de ação e vira toast (T29).
+6. **UPC-A e EAN-13 com zero à esquerda não são equiparados.** O código lido é comparado como
+   veio; o catálogo da loja é de EAN-13 brasileiros (789…). Registrado como limite no arquivo da
+   tarefa.
+
+**Verificação.** Backend: 4 casos novos em `tests/produto.test.ts` (código exato e normalizado,
+com inativos, vazio não filtra, acima de 120 → 400). Frontend: 8 casos novos em
+`TelaRecebimento.test.tsx`, com o dublê do `LeitorCamera` e a largura do celular simulada:
+- botão ausente no computador;
+- modo e tipo de leitura;
+- os três desfechos, com o recebimento enviado para o produto lido;
+- nota que some ao escolher outro produto no seletor;
+- falha da câmera e falha de rede.
+
+Um dos casos falhou uma vez na suíte inteira e passou sozinho: o texto do seletor muda num
+efeito do downshift, uma renderização depois da escolha, e o teste passou a esperar por ele. Com
+isso, três rodadas seguidas verdes. Backend 593/593 com banco, frontend 373/373, typecheck limpo.
+
+`curl` no backend local: o filtro com o código em minúsculas achou o produto gravado em
+maiúsculas, e um código inexistente devolveu a lista vazia. `playwright-cli` a 360×740: o botão
+abaixo do seletor, a câmera negada no navegador automatizado com o aviso, sem rolagem horizontal
+e sem erro no console; a 1280×900, o botão não aparece. A leitura de uma embalagem de verdade
+fica para o celular real (verificação manual no backlog). Capturas em `docs/redesign/T48/`.
+
+**Tarefa relacionada:** T28, T45, T47
+
+**Data:** 2026-11-12

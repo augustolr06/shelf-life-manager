@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { Icone } from '../components/Icone'
+import { LeitorCamera } from '../components/LeitorCamera'
 import { SeletorProduto } from '../components/SeletorProduto'
+import { useFormatoDaTela } from '../hooks/useFormatoDaTela'
 import { avisar } from '../services/avisos'
 import { formatarData } from '../services/datas'
-import type { Produto } from '../services/produtos'
+import { buscarProdutoPeloCodigo, type Produto } from '../services/produtos'
 import {
   cadastrarUnidades,
   type ItemLote,
@@ -20,10 +23,22 @@ import type { ImpressaoPedida } from './TelaEtiquetas'
 
 const LINHA_VAZIA: ItemLote = { dataValidade: '', quantidade: 1 }
 
+/** O código de barras lido na câmera e o produto do catálogo que tem esse código (T48). */
+type Leitura = { codigo: string; produto: Produto | null }
+
 export function TelaRecebimento() {
   const navegar = useNavigate()
   // O produto escolhido no seletor (T28): nunca o texto digitado.
   const [produto, setProduto] = useState<Produto | null>(null)
+
+  // A leitura do código de barras da embalagem (T48), alternativa ao seletor.
+  // Só no celular, como no cadastro do Catálogo (T47): é nele que a gestora
+  // está com a caixa da entrega na mão.
+  const cameraDisponivel = useFormatoDaTela() === 'celular'
+  const [cameraLigada, setCameraLigada] = useState(false)
+  const [avisoCamera, setAvisoCamera] = useState<string | null>(null)
+  const [procurando, setProcurando] = useState(false)
+  const [leitura, setLeitura] = useState<Leitura | null>(null)
 
   const [linhas, setLinhas] = useState<ItemLote[]>([{ ...LINHA_VAZIA }])
   const [enviando, setEnviando] = useState(false)
@@ -33,6 +48,45 @@ export function TelaRecebimento() {
     resultado: ResultadoRecebimento
     produto: Produto
   } | null>(null)
+
+  function escolherNoSeletor(escolhido: Produto | null) {
+    setProduto(escolhido)
+    // A nota da leitura fala do produto que a câmera achou; escolher outro no
+    // seletor a torna velha.
+    if (escolhido?.id !== leitura?.produto?.id) setLeitura(null)
+  }
+
+  function ligarCamera() {
+    setAvisoCamera(null)
+    setLeitura(null)
+    setCameraLigada(true)
+  }
+
+  function falhaDaCamera(mensagem: string) {
+    setCameraLigada(false)
+    setAvisoCamera(mensagem)
+  }
+
+  /**
+   * Leitura única (T31): a câmera desliga ao identificar o código, e a tela
+   * pergunta ao servidor qual produto do catálogo tem esse código. Ativo, ele
+   * vira o produto escolhido, como se tivesse sido escolhido no seletor;
+   * inativo ou inexistente, a tela diz por que nada foi escolhido. Quem
+   * recusa receber produto inativo continua sendo o backend (RNF04).
+   */
+  async function lerPelaCamera(codigo: string) {
+    setCameraLigada(false)
+    setProcurando(true)
+    try {
+      const encontrado = await buscarProdutoPeloCodigo(codigo)
+      setLeitura({ codigo, produto: encontrado })
+      if (encontrado?.ativo) setProduto(encontrado)
+    } catch (falha) {
+      avisar.erro(falha, 'Não foi possível procurar o código lido.')
+    } finally {
+      setProcurando(false)
+    }
+  }
 
   function alterarLinha(indice: number, alteracao: Partial<ItemLote>) {
     setLinhas((atuais) =>
@@ -57,6 +111,7 @@ export function TelaRecebimento() {
     try {
       const resultado = await cadastrarUnidades(produto.id, linhas)
       setRecebido({ resultado, produto })
+      setLeitura(null)
       // O toast confirma o clique; o resultado logo abaixo do formulário
       // continua sendo onde estão os códigos e o botão das etiquetas.
       avisar.sucesso(`${resultado.unidades.length} unidade(s) registrada(s).`)
@@ -109,7 +164,44 @@ export function TelaRecebimento() {
       </p>
 
       <form className="cartao formulario-coluna" onSubmit={registrar}>
-        <SeletorProduto valor={produto} aoEscolher={setProduto} />
+        <SeletorProduto valor={produto} aoEscolher={escolherNoSeletor} />
+
+        {cameraDisponivel && (
+          <div className="leitura-recebimento">
+            {cameraLigada ? (
+              <div className="camera">
+                <LeitorCamera
+                  modo="unica"
+                  leitura="codigo-de-barras"
+                  aoLer={(codigo) => void lerPelaCamera(codigo)}
+                  aoFalhar={falhaDaCamera}
+                />
+                <button type="button" className="secundario" onClick={() => setCameraLigada(false)}>
+                  Desligar câmera
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="secundario"
+                onClick={ligarCamera}
+                aria-busy={procurando}
+                disabled={procurando}
+              >
+                <Icone nome="camera" />
+                {procurando ? 'Procurando o produto…' : 'Ler código de barras'}
+              </button>
+            )}
+
+            {avisoCamera && (
+              <p className="erro" role="alert">
+                {avisoCamera}
+              </p>
+            )}
+          </div>
+        )}
+
+        {leitura && <NotaDaLeitura leitura={leitura} />}
 
         <fieldset className="validades">
           <legend>Validades recebidas</legend>
@@ -206,5 +298,36 @@ export function TelaRecebimento() {
         </section>
       )}
     </section>
+  )
+}
+
+/**
+ * O que a leitura do código de barras achou (T48). Inativo e inexistente não
+ * escolhem nada, e a nota leva ao Catálogo, que é onde se reativa ou cadastra.
+ */
+function NotaDaLeitura({ leitura: { codigo, produto } }: { leitura: Leitura }) {
+  if (produto?.ativo) {
+    return (
+      <p className="nota-sucesso" role="status">
+        “{produto.nome}” escolhido pelo código de barras <span className="codigo">{codigo}</span>.
+      </p>
+    )
+  }
+
+  return (
+    <p className="nota-atencao" role="alert">
+      {produto ? (
+        <>
+          O código <span className="codigo">{codigo}</span> é de “{produto.nome}”, que está inativo e
+          não recebe unidades. Reative-o no Catálogo, com “Mostrar inativos”.
+        </>
+      ) : (
+        <>
+          Nenhum produto do catálogo tem o código <span className="codigo">{codigo}</span>.
+          Cadastre-o no Catálogo antes de receber.
+        </>
+      )}{' '}
+      <Link to={`/produtos?busca=${encodeURIComponent(codigo)}`}>Ir para o Catálogo</Link>
+    </p>
   )
 }

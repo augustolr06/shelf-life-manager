@@ -330,6 +330,56 @@ describe('CRUD de Produto (RF02)', () => {
       })
     })
 
+    // O Recebimento acha o produto pelo código de barras lido na câmera: um
+    // produto só, e não os que "contêm" o código, como a busca de T26.
+    describe('filtro por código interno exato (T48)', () => {
+      it('filtra pelo código exato, normalizado como no cadastro', async () => {
+        await app.inject({
+          method: 'GET',
+          url: `/produtos?codigoInterno=${encodeURIComponent(' prf-001 ')}`,
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(listar).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { ativo: true, codigoInterno: 'PRF-001' } }),
+        )
+        expect(contar).toHaveBeenCalledWith({ where: { ativo: true, codigoInterno: 'PRF-001' } })
+      })
+
+      it('com os inativos, acha também o produto inativo', async () => {
+        await app.inject({
+          method: 'GET',
+          url: '/produtos?codigoInterno=7891000325858&incluirInativos=true',
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoAtendente },
+        })
+
+        expect(listar).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { codigoInterno: '7891000325858' } }),
+        )
+      })
+
+      it('código vazio ou só com espaços não filtra', async () => {
+        await app.inject({
+          method: 'GET',
+          url: '/produtos?codigoInterno=%20%20',
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(listar).toHaveBeenCalledWith(expect.objectContaining({ where: { ativo: true } }))
+      })
+
+      it('recusa código acima de 120 caracteres', async () => {
+        const resposta = await app.inject({
+          method: 'GET',
+          url: `/produtos?codigoInterno=${'7'.repeat(121)}`,
+          cookies: { [NOME_COOKIE_SESSAO]: sessaoGestor },
+        })
+
+        expect(resposta.statusCode).toBe(400)
+        expect(listar).not.toHaveBeenCalled()
+      })
+    })
+
     it('pagina o resultado', async () => {
       const resposta = await app.inject({
         method: 'GET',

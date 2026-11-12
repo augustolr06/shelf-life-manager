@@ -50,14 +50,14 @@ Pedido do orientando em 2026-11-11, como tarefa separada e feita depois de T47.
 
 ## Critério de aceite
 
-- [ ] Testes de backend do filtro `codigoInterno` (exato e normalizado, combinado com inativos,
+- [x] Testes de backend do filtro `codigoInterno` (exato e normalizado, combinado com inativos,
       vazio não filtra, acima de 120 recusado)
-- [ ] Testes de Vitest do Recebimento: botão só no celular, os três desfechos da leitura, falha da
+- [x] Testes de Vitest do Recebimento: botão só no celular, os três desfechos da leitura, falha da
       câmera, falha de rede, e o envio do recebimento com o produto escolhido pela leitura
-- [ ] `npm run typecheck` limpo no backend e no frontend
-- [ ] `playwright-cli` a 360×740: o botão no Recebimento e o aviso da câmera indisponível; a
+- [x] `npm run typecheck` limpo no backend e no frontend
+- [x] `playwright-cli` a 360×740: o botão no Recebimento e o aviso da câmera indisponível; a
       leitura em si fica para o celular real (verificação manual no backlog)
-- [ ] `docs/arquitetura.md` (filtro novo na tabela de rotas) e `docs/decisoes.md`
+- [x] `docs/arquitetura.md` (filtro novo na tabela de rotas) e `docs/decisoes.md`
 
 ## Fora de escopo
 

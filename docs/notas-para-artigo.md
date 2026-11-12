@@ -2141,3 +2141,32 @@ aplicar.
 **Tarefa relacionada:** T47, T24
 
 **Data:** 2026-11-12
+
+## Dois códigos na mesma embalagem, cada um no seu momento
+
+**Contexto do problema:** o frasco que chega à loja já traz um identificador, o código de
+barras do fabricante. Ele identifica o **produto** (o SKU), e não a unidade: dois frascos
+idênticos com validades diferentes têm o mesmo código de barras. O sistema cola um segundo
+identificador, o QR por unidade, justamente porque o primeiro não resolve o problema da
+validade (nota "QR Code por unidade física, não por lote"). Restava saber se o código do
+fabricante tem algum papel.
+
+**Solução adotada:** ele passou a ser usado onde a pergunta é "que produto é este?". No cadastro
+do catálogo, para preencher os dados do produto (T47), e no Recebimento, para escolher o
+produto da entrega lendo a embalagem, em vez de procurá-lo pelo nome (T48). Na venda e na
+consulta continua valendo só o QR, porque lá a pergunta é "que **unidade** é esta?". A câmera do
+Catálogo e a do Recebimento leem só os formatos de código de barras do varejo, e a da venda lê
+só QR.
+
+**Por que resolve o problema / trade-offs:** cada identificador responde à pergunta para a qual
+ele foi feito, e um não substitui o outro. Para o artigo, isso reforça a contribuição: o código
+de barras do fabricante, que os sistemas correlatos usam como chave de tudo (FIFO por SKU), aqui
+é só o atalho para achar o produto, e a validade continua amarrada ao QR da unidade. No
+Recebimento ele ajuda no caso real da loja, um catálogo de tons de coloração quase iguais, em
+que escolher pelo nome é fácil de errar. Os limites:
+- o produto sem código de barras (7,6% do catálogo real) continua sendo escolhido pelo nome;
+- a leitura pela câmera do celular ainda não foi testada numa embalagem real.
+
+**Tarefa relacionada:** T48, T47, T14
+
+**Data:** 2026-11-12

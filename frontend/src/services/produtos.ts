@@ -35,6 +35,8 @@ export type FiltrosProduto = {
   busca?: string
   /** Igualdade exata com uma das categorias de `listarCategorias` (T45). */
   categoria?: string
+  /** Igualdade exata com o código interno, normalizada pelo servidor (T48). */
+  codigoInterno?: string
   incluirInativos?: boolean
   pagina?: number
 }
@@ -43,11 +45,24 @@ export async function listarProdutos(filtros: FiltrosProduto = {}): Promise<Pagi
   const parametros = new URLSearchParams()
   if (filtros.busca) parametros.set('busca', filtros.busca)
   if (filtros.categoria) parametros.set('categoria', filtros.categoria)
+  if (filtros.codigoInterno) parametros.set('codigoInterno', filtros.codigoInterno)
   if (filtros.incluirInativos) parametros.set('incluirInativos', 'true')
   if (filtros.pagina && filtros.pagina > 1) parametros.set('pagina', String(filtros.pagina))
 
   const consulta = parametros.toString()
   return requisitarApi<PaginaDeProdutos>(`/produtos${consulta ? `?${consulta}` : ''}`)
+}
+
+/**
+ * O produto do catálogo com exatamente este código interno, ativo ou não, ou
+ * `null` (T48). É como o Recebimento acha o produto do código de barras lido
+ * na câmera: sem a consulta externa de T47, porque só se recebe produto que já
+ * está no catálogo. Inativo volta também, para a tela dizer por que ele não
+ * pode ser escolhido.
+ */
+export async function buscarProdutoPeloCodigo(codigo: string): Promise<Produto | null> {
+  const { produtos } = await listarProdutos({ codigoInterno: codigo, incluirInativos: true })
+  return produtos[0] ?? null
 }
 
 /** As categorias que já existem no catálogo, na ordem em que o servidor as devolve (T45). */

@@ -374,12 +374,21 @@ no SI5 e pôr o token em `SI5_TOKEN`, no `.env` e no projeto do backend na Verce
 
 | ID | Tarefa | Status | Depende de | Arquivo de detalhe |
 |---|---|---|---|---|
-| T48 | Recebimento: escolher o produto pela leitura do código de barras (câmera no celular) | pendente | T47, T28 | `tasks/T48-recebimento-leitura-codigo-de-barras.md` |
+| T48 | Recebimento: escolher o produto pela leitura do código de barras (câmera no celular) | concluída | T47, T28 | `tasks/T48-recebimento-leitura-codigo-de-barras.md` |
 
 **T48 (2026-11-12).** Pedido do orientando em 2026-11-11, durante T47, como tarefa separada e
 feita depois dela: no Recebimento, além de procurar o produto por nome ou código no seletor
 (T28), ler o código de barras da embalagem pela câmera do celular. O backend ganha o filtro
 exato `codigoInterno` em `GET /produtos`, e a consulta externa de T47 fica fora do Recebimento.
+
+**Estado de T48 (2026-11-12).** Concluída. No celular, "Ler código de barras" abaixo do seletor
+do Recebimento abre a câmera em leitura única, só para EAN/UPC. O código lido é procurado com
+`GET /produtos?codigoInterno=…&incluirInativos=true`:
+- produto ativo vira o escolhido no seletor, com uma nota curta;
+- produto inativo ou inexistente não escolhe nada, e um aviso leva ao Catálogo.
+
+O seletor continua igual e serve de alternativa. Decisões em `docs/decisoes.md` (T48); capturas
+em `docs/redesign/T48/`.
 
 ---
 
@@ -398,6 +407,7 @@ Não são tarefas de código e não bloqueiam a implementação, mas precisam ac
 | ~~Ao concluir T10~~ **resolvido em T10** | ~~Conferir que a tela gera um `sessaoVendaId` por atendimento e o envia em todas as leituras do ciclo~~ — virou teste automatizado (`TelaLeituraQr.test.tsx`): agrupador estável entre leituras, presente também na bloqueada, e trocado só ao encerrar o atendimento | — |
 | Com o token do SI5 criado — T47 concluída | Consulta pelo código de barras de verdade: com `SI5_TOKEN` no `.env` (e depois na Vercel), buscar em **Catálogo → Novo produto** uns 15 EANs da planilha real que ainda não estejam cadastrados (consulta que dá 404 não gasta cota) e anotar quantos a base achou, e se nome, marca e categoria vieram aproveitáveis. A taxa de acerto vai para `docs/notas-para-artigo.md` (T47) | A cobertura da base para os produtos da loja não está medida: o fluxo foi conferido só com resposta simulada e com a consulta desligada |
 | Junto com o teste da câmera — T47 concluída | No celular real, em **Catálogo → Novo produto → Ler com a câmera**, ler o código de barras de uma embalagem (EAN-13): a câmera desliga sozinha, o código aparece no campo e a consulta sai. Conferir também que ela **não** lê a etiqueta QR de uma unidade | A leitura de código de barras pela câmera só foi testada com dublê; o navegador automatizado não tem câmera |
+| Junto com o teste da câmera — T48 concluída | No celular real, em **Recebimento → Ler código de barras**, ler a embalagem de um produto ativo do catálogo: ele deve aparecer escolhido no campo Produto, e o recebimento deve sair para ele. Ler também um código que o catálogo não tem e conferir o aviso | Mesma razão: a leitura no Recebimento só foi testada com dublê |
 | Quando os dados forem cedidos | Substituir o seed inventado pelo catálogo real da perfumaria | Apenas qualidade de demonstração |
 | Quando houver oportunidade | Reexercitar no navegador as telas de T03b (login) e T04 (catálogo), que ficaram sem conferência por falta de navegador compatível na época. O `playwright-cli` passou a encontrar um Chrome utilizável em T05 | Telas anteriores nunca vistas em navegador — foi assim que o defeito de CORS de T04 escapou |
 
